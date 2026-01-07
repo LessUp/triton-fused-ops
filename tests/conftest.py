@@ -2,7 +2,7 @@
 
 import pytest
 import torch
-from hypothesis import settings, Verbosity
+from hypothesis import Verbosity, settings
 
 # Configure hypothesis for property-based testing
 settings.register_profile("ci", max_examples=100, deadline=None)
@@ -40,7 +40,7 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "gpu" in item.keywords:
                 item.add_marker(skip_gpu)
-    
+
     if not config.getoption("--slow"):
         skip_slow = pytest.mark.skip(reason="need --slow option to run")
         for item in items:
