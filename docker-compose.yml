@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: triton-fused-ops:dev
+    container_name: triton-fused-ops-dev
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - .:/workspace
+    shm_size: '16gb'
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # For running tests
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: triton-fused-ops:dev
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - .:/workspace
+    shm_size: '16gb'
+    command: pytest tests/ -v
