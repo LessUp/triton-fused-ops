@@ -13,7 +13,7 @@ This library provides:
 Example usage:
     >>> import torch
     >>> from triton_ops import fused_rmsnorm_rope, fused_gated_mlp, fp8_gemm
-    >>> 
+    >>>
     >>> # Fused RMSNorm + RoPE
     >>> x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
     >>> weight = torch.ones(4096, device='cuda', dtype=torch.float16)
@@ -25,36 +25,13 @@ Example usage:
 __version__ = "0.1.0"
 
 # Core functional API
-from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope, FusedRMSNormRoPE
-from triton_ops.kernels.gated_mlp import fused_gated_mlp, FusedGatedMLP
-from triton_ops.kernels.fp8_gemm import fp8_gemm, FP8Linear
-from triton_ops.kernels.fp8_quantize import quantize_fp8, dequantize_fp8
-
-from triton_ops.models import (
-    TensorSpec,
-    RMSNormRoPEInput,
-    GatedMLPInput,
-    FP8GEMMInput,
-    KernelMetrics,
-    TuningResult,
-    FP8Format,
-)
-
-from triton_ops.exceptions import (
-    TritonKernelError,
-    ShapeMismatchError,
-    UnsupportedDtypeError,
-    NumericalOverflowError,
-    TuningFailedError,
-)
-
 # Auto-tuning framework
 from triton_ops.autotuner import (
-    TritonAutoTuner,
-    ConfigCache,
-    RMSNORM_ROPE_CONFIGS,
-    GATED_MLP_CONFIGS,
     FP8_GEMM_CONFIGS,
+    GATED_MLP_CONFIGS,
+    RMSNORM_ROPE_CONFIGS,
+    ConfigCache,
+    TritonAutoTuner,
 )
 
 # Benchmark suite
@@ -62,6 +39,26 @@ from triton_ops.benchmark import (
     BenchmarkSuite,
     CorrectnessVerifier,
     PerformanceReport,
+)
+from triton_ops.exceptions import (
+    NumericalOverflowError,
+    ShapeMismatchError,
+    TritonKernelError,
+    TuningFailedError,
+    UnsupportedDtypeError,
+)
+from triton_ops.kernels.fp8_gemm import FP8Linear, fp8_gemm
+from triton_ops.kernels.fp8_quantize import dequantize_fp8, quantize_fp8
+from triton_ops.kernels.gated_mlp import FusedGatedMLP, fused_gated_mlp
+from triton_ops.kernels.rmsnorm_rope import FusedRMSNormRoPE, fused_rmsnorm_rope
+from triton_ops.models import (
+    FP8Format,
+    FP8GEMMInput,
+    GatedMLPInput,
+    KernelMetrics,
+    RMSNormRoPEInput,
+    TensorSpec,
+    TuningResult,
 )
 
 __all__ = [
