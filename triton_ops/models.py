@@ -9,24 +9,25 @@ import torch
 @dataclass
 class TensorSpec:
     """Specification for input/output tensors.
-    
+
     Attributes:
         shape: Tuple of tensor dimensions
         dtype: PyTorch data type
         device: Device string (e.g., "cuda", "cpu")
         contiguous: Whether tensor must be contiguous
     """
+
     shape: Tuple[int, ...]
     dtype: torch.dtype
     device: str = "cuda"
     contiguous: bool = True
-    
+
     def validate(self, tensor: torch.Tensor) -> bool:
         """Validate a tensor against this specification.
-        
+
         Args:
             tensor: Tensor to validate
-            
+
         Returns:
             True if tensor matches specification
         """
@@ -39,13 +40,13 @@ class TensorSpec:
         if self.contiguous and not tensor.is_contiguous():
             return False
         return True
-    
+
     def create_tensor(self, fill_value: Optional[float] = None) -> torch.Tensor:
         """Create a tensor matching this specification.
-        
+
         Args:
             fill_value: Optional value to fill tensor with. If None, uses random values.
-            
+
         Returns:
             New tensor matching specification
         """
@@ -59,7 +60,7 @@ class TensorSpec:
 @dataclass
 class RMSNormRoPEInput:
     """Input specification for fused RMSNorm + RoPE.
-    
+
     Attributes:
         x: Input tensor spec [batch, seq_len, hidden_dim]
         weight: RMSNorm weight spec [hidden_dim]
@@ -67,12 +68,13 @@ class RMSNormRoPEInput:
         sin: Sine position embeddings [seq_len, head_dim]
         eps: Small constant for numerical stability
     """
+
     x: TensorSpec
     weight: TensorSpec
     cos: TensorSpec
     sin: TensorSpec
     eps: float = 1e-6
-    
+
     @classmethod
     def from_shapes(
         cls,
@@ -85,7 +87,7 @@ class RMSNormRoPEInput:
         eps: float = 1e-6,
     ) -> "RMSNormRoPEInput":
         """Create input specification from dimension parameters.
-        
+
         Args:
             batch_size: Batch size
             seq_len: Sequence length
@@ -94,7 +96,7 @@ class RMSNormRoPEInput:
             dtype: Data type
             device: Device string
             eps: Epsilon for RMSNorm
-            
+
         Returns:
             RMSNormRoPEInput specification
         """
@@ -110,18 +112,19 @@ class RMSNormRoPEInput:
 @dataclass
 class GatedMLPInput:
     """Input specification for fused Gated MLP.
-    
+
     Attributes:
         x: Input tensor spec [batch, seq_len, hidden_dim]
         gate_weight: Gate projection weight [intermediate_dim, hidden_dim]
         up_weight: Up projection weight [intermediate_dim, hidden_dim]
         activation: Activation function type ("silu" or "gelu")
     """
+
     x: TensorSpec
     gate_weight: TensorSpec
     up_weight: TensorSpec
     activation: Literal["silu", "gelu"] = "silu"
-    
+
     @classmethod
     def from_shapes(
         cls,
@@ -134,7 +137,7 @@ class GatedMLPInput:
         device: str = "cuda",
     ) -> "GatedMLPInput":
         """Create input specification from dimension parameters.
-        
+
         Args:
             batch_size: Batch size
             seq_len: Sequence length
@@ -143,7 +146,7 @@ class GatedMLPInput:
             activation: Activation function type
             dtype: Data type
             device: Device string
-            
+
         Returns:
             GatedMLPInput specification
         """
@@ -158,7 +161,7 @@ class GatedMLPInput:
 @dataclass
 class FP8GEMMInput:
     """Input specification for FP8 GEMM.
-    
+
     Attributes:
         a: First matrix spec [M, K] in FP8
         b: Second matrix spec [K, N] in FP8
@@ -166,12 +169,13 @@ class FP8GEMMInput:
         b_scale: Scaling factor for B
         output_dtype: Output data type (FP16 or BF16)
     """
+
     a: TensorSpec
     b: TensorSpec
     a_scale: TensorSpec
     b_scale: TensorSpec
     output_dtype: torch.dtype = torch.float16
-    
+
     @classmethod
     def from_shapes(
         cls,
@@ -182,20 +186,20 @@ class FP8GEMMInput:
         device: str = "cuda",
     ) -> "FP8GEMMInput":
         """Create input specification from matrix dimensions.
-        
+
         Args:
             M: Number of rows in A and C
             N: Number of columns in B and C
             K: Number of columns in A / rows in B
             output_dtype: Output data type
             device: Device string
-            
+
         Returns:
             FP8GEMMInput specification
         """
         # FP8 E4M3 is represented as torch.float8_e4m3fn if available, else uint8
-        fp8_dtype = getattr(torch, 'float8_e4m3fn', torch.uint8)
-        
+        fp8_dtype = getattr(torch, "float8_e4m3fn", torch.uint8)
+
         return cls(
             a=TensorSpec((M, K), fp8_dtype, device),
             b=TensorSpec((K, N), fp8_dtype, device),
@@ -208,18 +212,19 @@ class FP8GEMMInput:
 @dataclass
 class KernelMetrics:
     """Performance metrics for a kernel execution.
-    
+
     Attributes:
         latency_ms: Execution time in milliseconds
         throughput_tflops: Throughput in TFLOPS
         bandwidth_gbps: Memory bandwidth in GB/s
         bandwidth_utilization: Percentage of peak bandwidth utilized
     """
+
     latency_ms: float
     throughput_tflops: float
     bandwidth_gbps: float
     bandwidth_utilization: float
-    
+
     def __str__(self) -> str:
         """Return human-readable string representation."""
         return (
@@ -232,7 +237,7 @@ class KernelMetrics:
 @dataclass
 class TuningResult:
     """Result from auto-tuning.
-    
+
     Attributes:
         best_config: Optimal configuration parameters
         metrics: Performance metrics for best configuration
@@ -240,12 +245,13 @@ class TuningResult:
         problem_size: Problem size tuple used for tuning
         device: Device used for tuning
     """
+
     best_config: Dict[str, Any]
     metrics: KernelMetrics
     all_results: List[Tuple[Dict[str, Any], KernelMetrics]] = field(default_factory=list)
     problem_size: Optional[Tuple[int, ...]] = None
     device: Optional[str] = None
-    
+
     def __str__(self) -> str:
         """Return human-readable string representation."""
         config_str = ", ".join(f"{k}={v}" for k, v in self.best_config.items())
@@ -255,64 +261,66 @@ class TuningResult:
 @dataclass
 class FP8Format:
     """FP8 E4M3 format specification.
-    
+
     E4M3 format:
     - 1 sign bit
     - 4 exponent bits
     - 3 mantissa bits
-    
+
     Attributes:
         exponent_bits: Number of exponent bits (4 for E4M3)
         mantissa_bits: Number of mantissa bits (3 for E4M3)
         max_value: Maximum representable value
         min_normal: Smallest normal number
     """
+
     exponent_bits: int = 4
     mantissa_bits: int = 3
     max_value: float = 448.0
     min_normal: float = 2**-6
-    
+
     @staticmethod
     def compute_scale(tensor: torch.Tensor) -> torch.Tensor:
         """Compute optimal scaling factor for FP8 conversion.
-        
+
         The scale is computed to map the tensor's range to FP8's representable range.
-        
+
         Args:
             tensor: Input tensor to compute scale for
-            
+
         Returns:
             Scaling factor tensor
         """
         max_abs = tensor.abs().max()
         if max_abs == 0:
             return torch.tensor(1.0, device=tensor.device, dtype=torch.float32)
-        return torch.tensor(FP8Format.max_value / max_abs.item(), 
-                          device=tensor.device, dtype=torch.float32)
-    
+        return torch.tensor(
+            FP8Format.max_value / max_abs.item(), device=tensor.device, dtype=torch.float32
+        )
+
     @staticmethod
     def compute_scale_per_channel(tensor: torch.Tensor, dim: int = 0) -> torch.Tensor:
         """Compute per-channel scaling factors for FP8 conversion.
-        
+
         Args:
             tensor: Input tensor to compute scales for
             dim: Dimension along which to compute scales
-            
+
         Returns:
             Per-channel scaling factors
         """
         max_abs = tensor.abs().amax(dim=dim, keepdim=True)
         max_abs = torch.where(max_abs == 0, torch.ones_like(max_abs), max_abs)
         return FP8Format.max_value / max_abs
-    
+
     @staticmethod
     def is_in_range(tensor: torch.Tensor, scale: torch.Tensor) -> bool:
         """Check if scaled tensor is within FP8 representable range.
-        
+
         Args:
             tensor: Input tensor
             scale: Scaling factor
-            
+
         Returns:
             True if all values are within range
         """
