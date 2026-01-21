@@ -143,7 +143,7 @@ def fused_gated_mlp_kernel(
     out_mask = (rows[:, None] < (batch_size * seq_len)) & (cols[None, :] < intermediate_dim)
 
     # Convert to output dtype
-    tl.store(out_ptrs, output.to(tl.float16), mask=out_mask)
+    tl.store(out_ptrs, output.to(x_block.dtype), mask=out_mask)
 
 
 def fused_gated_mlp(
