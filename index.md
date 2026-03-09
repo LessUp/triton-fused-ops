@@ -1,6 +1,7 @@
 ---
 layout: default
-title: Triton Fused Ops
+title: "Triton Fused Ops — 高性能 Triton 算子库"
+description: "支持 RMSNorm+RoPE 融合 · Gated MLP 融合 · FP8 GEMM · Auto-Tuning，专为 Transformer 模型优化"
 ---
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/LessUp/triton-fused-ops/blob/main/LICENSE)
@@ -150,9 +151,20 @@ python -m tests.benchmarks.bench_fp8_gemm
 
 ---
 
+## 最近更新
+
+| 日期 | 变更 |
+|------|------|
+| 2026-03-10 | GitHub Pages 优化 — SEO 元数据、kramdown GFM、sparse checkout、changelog 索引 |
+| 2026-03-09 | **v0.2.0 重大重构** — SwiGLU 正确性修复、FP8Linear 权重转置缓存、RMSNorm batch_idx 修复 |
+
+[查看完整更新日志 →](changelog/)
+
+---
+
 ## 链接
 
 - [完整 README](README.md)
-- [变更日志](CHANGELOG.md)
+- [更新日志](changelog/) · [CHANGELOG.md](CHANGELOG.md)
 - [贡献指南](CONTRIBUTING.md)
 - [行为准则](CODE_OF_CONDUCT.md)

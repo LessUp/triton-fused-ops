@@ -3,6 +3,18 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'index.md'
+      - 'docs/**'
+      - 'changelog/**'
+      - '_config.yml'
+      - 'README.md'
+      - 'README.zh-CN.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'LICENSE'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,10 +28,24 @@ concurrency:
 
 jobs:
   build:
+    name: Build Pages
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (sparse — skip source code)
         uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            index.md
+            _config.yml
+            README.md
+            README.zh-CN.md
+            CHANGELOG.md
+            CONTRIBUTING.md
+            CODE_OF_CONDUCT.md
+            LICENSE
+            docs
+            changelog
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -34,6 +60,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
 
   deploy:
+    name: Deploy Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

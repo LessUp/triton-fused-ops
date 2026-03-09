@@ -3,5 +3,54 @@ description: 高性能 Triton 算子库 — RMSNorm+RoPE 融合 · Gated MLP 融
 remote_theme: pages-themes/cayman@v0.2.0
 plugins:
   - jekyll-remote-theme
+  - jekyll-seo-tag
 repository: LessUp/triton-fused-ops
 show_downloads: false
+
+# SEO & metadata
+url: https://lessup.github.io
+baseurl: /triton-fused-ops
+lang: zh-CN
+author: LessUp
+
+# Markdown rendering
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+# Default layout for all pages
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+  - scope:
+      path: "changelog"
+    values:
+      layout: default
+
+# Exclude large / irrelevant files from Jekyll build
+exclude:
+  - .git
+  - .github
+  - .venv
+  - .pytest_cache
+  - .hypothesis
+  - .triton
+  - __pycache__
+  - "*.egg-info"
+  - dist
+  - triton_ops
+  - tests
+  - examples
+  - Dockerfile
+  - docker-compose.yml
+  - pyproject.toml
+  - .editorconfig
+  - .gitignore
+  - .pre-commit-config.yaml
+  - Gemfile
+  - Gemfile.lock
+  - vendor

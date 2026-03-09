@@ -1,11 +1,13 @@
 # Triton Fused Operators Library
 
-[English](README.md) | 简体中文
-
+[![CI](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml)
+[![Pages](https://github.com/LessUp/triton-fused-ops/actions/workflows/pages.yml/badge.svg)](https://lessup.github.io/triton-fused-ops/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)
 ![Triton](https://img.shields.io/badge/Triton-2.1+-76B900?logo=nvidia&logoColor=white)
+
+[English](README.md) | 简体中文 | [项目主页](https://lessup.github.io/triton-fused-ops/)
 
 高性能 Triton 算子库，专为 Transformer 模型优化，支持算子融合和 FP8 量化。
 

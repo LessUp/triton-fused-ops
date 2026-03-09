@@ -1,3 +1,7 @@
+---
+title: "v0.2.0 — Major Refactoring (2026-03-09)"
+---
+
 # Major Refactoring - v0.2.0
 
 Date: 2026-03-09

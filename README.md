@@ -1,11 +1,13 @@
 # Triton Fused Operators Library
 
+[![CI](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml)
+[![Pages](https://github.com/LessUp/triton-fused-ops/actions/workflows/pages.yml/badge.svg)](https://lessup.github.io/triton-fused-ops/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)
 ![Triton](https://img.shields.io/badge/Triton-2.1+-76B900?logo=nvidia&logoColor=white)
 
-English | [简体中文](README.zh-CN.md)
+English | [简体中文](README.zh-CN.md) | [Project Page](https://lessup.github.io/triton-fused-ops/)
 
 High-performance Triton operator library optimized for Transformer models, featuring operator fusion and FP8 quantization.
 
