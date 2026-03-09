@@ -4,6 +4,8 @@ title: "Triton Fused Ops — 高性能 Triton 算子库"
 description: "支持 RMSNorm+RoPE 融合 · Gated MLP 融合 · FP8 GEMM · Auto-Tuning，专为 Transformer 模型优化"
 ---
 
+[![CI](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/LessUp/triton-fused-ops/actions/workflows/ci.yml)
+[![Pages](https://github.com/LessUp/triton-fused-ops/actions/workflows/pages.yml/badge.svg)](https://lessup.github.io/triton-fused-ops/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/LessUp/triton-fused-ops/blob/main/LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)

@@ -1,3 +1,11 @@
+---
+layout: default
+title: "贡献指南 — Triton Fused Ops"
+description: "Triton Fused Ops 项目贡献流程、代码规范与提交信息格式"
+---
+
+[← 返回首页]({{ site.baseurl }}/)
+
 # Contributing
 
 感谢你对本项目的关注！欢迎通过 Issue 和 Pull Request 参与贡献。

@@ -1,3 +1,11 @@
+---
+layout: default
+title: "行为准则 — Triton Fused Ops"
+description: "Contributor Covenant Code of Conduct v2.1"
+---
+
+[← 返回首页]({{ site.baseurl }}/)
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

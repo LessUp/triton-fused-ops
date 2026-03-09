@@ -1,3 +1,11 @@
+---
+layout: default
+title: "Changelog — Triton Fused Ops"
+description: "Triton Fused Ops 完整变更日志（Keep a Changelog 格式）"
+---
+
+[← 返回首页]({{ site.baseurl }}/)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
