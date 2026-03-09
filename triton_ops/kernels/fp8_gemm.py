@@ -262,11 +262,13 @@ class FP8Linear(torch.nn.Module):
         self._quantized = False
 
     def quantize_weights(self):
-        """Quantize weights to FP8 format."""
+        """Quantize weights to FP8 format and cache the transposed version."""
         if not self._quantized:
             weight_fp8, weight_scale = quantize_fp8(self.weight.data)
             self.weight_fp8 = weight_fp8
             self.weight_scale = weight_scale
+            # Pre-transpose and cache — avoids .t().contiguous() on every forward
+            self.register_buffer("weight_fp8_t", weight_fp8.t().contiguous())
             self._quantized = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -288,13 +290,10 @@ class FP8Linear(torch.nn.Module):
         # Quantize input
         x_fp8, x_scale = quantize_fp8(x_2d)
 
-        # FP8 GEMM: x @ weight.T
-        # Note: weight is [out, in], we need [in, out] for x @ W
-        weight_t = self.weight_fp8.t().contiguous()
-
+        # FP8 GEMM: x @ weight.T (pre-transposed and cached)
         output = fp8_gemm(
             x_fp8,
-            weight_t,
+            self.weight_fp8_t,
             x_scale,
             self.weight_scale,
             output_dtype=x.dtype,

@@ -34,9 +34,8 @@ def rmsnorm_kernel(
 
     Each program instance processes one row (one position in one batch).
     """
-    # Get row index
+    # Get row index — each program processes one row (one position in the batch*seq grid)
     row_idx = tl.program_id(0)
-    batch_idx = row_idx // tl.cdiv(hidden_dim, BLOCK_SIZE)
 
     # Compute row start pointer
     row_start = x_ptr + row_idx * stride_x_seq

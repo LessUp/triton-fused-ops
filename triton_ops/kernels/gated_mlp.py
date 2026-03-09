@@ -124,14 +124,15 @@ def fused_gated_mlp_kernel(
         gate_acc += tl.dot(x_block.to(tl.float32), gw_block.to(tl.float32))
         up_acc += tl.dot(x_block.to(tl.float32), uw_block.to(tl.float32))
 
-    # Apply activation to up projection
+    # Apply activation to gate projection (standard LLaMA/Mistral SwiGLU formula)
+    # output = activation(gate_proj(x)) * up_proj(x)
     if activation_type == 0:
-        up_activated = silu(up_acc)
+        gate_activated = silu(gate_acc)
     else:
-        up_activated = gelu(up_acc)
+        gate_activated = gelu(gate_acc)
 
     # Compute gated output
-    output = gate_acc * up_activated
+    output = gate_activated * up_acc
 
     # Store output
     out_ptrs = (
@@ -239,14 +240,14 @@ def gated_mlp_reference(
     gate = torch.nn.functional.linear(x.float(), gate_weight.float())
     up = torch.nn.functional.linear(x.float(), up_weight.float())
 
-    # Apply activation
+    # Apply activation to gate projection (standard SwiGLU)
     if activation == "silu":
-        up_activated = torch.nn.functional.silu(up)
+        gate_activated = torch.nn.functional.silu(gate)
     else:
-        up_activated = torch.nn.functional.gelu(up)
+        gate_activated = torch.nn.functional.gelu(gate)
 
-    # Gated output
-    output = gate * up_activated
+    # Gated output: activation(gate_proj(x)) * up_proj(x)
+    output = gate_activated * up
 
     return output.to(x.dtype)
 

@@ -22,7 +22,7 @@ Example usage:
     >>> output = fused_rmsnorm_rope(x, weight, cos, sin)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Core functional API
 # Auto-tuning framework
