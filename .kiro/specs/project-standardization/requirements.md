@@ -1,101 +1,129 @@
 # Requirements Document
 
+> **Status:** ✅ Complete
+> **Last Updated:** 2026-04-16
+
+---
+
 ## Introduction
 
-本项目旨在将现有的 Triton Fused Operators Library 整理完善为一个规范的、高质量的开源项目。目标是遵循开源社区最佳实践，提升项目的可维护性、可发现性和贡献者友好度，使其达到优秀开源项目的标准。
+本项目旨在将 Triton Fused Operators Library 整理完善为一个规范的、高质量的开源项目。目标是遵循开源社区最佳实践，提升项目的可维护性、可发现性和贡献者友好度。
 
-## Glossary
-
-- **Open_Source_Project**: 遵循开源许可证发布、允许公众查看、使用、修改和分发的软件项目
-- **README**: 项目根目录下的说明文档，是用户了解项目的第一入口
-- **CONTRIBUTING**: 贡献指南文档，说明如何参与项目开发
-- **CODE_OF_CONDUCT**: 行为准则文档，定义社区参与者的行为规范
-- **CHANGELOG**: 变更日志，记录项目版本更新历史
-- **LICENSE**: 许可证文件，定义软件的使用和分发条款
-- **CI_CD**: 持续集成/持续部署，自动化测试和发布流程
-- **Documentation**: 项目文档，包括 API 文档、使用指南等
-- **Type_Hints**: Python 类型注解，提升代码可读性和 IDE 支持
-- **Docstring**: 函数/类的文档字符串，描述其用途和参数
+---
 
 ## Requirements
 
 ### Requirement 1: 项目文档完善
 
-**User Story:** As a potential user or contributor, I want comprehensive documentation, so that I can understand and use the project effectively.
+**User Story:** As a potential user, I want comprehensive documentation, so that I can understand and use the project effectively.
 
 #### Acceptance Criteria
 
-1. THE README SHALL include project badges showing build status, Python version, and license
-2. THE README SHALL include a clear project description in both English and Chinese
-3. THE README SHALL include installation instructions for different scenarios (pip, development mode)
-4. THE README SHALL include comprehensive usage examples with code snippets
-5. THE README SHALL include a performance comparison table with baseline implementations
-6. THE README SHALL include hardware requirements and compatibility information
-7. WHEN a user visits the repository, THE README SHALL provide quick navigation to key sections
+| ID | Criteria | Status |
+|----|----------|--------|
+| 1.1 | README SHALL include project badges | ✅ |
+| 1.2 | README SHALL include bilingual description (EN/CN) | ✅ |
+| 1.3 | README SHALL include installation instructions | ✅ |
+| 1.4 | README SHALL include usage examples with code | ✅ |
+| 1.5 | README SHALL include performance comparison table | ✅ |
+| 1.6 | README SHALL include hardware requirements | ✅ |
+| 1.7 | README SHALL provide quick navigation | ✅ |
+
+---
 
 ### Requirement 2: 开源社区文件
 
-**User Story:** As a potential contributor, I want clear contribution guidelines, so that I can participate in the project development.
+**User Story:** As a potential contributor, I want clear contribution guidelines, so that I can participate in development.
 
 #### Acceptance Criteria
 
-1. THE Open_Source_Project SHALL include a CONTRIBUTING.md file with contribution guidelines
-2. THE CONTRIBUTING.md SHALL describe the development setup process
-3. THE CONTRIBUTING.md SHALL describe the code style and formatting requirements
-4. THE CONTRIBUTING.md SHALL describe the pull request process
-5. THE Open_Source_Project SHALL include a CODE_OF_CONDUCT.md file
-6. THE Open_Source_Project SHALL include a CHANGELOG.md file following Keep a Changelog format
-7. THE Open_Source_Project SHALL include a LICENSE file with MIT license text
-8. THE Open_Source_Project SHALL include issue and pull request templates
+| ID | Criteria | Status |
+|----|----------|--------|
+| 2.1 | SHALL include CONTRIBUTING.md | ✅ |
+| 2.2 | CONTRIBUTING.md SHALL describe development setup | ✅ |
+| 2.3 | CONTRIBUTING.md SHALL describe code style requirements | ✅ |
+| 2.4 | CONTRIBUTING.md SHALL describe PR process | ✅ |
+| 2.5 | SHALL include CODE_OF_CONDUCT.md | ✅ |
+| 2.6 | SHALL include CHANGELOG.md (Keep a Changelog format) | ✅ |
+| 2.7 | SHALL include LICENSE (MIT) | ✅ |
+| 2.8 | SHALL include issue and PR templates | ✅ |
+
+---
 
 ### Requirement 3: CI/CD 配置
 
-**User Story:** As a maintainer, I want automated testing and quality checks, so that I can ensure code quality consistently.
+**User Story:** As a maintainer, I want automated testing, so that I can ensure code quality.
 
 #### Acceptance Criteria
 
-1. THE CI_CD pipeline SHALL run tests on every pull request
-2. THE CI_CD pipeline SHALL run linting checks (ruff, black)
-3. THE CI_CD pipeline SHALL run type checking (mypy)
-4. THE CI_CD pipeline SHALL support multiple Python versions (3.9, 3.10, 3.11)
-5. THE CI_CD pipeline SHALL generate test coverage reports
-6. WHEN tests fail, THE CI_CD pipeline SHALL block the pull request merge
+| ID | Criteria | Status |
+|----|----------|--------|
+| 3.1 | CI SHALL run tests on every PR | ✅ |
+| 3.2 | CI SHALL run linting (ruff) | ✅ |
+| 3.3 | CI SHALL run type checking (mypy) | ✅ |
+| 3.4 | CI SHALL support Python 3.9, 3.10, 3.11 | ✅ |
+| 3.5 | CI SHALL generate coverage reports | ✅ |
+| 3.6 | CI SHALL block merge on failure | ✅ |
+
+---
 
 ### Requirement 4: 代码质量提升
 
-**User Story:** As a developer, I want well-documented and type-annotated code, so that I can understand and maintain it easily.
+**User Story:** As a developer, I want well-documented code, so that I can maintain it easily.
 
 #### Acceptance Criteria
 
-1. THE codebase SHALL have complete type hints for all public functions and methods
-2. THE codebase SHALL have comprehensive docstrings following Google style
-3. THE codebase SHALL pass ruff linting without errors
-4. THE codebase SHALL pass mypy type checking without errors
-5. THE codebase SHALL have consistent code formatting via black
-6. WHEN a function is public, THE function SHALL have a docstring with Args, Returns, and Example sections
+| ID | Criteria | Status |
+|----|----------|--------|
+| 4.1 | SHALL have complete type hints for public APIs | ✅ |
+| 4.2 | SHALL have comprehensive docstrings (Google style) | ✅ |
+| 4.3 | SHALL pass ruff linting | ✅ |
+| 4.4 | SHALL pass mypy type checking | ✅ |
+| 4.5 | SHALL have consistent formatting (black/ruff) | ✅ |
+| 4.6 | Public functions SHALL have docstrings with Args, Returns, Example | ✅ |
+
+---
 
 ### Requirement 5: 包发布准备
 
-**User Story:** As a user, I want to install the package from PyPI, so that I can easily integrate it into my projects.
+**User Story:** As a user, I want to install from PyPI, so that I can easily integrate the package.
 
 #### Acceptance Criteria
 
-1. THE pyproject.toml SHALL include complete package metadata (author, URLs, classifiers)
-2. THE pyproject.toml SHALL specify all required and optional dependencies accurately
-3. THE package SHALL include a py.typed marker file for PEP 561 compliance
-4. THE package SHALL have a proper __version__ attribute accessible at runtime
-5. THE package SHALL include all necessary files in the distribution (README, LICENSE)
-6. WHEN installed, THE package SHALL be importable without errors
+| ID | Criteria | Status |
+|----|----------|--------|
+| 5.1 | pyproject.toml SHALL include complete metadata | ✅ |
+| 5.2 | pyproject.toml SHALL specify all dependencies | ✅ |
+| 5.3 | Package SHALL include py.typed marker | ✅ |
+| 5.4 | Package SHALL have __version__ attribute | ✅ |
+| 5.5 | Package SHALL include README, LICENSE in distribution | ✅ |
+| 5.6 | Package SHALL be importable without errors | ✅ |
+
+---
 
 ### Requirement 6: 示例和教程
 
-**User Story:** As a new user, I want example scripts and tutorials, so that I can learn how to use the library quickly.
+**User Story:** As a new user, I want example scripts, so that I can learn how to use the library.
 
 #### Acceptance Criteria
 
-1. THE Open_Source_Project SHALL include an examples/ directory with runnable scripts
-2. THE examples SHALL cover all major features (RMSNorm+RoPE, Gated MLP, FP8 GEMM)
-3. THE examples SHALL include comments explaining each step
-4. THE examples SHALL be executable without modification on supported hardware
-5. WHEN a user runs an example, THE example SHALL produce meaningful output demonstrating the feature
+| ID | Criteria | Status |
+|----|----------|--------|
+| 6.1 | SHALL include examples/ directory | ✅ |
+| 6.2 | Examples SHALL cover all major features | ✅ |
+| 6.3 | Examples SHALL include explanatory comments | ✅ |
+| 6.4 | Examples SHALL be executable without modification | ✅ |
+| 6.5 | Examples SHALL produce meaningful output | ✅ |
 
+---
+
+## Implementation Status
+
+| Requirement | Status |
+|-------------|--------|
+| 1. 项目文档完善 | ✅ Complete |
+| 2. 开源社区文件 | ✅ Complete |
+| 3. CI/CD 配置 | ✅ Complete |
+| 4. 代码质量提升 | ✅ Complete |
+| 5. 包发布准备 | ✅ Complete |
+| 6. 示例和教程 | ✅ Complete |

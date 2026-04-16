@@ -2,8 +2,12 @@
 
 import hashlib
 import json
+import logging
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 
 
 class ConfigCache:
@@ -21,6 +25,7 @@ class ConfigCache:
     def __init__(self, cache_dir: Optional[str] = None):
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self._memory_cache: Dict[str, Dict[str, Any]] = {}
+        self._lock = threading.RLock()  # Thread-safe lock
 
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -62,9 +67,9 @@ class ConfigCache:
         """
         key = self._make_key(kernel_type, problem_size, device)
 
-        # Check memory cache first
-        if key in self._memory_cache:
-            return self._memory_cache[key].copy()
+        with self._lock:
+            if key in self._memory_cache:
+                return self._memory_cache[key].copy()
 
         # Check file cache
         if self.cache_dir:
@@ -74,10 +79,11 @@ class ConfigCache:
                     with open(cache_file) as f:
                         config = json.load(f)
                     # Store in memory cache for faster access
-                    self._memory_cache[key] = config
+                    with self._lock:
+                        self._memory_cache[key] = config
                     return config.copy()
-                except (OSError, json.JSONDecodeError):
-                    pass
+                except (OSError, json.JSONDecodeError) as e:
+                    _logger.debug("Failed to load cache file %s: %s", cache_file, e)
 
         return None
 
@@ -98,8 +104,8 @@ class ConfigCache:
         """
         key = self._make_key(kernel_type, problem_size, device)
 
-        # Store in memory cache
-        self._memory_cache[key] = config.copy()
+        with self._lock:
+            self._memory_cache[key] = config.copy()
 
         # Store in file cache
         if self.cache_dir:
@@ -107,19 +113,20 @@ class ConfigCache:
             try:
                 with open(cache_file, "w") as f:
                     json.dump(config, f, indent=2)
-            except OSError:
-                pass  # Silently fail file writes
+            except OSError as e:
+                _logger.warning("Failed to write cache file %s: %s", cache_file, e)
 
     def clear(self) -> None:
         """Clear all cached configurations."""
-        self._memory_cache.clear()
+        with self._lock:
+            self._memory_cache.clear()
 
         if self.cache_dir and self.cache_dir.exists():
             for cache_file in self.cache_dir.glob("*.json"):
                 try:
                     cache_file.unlink()
-                except OSError:
-                    pass
+                except OSError as e:
+                    _logger.debug("Failed to delete cache file %s: %s", cache_file, e)
 
     def get_all_keys(self) -> list:
         """Get all cached keys.

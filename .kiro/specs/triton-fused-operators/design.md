@@ -1,14 +1,25 @@
 # Design Document: Triton Fused Operators Library
 
+> **Status:** ✅ Implemented
+> **Version:** 0.2.0
+> **Last Updated:** 2026-03-09
+
+---
+
 ## Overview
 
 本设计文档描述了一套高性能 Triton 算子库的架构和实现细节。该库针对 Transformer 模型的解码阶段进行优化，通过算子融合减少 HBM 访问次数，并通过 FP8 量化提升计算吞吐量。
 
-核心设计原则：
-- **最小化内存访问**: 通过算子融合，将多次 HBM 读写合并为单次
-- **最大化计算密度**: 利用 Triton 的块级并行和寄存器复用
-- **灵活的精度支持**: 支持 FP32、FP16、BF16、FP8 多种精度
-- **自动调优**: 通过参数搜索找到最优的 kernel 配置
+### 核心设计原则
+
+| 原则 | 说明 |
+|------|------|
+| **最小化内存访问** | 通过算子融合，将多次 HBM 读写合并为单次 |
+| **最大化计算密度** | 利用 Triton 的块级并行和寄存器复用 |
+| **灵活的精度支持** | 支持 FP32、FP16、BF16、FP8 多种精度 |
+| **自动调优** | 通过参数搜索找到最优的 kernel 配置 |
+
+---
 
 ## Architecture
 
@@ -38,47 +49,15 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Components and Interfaces
+---
+
+## Components
 
 ### 1. Fused RMSNorm + RoPE Kernel
 
-#### Interface
+**Purpose:** 将 RMSNorm 和 RoPE 合并为单个内核，减少 HBM 访问。
 
-```python
-@triton.jit
-def fused_rmsnorm_rope_kernel(
-    # Input/Output pointers
-    x_ptr,              # [batch, seq_len, hidden_dim]
-    output_ptr,         # [batch, seq_len, hidden_dim]
-    weight_ptr,         # [hidden_dim]
-    cos_ptr,            # [seq_len, head_dim]
-    sin_ptr,            # [seq_len, head_dim]
-    # Dimensions
-    batch_size,
-    seq_len,
-    hidden_dim,
-    head_dim,
-    num_heads,
-    eps: tl.constexpr,
-    # Block sizes
-    BLOCK_SIZE: tl.constexpr,
-):
-    """
-    Fused RMSNorm + RoPE kernel.
-    
-    Step 1: RMSNorm
-      - Compute variance: var = mean(x^2)
-      - Normalize: x_norm = x * rsqrt(var + eps) * weight
-    
-    Step 2: RoPE
-      - Split x_norm into pairs for rotation
-      - Apply: x_rope = x_norm * cos + rotate_half(x_norm) * sin
-    """
-    pass
-```
-
-#### Memory Access Pattern
-
+**Memory Access Pattern:**
 ```
 Without Fusion (3 HBM accesses):
   HBM → RMSNorm → HBM → RoPE → HBM
@@ -87,149 +66,62 @@ With Fusion (1 HBM access):
   HBM → [RMSNorm + RoPE in registers] → HBM
 ```
 
+**Mathematical Formula:**
+```
+RMSNorm: y = x * rsqrt(mean(x^2) + eps) * weight
+RoPE:    y_rope = y * cos + rotate_half(y) * sin
+```
+
+**Status:** ✅ Implemented in `triton_ops/kernels/rmsnorm_rope.py`
+
+---
+
 ### 2. Fused Gated MLP Kernel
 
-#### Interface
+**Purpose:** 将门控投影、上投影和激活函数融合为单个内核。
 
-```python
-@triton.jit
-def fused_gated_mlp_kernel(
-    # Input/Output pointers
-    x_ptr,              # [batch, seq_len, hidden_dim]
-    gate_weight_ptr,    # [intermediate_dim, hidden_dim]
-    up_weight_ptr,      # [intermediate_dim, hidden_dim]
-    output_ptr,         # [batch, seq_len, intermediate_dim]
-    # Dimensions
-    batch_size,
-    seq_len,
-    hidden_dim,
-    intermediate_dim,
-    # Activation type
-    activation: tl.constexpr,  # 0=SiLU, 1=GELU
-    # Block sizes
-    BLOCK_M: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-    BLOCK_K: tl.constexpr,
-):
-    """
-    Fused Gated MLP: output = gate_proj(x) * activation(up_proj(x))
-    
-    Fuses two matrix multiplications with element-wise activation.
-    """
-    pass
+**Mathematical Formula:**
 ```
+output = activation(gate_proj(x)) * up_proj(x)
+
+SiLU: silu(x) = x * sigmoid(x)
+GELU: gelu(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
+```
+
+**Status:** ✅ Implemented in `triton_ops/kernels/gated_mlp.py`
+
+> **Note:** v0.2.0 修复了激活函数应用顺序的 Bug。
+
+---
 
 ### 3. FP8 GEMM Kernel
 
-#### Interface
+**Purpose:** 使用 FP8 格式进行矩阵乘法，减少显存占用并提升吞吐量。
 
-```python
-@triton.jit
-def fp8_gemm_kernel(
-    # Input pointers (FP8 format)
-    a_ptr,              # [M, K] in FP8 E4M3
-    b_ptr,              # [K, N] in FP8 E4M3
-    c_ptr,              # [M, N] output in FP16/BF16
-    # Scaling factors
-    a_scale_ptr,        # Per-tensor or per-channel scale for A
-    b_scale_ptr,        # Per-tensor or per-channel scale for B
-    # Dimensions
-    M, N, K,
-    # Strides
-    stride_am, stride_ak,
-    stride_bk, stride_bn,
-    stride_cm, stride_cn,
-    # Configuration
-    BLOCK_M: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-    BLOCK_K: tl.constexpr,
-    GROUP_SIZE_M: tl.constexpr,
-):
-    """
-    FP8 Matrix Multiplication with dynamic scaling.
-    
-    - Inputs: FP8 E4M3 format
-    - Accumulation: FP32 for numerical stability
-    - Output: FP16 or BF16
-    - Uses block pointers for efficient memory access
-    """
-    pass
-```
+**FP8 E4M3 Format:**
+| Property | Value |
+|----------|-------|
+| Sign bits | 1 |
+| Exponent bits | 4 |
+| Mantissa bits | 3 |
+| Max value | 448.0 |
+| Min normal | 2⁻⁶ |
 
-#### FP8 Quantization Utilities
+**Features:**
+- FP8 E4M3 输入格式
+- FP32 累加器保证数值稳定性
+- FP16/BF16 输出
+- 动态缩放因子
 
-```python
-@triton.jit
-def quantize_fp8_kernel(
-    input_ptr,          # FP16/BF16 input
-    output_ptr,         # FP8 output
-    scale_ptr,          # Output scale factor
-    numel,
-    BLOCK_SIZE: tl.constexpr,
-):
-    """
-    Quantize FP16/BF16 to FP8 with dynamic scaling.
-    
-    Algorithm:
-    1. Find max absolute value in block
-    2. Compute scale = max_fp8 / max_abs
-    3. Scale and convert to FP8
-    4. Handle overflow by adjusting scale
-    """
-    pass
+**Status:** ✅ Implemented in `triton_ops/kernels/fp8_gemm.py`
 
-@triton.jit
-def dequantize_fp8_kernel(
-    input_ptr,          # FP8 input
-    output_ptr,         # FP16/BF16 output
-    scale_ptr,          # Scale factor
-    numel,
-    BLOCK_SIZE: tl.constexpr,
-):
-    """Dequantize FP8 back to FP16/BF16."""
-    pass
-```
+---
 
 ### 4. Auto-Tuning Framework
 
-#### Interface
+**Purpose:** 自动搜索最优内核配置。
 
-```python
-class TritonAutoTuner:
-    """Auto-tuning framework for Triton kernels."""
-    
-    def __init__(
-        self,
-        kernel_fn: Callable,
-        config_space: Dict[str, List[Any]],
-        warmup_runs: int = 10,
-        benchmark_runs: int = 100,
-    ):
-        pass
-    
-    def tune(
-        self,
-        *args,
-        **kwargs,
-    ) -> TuningResult:
-        """
-        Search configuration space and return optimal config.
-        
-        Returns:
-            TuningResult with best_config, latency, throughput, bandwidth
-        """
-        pass
-    
-    def get_cached_config(
-        self,
-        problem_size: Tuple[int, ...],
-        device: str,
-    ) -> Optional[Dict[str, Any]]:
-        """Retrieve cached optimal configuration."""
-        pass
-```
-
-#### Configuration Space
+**Configuration Spaces:**
 
 ```python
 RMSNORM_ROPE_CONFIGS = {
@@ -256,308 +148,95 @@ FP8_GEMM_CONFIGS = {
 }
 ```
 
+**Status:** ✅ Implemented in `triton_ops/autotuner/`
+
+---
+
 ## Data Models
 
-### Tensor Specifications
+### Core Classes
 
-```python
-from dataclasses import dataclass
-from typing import Literal, Tuple
-import torch
+| Class | Purpose | Location |
+|-------|---------|----------|
+| `TensorSpec` | Tensor specification for validation | `models.py` |
+| `RMSNormRoPEInput` | Input spec for RMSNorm + RoPE | `models.py` |
+| `GatedMLPInput` | Input spec for Gated MLP | `models.py` |
+| `FP8GEMMInput` | Input spec for FP8 GEMM | `models.py` |
+| `KernelMetrics` | Performance metrics | `models.py` |
+| `TuningResult` | Auto-tuning result | `models.py` |
+| `FP8Format` | FP8 format specification | `models.py` |
 
-@dataclass
-class TensorSpec:
-    """Specification for input/output tensors."""
-    shape: Tuple[int, ...]
-    dtype: torch.dtype
-    device: str = "cuda"
-    contiguous: bool = True
+### Exception Hierarchy
 
-@dataclass
-class RMSNormRoPEInput:
-    """Input specification for fused RMSNorm + RoPE."""
-    x: TensorSpec           # [batch, seq_len, hidden_dim]
-    weight: TensorSpec      # [hidden_dim]
-    cos: TensorSpec         # [seq_len, head_dim]
-    sin: TensorSpec         # [seq_len, head_dim]
-    eps: float = 1e-6
-
-@dataclass
-class GatedMLPInput:
-    """Input specification for fused Gated MLP."""
-    x: TensorSpec           # [batch, seq_len, hidden_dim]
-    gate_weight: TensorSpec # [intermediate_dim, hidden_dim]
-    up_weight: TensorSpec   # [intermediate_dim, hidden_dim]
-    activation: Literal["silu", "gelu"] = "silu"
-
-@dataclass
-class FP8GEMMInput:
-    """Input specification for FP8 GEMM."""
-    a: TensorSpec           # [M, K] in FP8
-    b: TensorSpec           # [K, N] in FP8
-    a_scale: TensorSpec     # Scaling factor for A
-    b_scale: TensorSpec     # Scaling factor for B
-    output_dtype: torch.dtype = torch.float16
+```
+TritonKernelError (base)
+├── ShapeMismatchError
+├── UnsupportedDtypeError
+├── NumericalOverflowError
+├── TuningFailedError
+└── DeviceError
 ```
 
-### Performance Metrics
-
-```python
-@dataclass
-class KernelMetrics:
-    """Performance metrics for a kernel execution."""
-    latency_ms: float
-    throughput_tflops: float
-    bandwidth_gbps: float
-    bandwidth_utilization: float  # Percentage of peak
-    
-@dataclass
-class TuningResult:
-    """Result from auto-tuning."""
-    best_config: Dict[str, Any]
-    metrics: KernelMetrics
-    all_results: List[Tuple[Dict[str, Any], KernelMetrics]]
-```
-
-### FP8 Format Specification
-
-```python
-@dataclass
-class FP8Format:
-    """FP8 E4M3 format specification."""
-    exponent_bits: int = 4
-    mantissa_bits: int = 3
-    max_value: float = 448.0      # Max representable value
-    min_normal: float = 2**-6     # Smallest normal number
-    
-    @staticmethod
-    def compute_scale(tensor: torch.Tensor) -> torch.Tensor:
-        """Compute optimal scaling factor for FP8 conversion."""
-        max_abs = tensor.abs().max()
-        return FP8Format.max_value / max_abs
-```
+---
 
 ## Error Handling
 
 ### Input Validation
 
-```python
-def validate_rmsnorm_rope_inputs(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    cos: torch.Tensor,
-    sin: torch.Tensor,
-) -> None:
-    """
-    Validate inputs for RMSNorm + RoPE kernel.
-    
-    Raises:
-        ValueError: If tensor shapes are incompatible
-        TypeError: If tensor dtypes are unsupported
-        RuntimeError: If tensors are not on CUDA device
-    """
-    # Shape validation
-    if x.dim() != 3:
-        raise ValueError(f"Expected 3D input, got {x.dim()}D")
-    
-    batch, seq_len, hidden_dim = x.shape
-    
-    if weight.shape != (hidden_dim,):
-        raise ValueError(f"Weight shape mismatch: {weight.shape} vs ({hidden_dim},)")
-    
-    # Device validation
-    if not x.is_cuda:
-        raise RuntimeError("Input tensor must be on CUDA device")
-    
-    # Dtype validation
-    supported_dtypes = [torch.float16, torch.bfloat16, torch.float32]
-    if x.dtype not in supported_dtypes:
-        raise TypeError(f"Unsupported dtype: {x.dtype}")
-```
+所有内核函数在执行前进行输入验证：
+
+1. **Shape validation** — 确保张量形状兼容
+2. **Dtype validation** — 确保数据类型受支持
+3. **Device validation** — 确保张量在 CUDA 设备上
 
 ### Numerical Safety
 
-```python
-def handle_fp8_overflow(
-    tensor: torch.Tensor,
-    scale: torch.Tensor,
-    max_attempts: int = 3,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Handle FP8 overflow by dynamically adjusting scale.
-    
-    Algorithm:
-    1. Attempt quantization with current scale
-    2. If overflow detected, reduce scale by factor of 2
-    3. Repeat until no overflow or max attempts reached
-    
-    Returns:
-        Tuple of (quantized_tensor, final_scale)
-    """
-    for attempt in range(max_attempts):
-        quantized = quantize_to_fp8(tensor, scale)
-        if not has_overflow(quantized):
-            return quantized, scale
-        scale = scale / 2.0
-    
-    # Final attempt with conservative scale
-    return quantize_to_fp8(tensor, scale), scale
-```
+- FP8 量化支持动态溢出处理
+- NaN/Inf 值正确传播
+- 数值容差检查
 
-### Error Codes
-
-```python
-class TritonKernelError(Exception):
-    """Base exception for Triton kernel errors."""
-    pass
-
-class ShapeMismatchError(TritonKernelError):
-    """Raised when tensor shapes are incompatible."""
-    pass
-
-class UnsupportedDtypeError(TritonKernelError):
-    """Raised when tensor dtype is not supported."""
-    pass
-
-class NumericalOverflowError(TritonKernelError):
-    """Raised when numerical overflow cannot be handled."""
-    pass
-
-class TuningFailedError(TritonKernelError):
-    """Raised when auto-tuning fails to find valid configuration."""
-    pass
-```
-
-
+---
 
 ## Correctness Properties
 
-*A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
-
 ### Property 1: RMSNorm + RoPE Mathematical Correctness
 
-*For any* valid input tensor x, weight tensor w, and position embeddings (cos, sin), the fused RMSNorm + RoPE kernel output should be numerically equivalent (within floating-point tolerance) to the sequential application of:
-1. RMSNorm: `x_norm = x * rsqrt(mean(x^2) + eps) * w`
-2. RoPE: `x_rope = x_norm * cos + rotate_half(x_norm) * sin`
+融合内核输出应与顺序应用 RMSNorm + RoPE 数值等价（在浮点容差范围内）。
 
-**Validates: Requirements 1.1, 1.2**
+**Validates:** Requirements 1.1, 1.2
 
-### Property 2: Gated MLP Correctness with Activation Functions
+### Property 2: Gated MLP Correctness
 
-*For any* valid input tensor x, gate weights, up weights, and activation function (SiLU or GELU), the fused Gated MLP kernel output should be numerically equivalent to:
-`output = gate_proj(x) * activation(up_proj(x))`
+融合 Gated MLP 输出应与 `gate_proj(x) * activation(up_proj(x))` 数值等价。
 
-Where:
-- SiLU: `silu(x) = x * sigmoid(x)`
-- GELU: `gelu(x) = x * 0.5 * (1 + erf(x / sqrt(2)))`
+**Validates:** Requirements 2.1, 2.2, 2.3
 
-**Validates: Requirements 2.1, 2.2, 2.3**
+### Property 3: FP8 GEMM Accuracy
 
-### Property 3: Dimension Flexibility
+FP8 GEMM 结果与 FP16 基线相比，相对误差应在 1% 以内。
 
-*For any* valid combination of:
-- Sequence length in range [1, 8192]
-- Batch size in range [1, 64]
-- Supported hidden dimensions (2048, 4096, 8192)
-- Supported intermediate dimensions (5632, 11264, 22528)
+**Validates:** Requirements 3.1, 3.8
 
-The kernels should produce correct outputs without errors or crashes.
+### Property 4: FP8 Round-Trip
 
-**Validates: Requirements 1.3, 1.4, 2.4, 2.5**
+FP8 量化+反量化往返误差应在预期范围内。
 
-### Property 4: FP8 GEMM Correctness
+**Validates:** Requirements 3.4
 
-*For any* valid FP8 matrices A and B with appropriate scaling factors, the FP8 GEMM kernel should produce a result that, when compared to FP32 reference computation, has relative error bounded by the expected FP8 precision loss.
-
-**Validates: Requirements 3.1**
-
-### Property 5: FP8 Quantization Round-Trip
-
-*For any* valid FP16/BF16 tensor within the representable FP8 range, quantizing to FP8 and then dequantizing back should produce a result within the expected quantization error bounds:
-`|dequantize(quantize(x)) - x| <= max_quantization_error`
-
-**Validates: Requirements 3.4**
-
-### Property 6: FP8 Accuracy vs FP16 Baseline
-
-*For any* matrix multiplication problem, the FP8 GEMM result should have relative error within 1% compared to the FP16 baseline:
-`|fp8_gemm(A, B) - fp16_gemm(A, B)| / |fp16_gemm(A, B)| <= 0.01`
-
-**Validates: Requirements 3.8**
-
-### Property 7: Auto-Tuner Cache Consistency
-
-*For any* problem size and device configuration, if the auto-tuner has previously found an optimal configuration, retrieving the cached configuration should return the same configuration that was stored.
-
-**Validates: Requirements 4.5**
-
-### Property 8: Benchmark Correctness Verification
-
-*For any* kernel implementation and reference implementation, the benchmark suite's correctness verification should correctly identify:
-- Matching results (within tolerance) as correct
-- Non-matching results (outside tolerance) as incorrect
-
-**Validates: Requirements 5.3**
+---
 
 ## Testing Strategy
 
-### Dual Testing Approach
-
-本项目采用双重测试策略：
-
-1. **Unit Tests（单元测试）**: 验证特定示例、边界情况和错误条件
-2. **Property-Based Tests（属性测试）**: 验证所有输入上的通用属性
-
-两种测试互补，共同提供全面的覆盖。
-
-### Property-Based Testing Framework
-
-- **Framework**: [Hypothesis](https://hypothesis.readthedocs.io/) for Python
-- **Minimum iterations**: 100 per property test
-- **Tag format**: `Feature: triton-fused-operators, Property {number}: {property_text}`
-
 ### Test Categories
 
-#### 1. Correctness Tests (Property-Based)
+| Category | Purpose | Framework |
+|----------|---------|-----------|
+| **Property-Based Tests** | 验证通用正确性属性 | Hypothesis |
+| **Unit Tests** | 验证特定示例和边界情况 | pytest |
+| **Edge Case Tests** | 验证 NaN/Inf、空张量等 | pytest |
+| **Benchmark Tests** | 性能测量 | Custom |
 
-```python
-# Example property test structure
-@given(
-    batch_size=st.integers(min_value=1, max_value=64),
-    seq_len=st.integers(min_value=1, max_value=8192),
-    hidden_dim=st.sampled_from([2048, 4096, 8192]),
-)
-@settings(max_examples=100)
-def test_rmsnorm_rope_correctness(batch_size, seq_len, hidden_dim):
-    """
-    Feature: triton-fused-operators, Property 1: RMSNorm + RoPE Mathematical Correctness
-    Validates: Requirements 1.1, 1.2
-    """
-    # Generate random inputs
-    x = torch.randn(batch_size, seq_len, hidden_dim, device='cuda')
-    weight = torch.randn(hidden_dim, device='cuda')
-    # ... compute reference and compare
-```
-
-#### 2. Edge Case Tests (Unit Tests)
-
-- NaN/Inf propagation (Requirement 1.7)
-- FP8 overflow handling (Requirement 3.5)
-- Empty tensors
-- Single-element tensors
-
-#### 3. Integration Tests
-
-- Single kernel launch verification (Requirements 1.5, 2.6)
-- End-to-end pipeline tests
-
-#### 4. Performance Tests (Manual Verification)
-
-- Bandwidth utilization measurement (Requirement 1.6)
-- FLOPS measurement (Requirement 3.7)
-- Auto-tuning validation (Requirements 4.1-4.6)
-
-### Test File Organization
+### Test Files
 
 ```
 tests/
@@ -574,7 +253,7 @@ tests/
     └── bench_fp8_gemm.py
 ```
 
-### Numerical Tolerance Guidelines
+### Numerical Tolerances
 
 | Operation | Relative Tolerance | Absolute Tolerance |
 |-----------|-------------------|-------------------|
@@ -583,3 +262,11 @@ tests/
 | Gated MLP (FP16) | 1e-3 | 1e-5 |
 | FP8 GEMM vs FP16 | 1e-2 | 1e-4 |
 | FP8 Round-trip | 1e-2 | 1e-3 |
+
+---
+
+## References
+
+- [OpenAI Triton](https://github.com/openai/triton)
+- [FlashAttention](https://github.com/Dao-AILab/flash-attention)
+- [FP8 Formats for Deep Learning](https://arxiv.org/abs/2209.05433)

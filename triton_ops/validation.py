@@ -9,6 +9,7 @@ from triton_ops.exceptions import (
     ShapeMismatchError,
     UnsupportedDtypeError,
 )
+from triton_ops.utils import VALID_ACTIVATIONS
 
 # Supported dtypes for different operations
 SUPPORTED_DTYPES_FLOAT = [torch.float16, torch.bfloat16, torch.float32]
@@ -79,6 +80,29 @@ def _check_contiguous(tensor: torch.Tensor, tensor_name: str) -> None:
         raise ValueError(f"{tensor_name} must be contiguous")
 
 
+def _check_same_device(*tensors: Tuple[torch.Tensor, str]) -> None:
+    """Check that all tensors are on the same device.
+
+    Args:
+        *tensors: Tuples of (tensor, tensor_name)
+
+    Raises:
+        DeviceError: If tensors are on different devices
+    """
+    if len(tensors) < 2:
+        return
+    
+    first_device = tensors[0][0].device
+    for tensor, name in tensors[1:]:
+        if tensor.device != first_device:
+            raise DeviceError(
+                f"{name} is on {tensor.device} but expected {first_device}",
+                expected_device=str(first_device),
+                actual_device=str(tensor.device),
+                tensor_name=name,
+            )
+
+
 def validate_rmsnorm_rope_inputs(
     x: torch.Tensor,
     weight: torch.Tensor,
@@ -108,6 +132,9 @@ def validate_rmsnorm_rope_inputs(
     _check_cuda(weight, "weight")
     _check_cuda(cos, "cos")
     _check_cuda(sin, "sin")
+    
+    # Check all tensors on same device
+    _check_same_device((x, "x"), (weight, "weight"), (cos, "cos"), (sin, "sin"))
 
     # Check dtypes
     _check_dtype(x, "x", SUPPORTED_DTYPES_FLOAT)
@@ -118,6 +145,8 @@ def validate_rmsnorm_rope_inputs(
     # Check contiguous
     _check_contiguous(x, "x")
     _check_contiguous(weight, "weight")
+    _check_contiguous(cos, "cos")
+    _check_contiguous(sin, "sin")
 
     # Check x shape
     if x.dim() != 3:
@@ -207,6 +236,9 @@ def validate_gated_mlp_inputs(
     _check_cuda(x, "x")
     _check_cuda(gate_weight, "gate_weight")
     _check_cuda(up_weight, "up_weight")
+    
+    # Check all tensors on same device
+    _check_same_device((x, "x"), (gate_weight, "gate_weight"), (up_weight, "up_weight"))
 
     # Check dtypes
     _check_dtype(x, "x", SUPPORTED_DTYPES_FLOAT)
@@ -219,7 +251,7 @@ def validate_gated_mlp_inputs(
     _check_contiguous(up_weight, "up_weight")
 
     # Check activation
-    if activation not in ("silu", "gelu"):
+    if activation not in VALID_ACTIVATIONS:
         raise ValueError(f"activation must be 'silu' or 'gelu', got '{activation}'")
 
     # Check x shape
@@ -288,6 +320,9 @@ def validate_fp8_gemm_inputs(
     _check_cuda(b, "b")
     _check_cuda(a_scale, "a_scale")
     _check_cuda(b_scale, "b_scale")
+    
+    # Check all tensors on same device
+    _check_same_device((a, "a"), (b, "b"), (a_scale, "a_scale"), (b_scale, "b_scale"))
 
     # Check contiguous
     _check_contiguous(a, "a")
@@ -346,3 +381,55 @@ def validate_fp8_quantize_inputs(
 
     if scale is not None:
         _check_cuda(scale, "scale")
+        _check_dtype(scale, "scale", [torch.float32])
+        if scale.numel() != 1:
+            raise ShapeMismatchError(
+                f"scale must be a scalar tensor, got shape {scale.shape}",
+                expected=(),
+                actual=scale.shape,
+                tensor_name="scale",
+            )
+        if scale.item() <= 0:
+            raise ValueError(f"scale must be positive, got {scale.item()}")
+
+
+def validate_positive_dimensions(**dims: int) -> None:
+    """Validate that all dimensions are positive.
+
+    Args:
+        **dims: Dimension name-value pairs
+
+    Raises:
+        ValueError: If any dimension is not positive
+    """
+    for name, value in dims.items():
+        if value <= 0:
+            raise ValueError(f"{name} must be positive, got {value}")
+
+
+def validate_head_dim(head_dim: int) -> None:
+    """Validate that head_dim is even (required for RoPE rotation).
+
+    Args:
+        head_dim: Head dimension size
+
+    Raises:
+        ValueError: If head_dim is not even
+    """
+    if head_dim % 2 != 0:
+        raise ValueError(
+            f"head_dim must be even for RoPE rotation, got {head_dim}"
+        )
+
+
+def validate_eps(eps: float) -> None:
+    """Validate epsilon value for numerical stability.
+
+    Args:
+        eps: Epsilon value
+
+    Raises:
+        ValueError: If eps is not positive
+    """
+    if eps <= 0:
+        raise ValueError(f"eps must be positive, got {eps}")

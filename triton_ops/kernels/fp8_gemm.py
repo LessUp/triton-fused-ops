@@ -11,6 +11,7 @@ import torch
 import triton
 import triton.language as tl
 
+from triton_ops.exceptions import DeviceError
 from triton_ops.kernels.fp8_quantize import quantize_fp8
 from triton_ops.validation import validate_fp8_gemm_inputs
 
@@ -77,7 +78,9 @@ def fp8_gemm_kernel(
     # Load scale factors
     a_scale = tl.load(a_scale_ptr)
     b_scale = tl.load(b_scale_ptr)
-    inv_scale = 1.0 / (a_scale * b_scale)
+    # Avoid division by zero
+    scale_product = a_scale * b_scale
+    inv_scale = tl.where(scale_product != 0, 1.0 / scale_product, 0.0)
 
     # Pointers to first block of A and B
     a_ptrs = a_ptr + rm[:, None] * stride_am + rk[None, :] * stride_ak
@@ -137,10 +140,21 @@ def fp8_gemm(
         a_scale: Scale factor for A (required if A is FP8)
         b_scale: Scale factor for B (required if B is FP8)
         output_dtype: Output data type (float16 or bfloat16)
+        autotune: If True, use autotuner to find optimal block sizes (slower first run)
 
     Returns:
         Result matrix [M, N] in output_dtype
+
+    Raises:
+        DeviceError: If CUDA is not available
     """
+    # Check CUDA availability
+    if not torch.cuda.is_available():
+        raise DeviceError(
+            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
+            expected_device="cuda",
+            actual_device="cpu",
+        )
     # Handle float inputs by quantizing to FP8
     if a.dtype in [torch.float16, torch.bfloat16, torch.float32]:
         a, a_scale = quantize_fp8(a)
@@ -150,13 +164,26 @@ def fp8_gemm(
     # Validate inputs
     M, N, K = validate_fp8_gemm_inputs(a, b, a_scale, b_scale, output_dtype)
 
+    # Handle empty tensors
+    if M == 0 or N == 0 or K == 0:
+        return torch.empty(M, N, dtype=output_dtype, device=a.device)
+
     # Allocate output
     c = torch.empty(M, N, dtype=output_dtype, device=a.device)
 
-    # Block sizes
-    BLOCK_M = 64
-    BLOCK_N = 64
-    BLOCK_K = 32
+    # Select block sizes - use heuristics based on problem size for better performance
+    # Larger blocks for larger matrices
+    if M >= 2048 and N >= 2048:
+        BLOCK_M, BLOCK_N = 128, 128
+    elif M >= 1024 or N >= 1024:
+        BLOCK_M, BLOCK_N = 64, 128
+    else:
+        BLOCK_M, BLOCK_N = 64, 64
+
+    # K dimension block size
+    BLOCK_K = 64 if K >= 1024 else 32
+
+    # Group size for better L2 cache utilization
     GROUP_SIZE_M = 8
 
     # Grid size

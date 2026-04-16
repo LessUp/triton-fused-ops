@@ -1,5 +1,6 @@
 """Auto-tuning framework for Triton kernels."""
 
+import logging
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -9,6 +10,7 @@ from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
+from triton_ops.utils import MIN_LATENCY_MS, sync_cuda
 
 
 class TritonAutoTuner:
@@ -64,24 +66,24 @@ class TritonAutoTuner:
                 self.kernel_fn(*args, **config, **kwargs)
 
             # Synchronize before timing
-            torch.cuda.synchronize()
+            sync_cuda()
 
             # Benchmark runs
             start_time = time.perf_counter()
             for _ in range(self.benchmark_runs):
                 self.kernel_fn(*args, **config, **kwargs)
-            torch.cuda.synchronize()
+            sync_cuda()
             end_time = time.perf_counter()
 
             # Calculate metrics
             total_time = end_time - start_time
             latency_ms = (total_time / self.benchmark_runs) * 1000
 
-            # Estimate throughput and bandwidth (simplified)
-            # These would need to be calculated based on actual operation
-            throughput_tflops = 0.0  # Placeholder
-            bandwidth_gbps = 0.0  # Placeholder
-            bandwidth_utilization = 0.0  # Placeholder
+            # Default placeholder metrics - should be computed post-tuning
+            # using compute_gemm_metrics or compute_elementwise_metrics
+            throughput_tflops = 0.0
+            bandwidth_gbps = 0.0
+            bandwidth_utilization = 0.0
 
             return KernelMetrics(
                 latency_ms=latency_ms,
@@ -90,8 +92,9 @@ class TritonAutoTuner:
                 bandwidth_utilization=bandwidth_utilization,
             )
 
-        except Exception:
-            # Configuration failed (e.g., invalid block size)
+        except Exception as e:
+            import warnings
+            warnings.warn(f"Configuration {config} failed: {e}")
             return None
 
     def tune(
@@ -212,6 +215,8 @@ def compute_gemm_metrics(
     """
     # FLOPS for GEMM: 2 * M * N * K
     flops = 2 * M * N * K
+    if latency_ms <= 0:
+        latency_ms = MIN_LATENCY_MS
     tflops = flops / (latency_ms * 1e9)  # Convert to TFLOPS
 
     # Memory bytes: read A (M*K) + read B (K*N) + write C (M*N)
@@ -250,6 +255,8 @@ def compute_elementwise_metrics(
     """
     # Memory bytes: read + write
     bytes_accessed = numel * bytes_per_element * 2
+    if latency_ms <= 0:
+        latency_ms = MIN_LATENCY_MS
     bandwidth_gbps = bytes_accessed / (latency_ms * 1e6)
 
     bandwidth_utilization = (bandwidth_gbps / peak_bandwidth_gbps) * 100

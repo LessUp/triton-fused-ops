@@ -1,44 +1,87 @@
 ---
+layout: default
 title: "v0.2.0 — Major Refactoring (2026-03-09)"
+description: "SwiGLU 正确性修复、FP8Linear 权重转置缓存、RMSNorm batch_idx 修复"
 ---
+
+[← 返回更新日志](./)
 
 # Major Refactoring - v0.2.0
 
-Date: 2026-03-09
+**发布日期:** 2026-03-09
 
-## Critical Bug Fixes
+---
 
-### Gated MLP: gate/up projection activation swapped (Correctness Bug)
-- The standard SwiGLU formula is `output = activation(gate_proj(x)) * up_proj(x)`
-- The kernel and reference implementation both applied activation to `up_acc` instead of `gate_acc`
-- This produced incorrect outputs for any model using SwiGLU (LLaMA, Mistral, etc.)
-- Fixed in both the Triton kernel (`fused_gated_mlp_kernel`) and the PyTorch reference (`gated_mlp_reference`)
+## 🐛 关键 Bug 修复
 
-### RMSNorm kernel: incorrect batch_idx computation
-- `rmsnorm_kernel` computed `batch_idx = row_idx // cdiv(hidden_dim, BLOCK_SIZE)` which is mathematically wrong — `hidden_dim / BLOCK_SIZE` has nothing to do with batch indexing
-- The variable was unused but indicated a misunderstanding of the program grid
-- Removed the bogus computation; `row_idx` from `program_id(0)` already correctly indexes the flattened batch*seq grid
+### Gated MLP: gate/up 投影激活顺序错误
 
-## Performance Improvements
+**问题:** 标准 SwiGLU 公式为 `output = activation(gate_proj(x)) * up_proj(x)`，但内核和参考实现错误地将激活函数应用于 `up_acc` 而非 `gate_acc`。
 
-### FP8Linear: weight transpose cached instead of recomputed per-forward
-- `FP8Linear.forward()` called `self.weight_fp8.t().contiguous()` on every forward pass — an expensive allocation + copy for large weight matrices
-- Now pre-computes and caches the transposed weight as `weight_fp8_t` during `quantize_weights()`
-- Eliminates one GPU allocation per forward pass
+**影响:** 所有使用 SwiGLU 的模型（LLaMA、Mistral 等）输出错误。
 
-## Code Quality
+**修复:**
+- `triton_ops/kernels/gated_mlp.py` — 激活函数现在正确应用于 gate 投影
+- `gated_mlp_reference()` — 参考实现同步修复
 
-### api.py: consolidated duplicate imports
-- Each kernel module was imported twice with separate `from...import` blocks
-- Consolidated into single import statements per module
+### RMSNorm 内核: batch_idx 计算错误
 
-## Version
-- 0.1.0 → 0.2.0 (pyproject.toml + __init__.py)
+**问题:** `rmsnorm_kernel` 计算 `batch_idx = row_idx // cdiv(hidden_dim, BLOCK_SIZE)` 数学上错误 — `hidden_dim / BLOCK_SIZE` 与批索引无关。
 
-### Files Modified
-- `triton_ops/kernels/gated_mlp.py` — activation applied to gate, not up (kernel + reference)
-- `triton_ops/kernels/fp8_gemm.py` — cached transposed weight in FP8Linear
-- `triton_ops/kernels/rmsnorm_rope.py` — removed incorrect batch_idx in rmsnorm_kernel
-- `triton_ops/api.py` — consolidated duplicate imports
-- `triton_ops/__init__.py` — version bump
-- `pyproject.toml` — version bump
+**影响:** 该变量未被使用，不影响输出正确性，但表明对程序网格的理解有误。
+
+**修复:** 移除错误的计算；`row_idx` 从 `program_id(0)` 已经正确索引扁平化的 batch*seq 网格。
+
+---
+
+## ⚡ 性能优化
+
+### FP8Linear: 权重转置缓存
+
+**问题:** `FP8Linear.forward()` 每次前向都调用 `self.weight_fp8.t().contiguous()`，对大权重矩阵是昂贵的分配+拷贝操作。
+
+**修复:** 在 `quantize_weights()` 时预计算并缓存转置后的权重为 `weight_fp8_t`。
+
+**收益:** 消除每次前向传递的一次 GPU 分配。
+
+```python
+# 之前: 每次前向都转置
+def forward(self, x):
+    output = fp8_gemm(x_fp8, self.weight_fp8.t().contiguous(), ...)  # 昂贵!
+
+# 之后: 使用缓存的转置权重
+def quantize_weights(self):
+    self.weight_fp8_t = weight_fp8.t().contiguous()  # 只转置一次
+
+def forward(self, x):
+    output = fp8_gemm(x_fp8, self.weight_fp8_t, ...)  # 使用缓存
+```
+
+---
+
+## 🧹 代码质量
+
+### api.py: 合并重复导入
+
+每个内核模块之前被两个独立的 `from...import` 块导入，已合并为单一导入语句。
+
+---
+
+## 📁 变更文件
+
+| 文件 | 变更类型 |
+|------|----------|
+| `triton_ops/kernels/gated_mlp.py` | Bug 修复 — 激活函数应用顺序 |
+| `triton_ops/kernels/fp8_gemm.py` | 性能优化 — 缓存转置权重 |
+| `triton_ops/kernels/rmsnorm_rope.py` | Bug 修复 — 移除错误计算 |
+| `triton_ops/api.py` | 重构 — 合并导入 |
+| `triton_ops/__init__.py` | 版本更新 |
+| `pyproject.toml` | 版本更新 |
+
+---
+
+## 版本信息
+
+- **前一版本:** v0.1.0
+- **当前版本:** v0.2.0
+- **比较链接:** [v0.1.0...v0.2.0](https://github.com/LessUp/triton-fused-ops/compare/v0.1.0...v0.2.0)

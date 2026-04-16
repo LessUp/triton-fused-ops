@@ -44,6 +44,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
+dependencies = [
+    "torch>=2.0.0",
+    "triton>=2.1.0",
+    "numpy>=1.21.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/triton-fused-ops/triton-fused-ops"
@@ -51,11 +56,6 @@ Documentation = "https://github.com/triton-fused-ops/triton-fused-ops#readme"
 Repository = "https://github.com/triton-fused-ops/triton-fused-ops.git"
 Issues = "https://github.com/triton-fused-ops/triton-fused-ops/issues"
 Changelog = "https://github.com/triton-fused-ops/triton-fused-ops/blob/main/CHANGELOG.md"
-dependencies = [
-    "torch>=2.0.0",
-    "triton>=2.1.0",
-    "numpy>=1.21.0",
-]
 
 [project.optional-dependencies]
 dev = [

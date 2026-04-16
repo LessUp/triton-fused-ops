@@ -13,6 +13,8 @@ import torch
 import triton
 import triton.language as tl
 
+from triton_ops.exceptions import DeviceError
+from triton_ops.utils import ACTIVATION_GELU, ACTIVATION_SILU, VALID_ACTIVATIONS
 from triton_ops.validation import validate_gated_mlp_inputs
 
 
@@ -61,7 +63,7 @@ def fused_gated_mlp_kernel(
 ):
     """Fused Gated MLP kernel.
 
-    Computes: output = gate_proj(x) * activation(up_proj(x))
+    Computes: output = activation(gate_proj(x)) * up_proj(x)
 
     Each program computes a BLOCK_M x BLOCK_N tile of the output.
     """
@@ -107,8 +109,9 @@ def fused_gated_mlp_kernel(
         x_block = tl.load(x_ptrs, mask=x_mask, other=0.0)
 
         # Load gate weight block [BLOCK_K, BLOCK_N]
+        # Need transpose: weight is [intermediate_dim, hidden_dim] but we need [hidden_dim, intermediate_dim]
         gw_ptrs = (
-            gate_weight_ptr + cols[None, :] * stride_gw_inter + k_range[:, None] * stride_gw_hidden
+            gate_weight_ptr + k_range[:, None] * stride_gw_hidden + cols[None, :] * stride_gw_inter
         )
         col_mask = cols[None, :] < intermediate_dim
         gw_mask = k_mask[:, None] & col_mask
@@ -116,7 +119,7 @@ def fused_gated_mlp_kernel(
 
         # Load up weight block [BLOCK_K, BLOCK_N]
         uw_ptrs = (
-            up_weight_ptr + cols[None, :] * stride_uw_inter + k_range[:, None] * stride_uw_hidden
+            up_weight_ptr + k_range[:, None] * stride_uw_hidden + cols[None, :] * stride_uw_inter
         )
         uw_block = tl.load(uw_ptrs, mask=gw_mask, other=0.0)
 
@@ -124,7 +127,7 @@ def fused_gated_mlp_kernel(
         gate_acc += tl.dot(x_block.to(tl.float32), gw_block.to(tl.float32))
         up_acc += tl.dot(x_block.to(tl.float32), uw_block.to(tl.float32))
 
-    # Apply activation to gate projection (standard LLaMA/Mistral SwiGLU formula)
+    # Apply activation to gate projection (standard SwiGLU formula)
     # output = activation(gate_proj(x)) * up_proj(x)
     if activation_type == 0:
         gate_activated = silu(gate_acc)
@@ -168,17 +171,42 @@ def fused_gated_mlp(
 
     Returns:
         Output tensor [batch, seq_len, intermediate_dim]
+
+    Raises:
+        DeviceError: If CUDA is not available
     """
+    # Check CUDA availability
+    if not torch.cuda.is_available():
+        raise DeviceError(
+            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
+            expected_device="cuda",
+            actual_device="cpu",
+        )
+
+    # Check that tensors are on CUDA
+    if not x.is_cuda:
+        raise DeviceError(
+            f"Input tensor 'x' must be on CUDA, but got {x.device}",
+            expected_device="cuda",
+            actual_device=str(x.device),
+            tensor_name="x",
+        )
     # Validate inputs
     batch_size, seq_len, hidden_dim, intermediate_dim = validate_gated_mlp_inputs(
         x, gate_weight, up_weight, activation
     )
+    
+    # Handle empty tensors
+    if batch_size == 0 or seq_len == 0 or hidden_dim == 0 or intermediate_dim == 0:
+        return torch.empty(batch_size, seq_len, intermediate_dim, dtype=x.dtype, device=x.device)
 
     # Allocate output
     output = torch.empty(batch_size, seq_len, intermediate_dim, dtype=x.dtype, device=x.device)
 
-    # Determine activation type
-    activation_type = 0 if activation == "silu" else 1
+    # Validate and determine activation type
+    if activation not in VALID_ACTIVATIONS:
+        raise ValueError(f"activation must be '{ACTIVATION_SILU}' or '{ACTIVATION_GELU}', got '{activation}'")
+    activation_type = 0 if activation == ACTIVATION_SILU else 1
 
     # Block sizes
     BLOCK_M = 32
@@ -241,7 +269,7 @@ def gated_mlp_reference(
     up = torch.nn.functional.linear(x.float(), up_weight.float())
 
     # Apply activation to gate projection (standard SwiGLU)
-    if activation == "silu":
+    if activation == ACTIVATION_SILU:
         gate_activated = torch.nn.functional.silu(gate)
     else:
         gate_activated = torch.nn.functional.gelu(gate)

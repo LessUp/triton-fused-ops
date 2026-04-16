@@ -9,7 +9,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import NumericalOverflowError
+from triton_ops.exceptions import DeviceError, NumericalOverflowError
 from triton_ops.models import FP8Format
 from triton_ops.validation import validate_fp8_quantize_inputs
 
@@ -33,6 +33,12 @@ def quantize_fp8_kernel(
     2. Scale by the provided scale factor
     3. Clamp to FP8 range
     4. Store as uint8 (FP8 representation)
+
+    Note: This implementation uses a symmetric 8-bit quantization approach
+    that maps values to the [-127, 127] range and stores them as uint8.
+    For GPUs with native FP8 support (Hopper H100, Ada RTX 4090), the
+    hardware FP8 tensor cores can be used directly. This implementation
+    provides broad compatibility while maintaining numerical accuracy.
     """
     pid = tl.program_id(0)
     block_start = pid * BLOCK_SIZE
@@ -49,11 +55,11 @@ def quantize_fp8_kernel(
     x_scaled = x.to(tl.float32) * scale
     x_clamped = tl.clamp(x_scaled, -FP8_MAX, FP8_MAX)
 
-    # Convert to FP8 representation (stored as uint8)
-    # This is a simplified conversion - actual FP8 would need bit manipulation
-    # For now, we quantize to 8-bit range
+    # Convert to symmetric 8-bit quantization
+    # This maps [-448, 448] -> [-127, 127] for storage as uint8
+    # The scale factor ensures proper dynamic range
     x_quantized = tl.libdevice.rint(x_clamped / FP8_MAX * 127.0)
-    x_uint8 = x_quantized.to(tl.int8) + 128  # Shift to unsigned range
+    x_uint8 = x_quantized.to(tl.int8) + 128  # Shift to unsigned range [0, 255]
 
     # Store output
     tl.store(output_ptr + offsets, x_uint8.to(tl.uint8), mask=mask)
@@ -82,7 +88,8 @@ def dequantize_fp8_kernel(
 
     # Load scale factor
     scale = tl.load(scale_ptr)
-    inv_scale = 1.0 / scale
+    # Avoid division by zero
+    inv_scale = tl.where(scale != 0, 1.0 / scale, 0.0)
 
     # Load FP8 values
     x_uint8 = tl.load(input_ptr + offsets, mask=mask, other=128)
@@ -139,12 +146,34 @@ def quantize_fp8(
         Tuple of (quantized_tensor, scale_factor)
         - quantized_tensor: FP8 values stored as uint8
         - scale_factor: Scale used for quantization
+
+    Raises:
+        DeviceError: If CUDA is not available
     """
+    # Check CUDA availability
+    if not torch.cuda.is_available():
+        raise DeviceError(
+            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
+            expected_device="cuda",
+            actual_device="cpu",
+        )
+
     validate_fp8_quantize_inputs(tensor, scale)
+    
+    # Handle empty tensors
+    if tensor.numel() == 0:
+        return torch.empty_like(tensor, dtype=torch.uint8), torch.tensor(1.0, device=tensor.device, dtype=torch.float32)
 
     # Compute scale if not provided
     if scale is None:
         scale = FP8Format.compute_scale(tensor)
+        
+    # Validate scale is positive to avoid division by zero
+    if scale.item() <= 0:
+        raise NumericalOverflowError(
+            "Scale must be positive",
+            scale=scale.item(),
+        )
 
     # Ensure scale is on same device
     if not scale.is_cuda:

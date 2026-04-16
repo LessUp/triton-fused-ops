@@ -1,7 +1,7 @@
 """Benchmark suite for Triton operators."""
 
 import time
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 
@@ -9,6 +9,7 @@ from triton_ops.autotuner.tuner import compute_elementwise_metrics, compute_gemm
 from triton_ops.benchmark.correctness import CorrectnessVerifier
 from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
 from triton_ops.models import KernelMetrics
+from triton_ops.utils import sync_cuda
 
 
 class BenchmarkSuite:
@@ -66,13 +67,13 @@ class BenchmarkSuite:
         for _ in range(self.warmup_runs):
             kernel_fn(*args, **kwargs)
 
-        torch.cuda.synchronize()
+        sync_cuda()
 
         # Benchmark
         start = time.perf_counter()
         for _ in range(self.benchmark_runs):
             kernel_fn(*args, **kwargs)
-        torch.cuda.synchronize()
+        sync_cuda()
         end = time.perf_counter()
 
         return (end - start) / self.benchmark_runs * 1000  # Convert to ms
@@ -175,10 +176,20 @@ class BenchmarkSuite:
             triton_metrics = compute_metrics_fn(problem_size, triton_latency)
             pytorch_metrics = compute_metrics_fn(problem_size, pytorch_latency)
         else:
-            triton_metrics = KernelMetrics(triton_latency, 0, 0, 0)
-            pytorch_metrics = KernelMetrics(pytorch_latency, 0, 0, 0)
+            triton_metrics = KernelMetrics(
+                latency_ms=triton_latency,
+                throughput_tflops=0.0,
+                bandwidth_gbps=0.0,
+                bandwidth_utilization=0.0,
+            )
+            pytorch_metrics = KernelMetrics(
+                latency_ms=pytorch_latency,
+                throughput_tflops=0.0,
+                bandwidth_gbps=0.0,
+                bandwidth_utilization=0.0,
+            )
 
-        speedup = pytorch_latency / triton_latency if triton_latency > 0 else 0
+        speedup = pytorch_latency / triton_latency if triton_latency > 0 else float('inf') if pytorch_latency > 0 else 0
 
         comparison = ComparisonResult(
             kernel_name=kernel_name,
@@ -253,7 +264,7 @@ class BenchmarkSuite:
         seq_lens: List[int],
         hidden_dims: List[int],
         intermediate_dims: List[int],
-        activations: List[str] = ["silu"],
+        activations: Optional[List[str]] = None,
     ) -> List[BenchmarkResult]:
         """Benchmark Gated MLP across different sizes.
 
@@ -267,6 +278,8 @@ class BenchmarkSuite:
         Returns:
             List of benchmark results
         """
+        if activations is None:
+            activations = ["silu"]
         from triton_ops.kernels.gated_mlp import (
             fused_gated_mlp,
             gated_mlp_reference,

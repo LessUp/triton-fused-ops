@@ -12,7 +12,13 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.validation import validate_rmsnorm_rope_inputs
+from triton_ops.exceptions import DeviceError
+from triton_ops.validation import (
+    validate_eps,
+    validate_head_dim,
+    validate_positive_dimensions,
+    validate_rmsnorm_rope_inputs,
+)
 
 
 @triton.jit
@@ -257,11 +263,39 @@ def fused_rmsnorm_rope(
 
     Returns:
         Output tensor [batch, seq_len, hidden_dim] with RMSNorm + RoPE applied
+
+    Raises:
+        DeviceError: If CUDA is not available
     """
+    # Check CUDA availability
+    if not torch.cuda.is_available():
+        raise DeviceError(
+            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
+            expected_device="cuda",
+            actual_device="cpu",
+        )
+
+    # Check that tensors are on CUDA
+    if not x.is_cuda:
+        raise DeviceError(
+            f"Input tensor 'x' must be on CUDA, but got {x.device}",
+            expected_device="cuda",
+            actual_device=str(x.device),
+            tensor_name="x",
+        )
     # Validate inputs
     batch_size, seq_len, hidden_dim, head_dim, num_heads = validate_rmsnorm_rope_inputs(
         x, weight, cos, sin, num_heads
     )
+
+    # Additional validation
+    validate_eps(eps)
+    validate_head_dim(head_dim)
+    validate_positive_dimensions(batch_size=batch_size, seq_len=seq_len, hidden_dim=hidden_dim)
+    
+    # Handle empty tensors
+    if batch_size == 0 or seq_len == 0 or hidden_dim == 0:
+        return torch.empty_like(x)
 
     # Handle 4D cos/sin format
     if cos.dim() == 4:
