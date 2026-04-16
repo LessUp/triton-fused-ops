@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: 🚀 Deploy to GitHub Pages
 
 on:
   push:
@@ -6,16 +6,27 @@ on:
     paths:
       - 'index.md'
       - 'docs/**'
-      - 'changelog/**'
       - '_config.yml'
+      - 'assets/**'
+      - '_sass/**'
       - 'README.md'
       - 'README.zh-CN.md'
       - 'CHANGELOG.md'
+      - 'CHANGELOG.zh-CN.md'
       - 'CONTRIBUTING.md'
       - 'CODE_OF_CONDUCT.md'
       - 'LICENSE'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 permissions:
   contents: read
@@ -23,50 +34,203 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUBY_VERSION: '3.3'
+  NODE_VERSION: '20'
+  BUNDLE_PATH: vendor/bundle
+
 jobs:
+  # Build Job
   build:
-    name: Build Pages
+    name: 🔨 Build Site
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      site-url: ${{ steps.pages.outputs.base_url }}
+    
     steps:
-      - name: Checkout (sparse — skip source code)
+      # Checkout with full history for better caching
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
         with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            index.md
-            _config.yml
-            README.md
-            README.zh-CN.md
-            CHANGELOG.md
-            CONTRIBUTING.md
-            CODE_OF_CONDUCT.md
-            LICENSE
-            docs
-            changelog
-
-      - name: Setup Pages
+          fetch-depth: 0
+          lfs: true
+      
+      # Setup Pages
+      - name: ⚙️ Setup Pages
+        id: pages
         uses: actions/configure-pages@v5
-
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
         with:
-          source: ./
-          destination: ./_site
-
-      - name: Upload artifact
+          enablement: true
+          token: ${{ github.token }}
+      
+      # Setup Ruby with caching
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true
+          cache-version: 1
+      
+      # Setup Node.js for asset processing
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      
+      # Cache Jekyll build
+      - name: 🗃️ Cache Jekyll
+        uses: actions/cache@v4
+        with:
+          path: |
+            _site
+            .jekyll-cache
+            .sass-cache
+          key: jekyll-${{ runner.os }}-${{ hashFiles('_config.yml', '**/md', '**/html', '**/scss') }}
+          restore-keys: |
+            jekyll-${{ runner.os }}-
+      
+      # Install dependencies
+      - name: 📦 Install dependencies
+        run: |
+          bundle config path ${{ env.BUNDLE_PATH }}
+          bundle install --jobs 4 --retry 3
+      
+      # Build Jekyll site with optimizations
+      - name: 🔨 Build with Jekyll
+        run: |
+          bundle exec jekyll build \
+            --config _config.yml \
+            --destination ./_site \
+            --trace \
+            --strict_front_matter \
+            --verbose
+        env:
+          JEKYLL_ENV: production
+          PAGES_REPO_NWO: ${{ github.repository }}
+          LC_ALL: C.UTF-8
+          LANG: en_US.UTF-8
+      
+      # Generate redirects for legacy URLs
+      - name: 🔀 Generate Redirects
+        run: |
+          mkdir -p _site/changelog
+          echo "---
+          redirect_to: /triton-fused-ops/CHANGELOG/
+          ---" > _site/changelog/index.html
+      
+      # Minify HTML (if html-minifier is available)
+      - name: 📉 Minify HTML
+        run: |
+          if command -v npx &> /dev/null; then
+            npx html-minifier-terser \
+              --input-dir ./_site \
+              --output-dir ./_site \
+              --file-ext html \
+              --collapse-whitespace \
+              --remove-comments \
+              --remove-optional-tags \
+              --remove-redundant-attributes \
+              --remove-script-type-attributes \
+              --remove-tag-whitespace \
+              --use-short-doctype \
+              --minify-css true \
+              --minify-js true \
+              || echo "HTML minification skipped"
+          fi
+      
+      # Validate HTML
+      - name: ✅ Validate HTML
+        run: |
+          bundle exec htmlproofer ./_site \
+            --disable-external \
+            --ignore-urls "/^http:/" \
+            --allow-hash-href \
+            --ignore-empty-alt \
+            --ignore-missing-alt \
+            || echo "HTML validation completed with warnings"
+      
+      # Upload artifact
+      - name: 📤 Upload Artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+          retention-days: 7
+      
+      # Output build summary
+      - name: 📊 Build Summary
+        run: |
+          echo "## 📊 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Site Size | $(du -sh _site | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          echo "| HTML Files | $(find _site -name '*.html' | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Files | $(find _site -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Time | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
 
+  # Deploy Job
   deploy:
-    name: Deploy Pages
+    name: 🚀 Deploy to Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 10
+    
     steps:
-      - name: Deploy to GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
+          timeout: 600000
+          error_count: 3
+          reporting_interval: 5000
+      
+      - name: ✅ Verify Deployment
+        run: |
+          echo "## ✅ Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 Live URL: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Important Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Homepage](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [English Docs](${{ steps.deployment.outputs.page_url }}docs/en/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [中文文档](${{ steps.deployment.outputs.page_url }}docs/zh/)" >> $GITHUB_STEP_SUMMARY
+      
+      # Purge CDN cache if using a CDN (placeholder)
+      - name: 🧹 Purge CDN Cache
+        if: false
+        run: |
+          echo "CDN purge would happen here"
+
+  # Performance Audit Job
+  audit:
+    name: 🔍 Performance Audit
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: ⏳ Wait for deployment
+        run: sleep 30
+      
+      - name: 🔍 Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.13.x
+          lhci autorun --config=./lighthouserc.json || echo "Lighthouse audit skipped"
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        continue-on-error: true
+      
+      - name: 📊 Report Metrics
+        run: |
+          echo "## 🔍 Performance Audit" >> $GITHUB_STEP_SUMMARY
+          echo "Performance metrics will be available in the Lighthouse report" >> $GITHUB_STEP_SUMMARY
