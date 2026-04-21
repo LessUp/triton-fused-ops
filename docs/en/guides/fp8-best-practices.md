@@ -46,7 +46,8 @@ Get the most out of FP8 quantization.
 
 ```python
 import torch
-from triton_ops import quantize_fp8, FP8Format
+from triton_ops import quantize_fp8, FP8Format, fp8_gemm, FusedRMSNormRoPE, FusedGatedMLP, FP8Linear
+from triton_ops.exceptions import NumericalOverflowError
 
 # Per-tensor quantization (default)
 tensor = torch.randn(4096, 4096, device='cuda', dtype=torch.float16)

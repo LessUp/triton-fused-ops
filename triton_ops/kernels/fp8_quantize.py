@@ -71,6 +71,7 @@ def dequantize_fp8_kernel(
     output_ptr,
     scale_ptr,
     numel,
+    OUTPUT_BF16: tl.constexpr,
     BLOCK_SIZE: tl.constexpr,
 ):
     """Dequantize FP8 E4M3 back to FP16/BF16.
@@ -101,8 +102,11 @@ def dequantize_fp8_kernel(
     # Apply inverse scale
     x_dequant = x_float * inv_scale
 
-    # Store output
-    tl.store(output_ptr + offsets, x_dequant.to(tl.float16), mask=mask)
+    # Store output with correct dtype
+    if OUTPUT_BF16:
+        tl.store(output_ptr + offsets, x_dequant.to(tl.bfloat16), mask=mask)
+    else:
+        tl.store(output_ptr + offsets, x_dequant.to(tl.float16), mask=mask)
 
 
 @triton.jit
@@ -225,6 +229,9 @@ def dequantize_fp8(
     output_flat = output.view(-1)
     numel = tensor_flat.numel()
 
+    # Determine output type flag
+    output_bf16 = output_dtype == torch.bfloat16
+
     # Launch kernel
     BLOCK_SIZE = 1024
     grid = (triton.cdiv(numel, BLOCK_SIZE),)
@@ -234,6 +241,7 @@ def dequantize_fp8(
         output_flat,
         scale,
         numel,
+        OUTPUT_BF16=output_bf16,
         BLOCK_SIZE=BLOCK_SIZE,
     )
 

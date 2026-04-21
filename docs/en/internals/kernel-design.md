@@ -140,7 +140,7 @@ def gated_mlp_kernel(
     if ACTIVATION == "silu":
         gate_acc = gate_acc * tl.sigmoid(gate_acc)
     elif ACTIVATION == "gelu":
-        gate_acc = tl gelu(gate_acc)
+        gate_acc = tl.gelu(gate_acc)
     
     # Element-wise multiply
     output = gate_acc * up_acc

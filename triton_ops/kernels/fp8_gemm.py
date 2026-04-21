@@ -44,6 +44,7 @@ def fp8_gemm_kernel(
     BLOCK_N: tl.constexpr,
     BLOCK_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
+    OUTPUT_BF16: tl.constexpr,
 ):
     """FP8 Matrix Multiplication kernel.
 
@@ -51,7 +52,7 @@ def fp8_gemm_kernel(
 
     - Inputs: FP8 E4M3 (stored as uint8)
     - Accumulation: FP32 for numerical stability
-    - Output: FP16
+    - Output: FP16 or BF16
 
     Uses grouped ordering for better L2 cache utilization.
     """
@@ -117,10 +118,13 @@ def fp8_gemm_kernel(
     # Apply inverse scale and convert to output dtype
     acc = acc * inv_scale
 
-    # Store output
+    # Store output with correct dtype
     c_ptrs = c_ptr + rm[:, None] * stride_cm + rn[None, :] * stride_cn
     c_mask = (rm[:, None] < M) & (rn[None, :] < N)
-    tl.store(c_ptrs, acc.to(tl.float16), mask=c_mask)
+    if OUTPUT_BF16:
+        tl.store(c_ptrs, acc.to(tl.bfloat16), mask=c_mask)
+    else:
+        tl.store(c_ptrs, acc.to(tl.float16), mask=c_mask)
 
 
 def fp8_gemm(
@@ -140,7 +144,6 @@ def fp8_gemm(
         a_scale: Scale factor for A (required if A is FP8)
         b_scale: Scale factor for B (required if B is FP8)
         output_dtype: Output data type (float16 or bfloat16)
-        autotune: If True, use autotuner to find optimal block sizes (slower first run)
 
     Returns:
         Result matrix [M, N] in output_dtype
@@ -186,6 +189,9 @@ def fp8_gemm(
     # Group size for better L2 cache utilization
     GROUP_SIZE_M = 8
 
+    # Determine output type flag
+    output_bf16 = output_dtype == torch.bfloat16
+
     # Grid size
     grid = (triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N),)
 
@@ -209,6 +215,7 @@ def fp8_gemm(
         BLOCK_N=BLOCK_N,
         BLOCK_K=BLOCK_K,
         GROUP_SIZE_M=GROUP_SIZE_M,
+        OUTPUT_BF16=output_bf16,
     )
 
     return c
