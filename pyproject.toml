@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "triton-fused-ops"
-version = "0.2.0"
+version = "1.0.0"
 description = "High-performance Triton operators for Transformer models with operator fusion and FP8 quantization"
 readme = "README.md"
 license = {text = "MIT"}
@@ -51,11 +51,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/triton-fused-ops/triton-fused-ops"
-Documentation = "https://github.com/triton-fused-ops/triton-fused-ops#readme"
-Repository = "https://github.com/triton-fused-ops/triton-fused-ops.git"
-Issues = "https://github.com/triton-fused-ops/triton-fused-ops/issues"
-Changelog = "https://github.com/triton-fused-ops/triton-fused-ops/blob/main/CHANGELOG.md"
+Homepage = "https://lessup.github.io/triton-fused-ops/"
+Documentation = "https://lessup.github.io/triton-fused-ops/docs/en/"
+Repository = "https://github.com/LessUp/triton-fused-ops.git"
+Issues = "https://github.com/LessUp/triton-fused-ops/issues"
+Changelog = "https://github.com/LessUp/triton-fused-ops/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
