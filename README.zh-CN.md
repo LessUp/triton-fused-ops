@@ -1,4 +1,4 @@
-# ⚡ Triton Fused Operators — 高性能 GPU 算子融合库
+# Triton Fused Operators — 高性能 GPU 算子融合库
 
 <div align="center">
 
@@ -11,44 +11,40 @@
 
 **一行代码，让 LLM 推理速度提升 3 倍，零精度损失。**
 
-[📖 文档](https://lessup.github.io/triton-fused-ops/) | [💡 示例](examples/) | [🧪 基准测试](tests/benchmarks/) | [🤝 贡献](CONTRIBUTING.md)
+[📖 文档](https://lessup.github.io/triton-fused-ops/) | [🇺🇸 English](README.md) | [💡 示例](examples/) | [🧪 基准测试](tests/benchmarks/) | [🤝 贡献代码](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## 🎯 问题所在
+## 问题所在
 
 Transformer 推理受限于**内存带宽**，而非计算能力。
 
+```mermaid
+flowchart LR
+    subgraph Standard["标准 PyTorch（分离算子）"]
+        A1[输入 x] -->|HBM| B1[RMSNorm Kernel]
+        B1 -->|HBM<br/>x_norm| C1[RoPE Kernel]
+        C1 -->|HBM| D1[输出]
+    end
+    
+    subgraph Fused["Triton Fused Operators（融合算子）"]
+        A2[输入 x] -->|HBM| B2["RMSNorm + RoPE<br/>（寄存器/SRAM）"]
+        B2 -->|HBM| D2[输出]
+    end
 ```
-┌────────────────────────────────────────────────────────────────┐
-│  标准 PyTorch（分离算子）                                       │
-│  ────────────────────────                                      │
-│  1. 从 HBM 加载 x → RMSNorm Kernel → 写入归一化后的 x           │
-│  2. 从 HBM 加载归一化 x → RoPE Kernel → 写入最终结果            │
-│  3. 从 HBM 加载最终结果 → 下一层...                            │
-│                                                                │
-│  HBM 访问：每个 token 3 次读 + 2 次写                          │
-│  带宽利用率：~30-40%                                           │
-└────────────────────────────────────────────────────────────────┘
 
-┌────────────────────────────────────────────────────────────────┐
-│  Triton Fused Operators（融合算子）                            │
-│  ─────────────────────────────────                             │
-│  1. 一次性加载 x → [在寄存器/SRAM 中完成 RMSNorm + RoPE]       │
-│  2. 写入最终结果                                               │
-│                                                                │
-│  HBM 访问：每个 token 1 次读 + 1 次写                          │
-│  带宽利用率：90%+                                              │
-└────────────────────────────────────────────────────────────────┘
-```
+| 方案 | HBM 访问 | 带宽利用率 |
+|:-----|:--------:|:----------:|
+| 标准 PyTorch | 每个 token 3 次读 + 2 次写 | ~30-40% |
+| **Triton 融合** | **每个 token 1 次读 + 1 次写** | **90%+** |
 
 **结果：** 推理速度提升 1.5-3 倍，尤其在大 batch 场景下 HBM 带宽是瓶颈时效果明显。
 
 ---
 
-## ✨ 功能特性
+## 功能特性
 
 | 算子 | 融合策略 | 加速比 | 内存节省 |
 |:---------|:----------------|:-------:|:------------:|
@@ -56,31 +52,50 @@ Transformer 推理受限于**内存带宽**，而非计算能力。
 | `fused_gated_mlp` | Gate & Up 投影 + SiLU/GELU | **~1.5x** | 减少 1 个中间张量 |
 | `fp8_gemm` | FP8 矩阵乘法 + 动态缩放 | **~1.4x** | **50%** 权重存储 |
 
-### 主要特性
+### 核心能力
 
-```python
-# ✅ 即插即用 —— 替换现有算子，无需改动模型结构
-from triton_ops import FusedRMSNormRoPE, FusedGatedMLP, FP8Linear
-
-# ✅ 兼容 HuggingFace、PyTorch、vLLM 等框架
-# ✅ 数值精度通过与 PyTorch 参考实现验证
-# ✅ FP8 动态溢出处理（误差 <0.5%）
-# ✅ 针对特定 GPU 自动调优
-```
+- ✅ **即插即用** — 无需改动模型结构，直接替换现有算子
+- ✅ **框架兼容** — 支持 HuggingFace、PyTorch、vLLM、TGI
+- ✅ **精度验证** — 数值精度通过与 PyTorch 参考实现验证
+- ✅ **FP8 溢出处理** — 自动检测和恢复（误差 <0.5%）
+- ✅ **GPU 自动调优** — 针对特定 GPU 自动优化
+- ✅ **完整基准测试** — 性能和正确性验证工具
 
 ---
 
-## 🚀 快速开始
+## 快速开始
+
+### 环境要求
+
+- **GPU:** NVIDIA Ampere (A100, RTX 30xx) 或更新架构（推荐）
+- **CUDA:** 11.8 或更高版本（推荐 12.1+）
+- **Python:** 3.9 或更高版本
+- **PyTorch:** 2.0 或更高版本
+- **Triton:** 2.1 或更高版本
 
 ### 安装
 
 ```bash
-pip install -e ".[dev]"  # 或等发布后使用 pip install triton-fused-ops
+# 克隆仓库
+git clone https://github.com/LessUp/triton-fused-ops.git
+cd triton-fused-ops
+
+# 开发模式安装（推荐）
+pip install -e ".[dev]"
+
+# 或仅安装核心依赖
+pip install -e .
 ```
 
-依赖要求：Python ≥3.9、PyTorch ≥2.0、Triton ≥2.1、CUDA ≥11.8（Ampere 架构及以上）
+**注意：** 本包尚未发布到 PyPI，请使用上述开发模式安装。
 
-### 3 行代码集成
+### 验证安装
+
+```bash
+python -c "from triton_ops import fused_rmsnorm_rope; print('✓ 安装成功')"
+```
+
+### 基础用法
 
 ```python
 import torch
@@ -134,19 +149,15 @@ class LlamaDecoderLayer(torch.nn.Module):
         return x
 ```
 
-### FP8 量化与溢出保护
+### FP8 量化
 
 ```python
 from triton_ops import quantize_fp8, fp8_gemm
 
-# 自动动态缩放 —— 无需手动调节范围
+# 动态缩放 — 自动范围检测
 tensor = torch.randn(1024, 4096, device='cuda', dtype=torch.float16)
 quantized, scale = quantize_fp8(tensor)
-# scale 计算公式：max_abs / 448.0（448 是 FP8 E4M3 最大值）
-
-# 溢出处理：如果数值超出范围，自动调整 scale
-from triton_ops import quantize_fp8_with_overflow_handling
-quantized, scale = quantize_fp8_with_overflow_handling(tensor, max_attempts=3)
+# 缩放公式：max_abs / 448.0（448 是 FP8 E4M3 最大值）
 
 # FP8 GEMM，FP32 累加保证数值稳定性
 a_fp8, a_scale = quantize_fp8(a)
@@ -156,7 +167,7 @@ output = fp8_gemm(a_fp8, b_fp8, a_scale, b_scale)  # 返回 FP16
 
 ---
 
-## 📊 性能基准
+## 性能基准
 
 在 NVIDIA A100 80GB、CUDA 12.1 上测试。
 
@@ -186,48 +197,40 @@ output = fp8_gemm(a_fp8, b_fp8, a_scale, b_scale)  # 返回 FP16
 
 ---
 
-## 🔧 技术深度解析
+## 文档
 
-### 算子融合策略
-
-```
-标准实现（PyTorch Native）：
-┌─────────┐    HBM    ┌─────────┐    HBM    ┌─────────┐
-│  Input  │ ────────► │ RMSNorm │ ────────► │  RoPE   │ ────────► Output
-│  (x)    │           │  Kernel │  (x_norm) │  Kernel │
-└─────────┘           └─────────┘           └─────────┘
-     │                    │                     │
-     └────────────────────┴─────────────────────┘
-              每个元素 3 次 HBM 读，2 次 HBM 写
-
-融合实现（本项目）：
-┌─────────┐                              ┌─────────┐
-│  Input  │ ─────► ┌────────────────┐ ──► │ Output  │
-│  (x)    │        │ RMSNorm + RoPE │      │ (x_out) │
-└─────────┘        │  (registers)   │      └─────────┘
-    HBM            └────────────────┘         HBM
-                         SRAM
-              每个元素 1 次 HBM 读，1 次 HBM 写
-```
-
-### FP8 E4M3 格式详情
-
-- **1 符号位，4 指数位，3 尾数位**
-- **最大可表示值：** 448.0
-- **动态缩放：** `scale = max_abs(tensor) / 448.0`
-- **溢出检测：** 自动重试并调整 scale
-
-### 硬件支持
-
-| GPU 架构 | FP16 | FP8 | 最佳场景 |
-|:--------|:----:|:---:|:---------|
-| Ampere (A100) | ✅ | ⚠️ 模拟 | 生产级推理 |
-| Ada (RTX 4090) | ✅ | ✅ | 边缘部署 |
-| Hopper (H100) | ✅ | ✅ | 大规模服务 |
+- [安装指南](https://lessup.github.io/triton-fused-ops/docs/en/getting-started/installation.html)
+- [快速开始](https://lessup.github.io/triton-fused-ops/docs/en/getting-started/quickstart.html)
+- [API 参考](https://lessup.github.io/triton-fused-ops/docs/en/api/kernels.html)
+- [集成指南](https://lessup.github.io/triton-fused-ops/docs/en/guides/integration.html)
 
 ---
 
-## 📁 项目结构
+## API 参考
+
+### 函数式 API
+
+| 函数 | 签名 | 说明 |
+|:---------|:----------|:------------|
+| `fused_rmsnorm_rope` | `(x, weight, cos, sin, eps=1e-6, num_heads=None)` → `Tensor` | RMSNorm + RoPE 融合 |
+| `fused_gated_mlp` | `(x, gate_weight, up_weight, activation='silu')` → `Tensor` | SwiGLU/GeGLU 融合 |
+| `fp8_gemm` | `(a, b, a_scale=None, b_scale=None, output_dtype=torch.float16)` → `Tensor` | 量化矩阵乘法 |
+| `quantize_fp8` | `(tensor, scale=None)` → `(Tensor, scale)` | E4M3 量化 |
+| `dequantize_fp8` | `(tensor, scale, dtype=torch.float16)` → `Tensor` | E4M3 反量化 |
+
+### Module API
+
+| 类 | `__init__` | Forward |
+|:------|:-----------|:--------|
+| `FusedRMSNormRoPE` | `(hidden_dim, head_dim, eps=1e-6)` | `(x, cos, sin)` → `x` |
+| `FusedGatedMLP` | `(hidden_dim, intermediate_dim, activation='silu')` | `(x)` → `x` |
+| `FP8Linear` | `(in_features, out_features, bias=False)` | `(x)` → `x` |
+
+详见 [📖 完整 API 文档](https://lessup.github.io/triton-fused-ops/)
+
+---
+
+## 项目结构
 
 ```
 triton_ops/
@@ -249,7 +252,7 @@ triton_ops/
 
 ---
 
-## 🧪 测试
+## 测试
 
 ```bash
 # 运行所有测试
@@ -269,7 +272,7 @@ python -m tests.benchmarks.bench_fp8_gemm
 
 ---
 
-## 💡 应用场景
+## 应用场景
 
 | 场景 | 解决方案 | 收益 |
 |:-----|:---------|:-----|
@@ -280,39 +283,91 @@ python -m tests.benchmarks.bench_fp8_gemm
 
 ---
 
-## 💬 面试亮点
+## 技术深度解析
 
-> "针对 Transformer 解码阶段，我用 Triton 实现了 RMSNorm 和 RoPE 的融合算子，将 HBM 访问从 3 次减少到 1 次，带宽利用率提升到 90% 以上，实现了 3 倍的推理加速。"
+### 算子融合策略
 
-> "我实现了 FP8 量化的动态缩放机制，通过自动检测数值范围并调整 scale factor，解决了 FP8 溢出问题，在保持 <0.5% 精度的同时实现了 50% 的显存节省。"
+```mermaid
+flowchart LR
+    subgraph Standard["标准实现（PyTorch Native）: 3 次 HBM 读，2 次 HBM 写"]
+        direction TB
+        S1[输入] -->|HBM| S2[RMSNorm] -->|HBM<br/>x_norm| S3[RoPE] -->|HBM| S4[输出]
+    end
+    
+    subgraph Fused["融合实现（本项目）: 1 次 HBM 读，1 次 HBM 写"]
+        direction TB
+        F1[输入] -->|HBM| F2["RMSNorm + RoPE<br/>（寄存器/SRAM）"] -->|HBM| F4[输出]
+    end
+```
+
+### FP8 E4M3 格式详情
+
+- **1 符号位，4 指数位，3 尾数位**
+- **最大可表示值：** 448.0
+- **动态缩放：** `scale = max_abs(tensor) / 448.0`
+- **溢出检测：** 自动重试并调整 scale
+
+### 硬件支持
+
+| GPU 架构 | FP16 | FP8 | 最佳场景 |
+|:--------|:----:|:---:|:---------|
+| Ampere (A100) | ✅ | ⚠️ 模拟 | 生产级推理 |
+| Ada (RTX 4090) | ✅ | ✅ | 边缘部署 |
+| Hopper (H100) | ✅ | ✅ | 大规模服务 |
+
+> **注意：** Ampere 架构上的 FP8 使用模拟实现；原生 FP8 支持需要 Ada/Hopper 架构。
 
 ---
 
-## 📝 API 参考
+## 故障排查
 
-### 函数式 API
+### 安装问题
 
-| 函数 | 签名 | 说明 |
-|:---------|:----------|:------------|
-| `fused_rmsnorm_rope` | `(x, weight, cos, sin, eps=1e-6)` → `Tensor` | RMSNorm + RoPE 融合 |
-| `fused_gated_mlp` | `(x, gate_w, up_w, activation='silu')` → `Tensor` | SwiGLU/GeGLU 融合 |
-| `fp8_gemm` | `(a, b, a_scale=None, b_scale=None)` → `Tensor` | 量化矩阵乘法 |
-| `quantize_fp8` | `(tensor, scale=None)` → `(Tensor, scale)` | E4M3 量化 |
-| `dequantize_fp8` | `(tensor, scale, dtype)` → `Tensor` | E4M3 反量化 |
+| 问题 | 解决方案 |
+|:-----|:---------|
+| `ImportError: No module named triton` | 安装 Triton: `pip install triton>=2.1.0` |
+| `CUDA_ERROR_NO_DEVICE` | 验证 CUDA 可用性: `torch.cuda.is_available()` |
+| `RuntimeError: CUDA out of memory` | 减小 batch size 或启用 FP8 量化 |
+| `Compilation error` | 确保 CUDA toolkit 版本与 PyTorch CUDA 版本匹配 |
 
-### Module API
+### 性能问题
 
-| 类 | `__init__` | Forward |
-|:------|:-----------|:--------|
-| `FusedRMSNormRoPE` | `(hidden_dim, head_dim, eps=1e-6)` | `(x, cos, sin)` → `x` |
-| `FusedGatedMLP` | `(hidden_dim, intermediate_dim, activation='silu')` | `(x)` → `x` |
-| `FP8Linear` | `(in_features, out_features, bias=False)` | `(x)` → `x` |
+| 现象 | 可能原因 | 解决方案 |
+|:-----|:---------|:---------|
+| 无加速效果 | batch 太小 | 融合优势随 batch 增大；测试 batch ≥ 4 |
+| 比 PyTorch 慢 | GPU 未充分利用 | 检查 `nvidia-smi` 并确保输入在 CUDA 上 |
+| 带宽 < 80% | kernel 配置不当 | 先运行自动调优: `TritonAutoTuner().optimize(...)` |
+| FP8 精度问题 | 缩放溢出 | 检查输入最大值在 FP8 范围内（< 448） |
 
-详见 [📖 完整 API 文档](https://lessup.github.io/triton-fused-ops/)
+### 验证步骤
+
+```python
+# 1. 检查 GPU 可用性
+import torch
+print(f"CUDA 可用: {torch.cuda.is_available()}")
+print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+# 2. 验证基本运算
+from triton_ops import fused_rmsnorm_rope
+x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
+weight = torch.ones(4096, device='cuda', dtype=torch.float16)
+cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+out = fused_rmsnorm_rope(x, weight, cos, sin)
+print(f"输出形状: {out.shape} ✓")
+
+# 3. 运行正确性检查
+from triton_ops import quantize_fp8, dequantize_fp8
+tensor = torch.randn(1024, 1024, device='cuda', dtype=torch.float16)
+quantized, scale = quantize_fp8(tensor)
+recovered = dequantize_fp8(quantized, scale)
+error = torch.abs(tensor - recovered).mean().item()
+print(f"FP8 重建误差: {error:.6f} ✓")
+```
 
 ---
 
-## 🤝 贡献代码
+## 贡献代码
 
 ```bash
 # 环境配置
@@ -333,13 +388,13 @@ mypy triton_ops/
 
 ---
 
-## 📄 许可证
+## 许可证
 
 MIT —— 可自由用于商业和学术研究。
 
 ---
 
-## 🙏 致谢
+## 致谢
 
 基于 [OpenAI Triton](https://github.com/openai/triton) 构建，灵感源自 [FlashAttention](https://github.com/Dao-AILab/flash-attention) 的内存高效 kernel。
 
@@ -347,7 +402,7 @@ MIT —— 可自由用于商业和学术研究。
 
 <div align="center">
 
-**[⬆ 回到顶部](#-triton-fused-operators--高性能-gpu-算子融合库)**
+**[回到顶部](#triton-fused-operators--高性能-gpu-算子融合库)**
 
 如果这个项目对你有帮助，请点个 ⭐
 

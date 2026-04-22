@@ -1,4 +1,4 @@
-# ⚡ Triton Fused Operators
+# Triton Fused Operators
 
 <div align="center">
 
@@ -17,49 +17,34 @@
 
 ---
 
-## 🎯 The Problem
+## The Problem
 
 Transformer inference is **memory-bound**, not compute-bound.
 
+```mermaid
+flowchart LR
+    subgraph Standard["Standard PyTorch (separate ops)"]
+        A1[Input x] -->|HBM| B1[RMSNorm Kernel]
+        B1 -->|HBM<br/>x_norm| C1[RoPE Kernel]
+        C1 -->|HBM| D1[Output]
+    end
+    
+    subgraph Fused["Triton Fused Operators (single kernel)"]
+        A2[Input x] -->|HBM| B2["RMSNorm + RoPE<br/>(registers/SRAM)"]
+        B2 -->|HBM| D2[Output]
+    end
 ```
-┌────────────────────────────────────────────────────────────────┐
-│  Standard PyTorch (separate ops)                               │
-│  ─────────────────────────────                                 │
-│  1. Load x from HBM → RMSNorm Kernel → Write normalized x      │
-│  2. Load normalized x → RoPE Kernel → Write final output       │
-│  3. Load final output → Next layer...                          │
-│                                                                │
-│  HBM Access: 3 reads + 2 writes per token                      │
-│  Bandwidth: ~30-40% utilization                                │
-└────────────────────────────────────────────────────────────────┘
 
-┌────────────────────────────────────────────────────────────────┐
-│  Triton Fused Operators (single kernel)                        │
-│  ───────────────────────────────────                           │
-│  1. Load x once → [RMSNorm + RoPE in registers/SRAM]           │
-│  2. Write final output                                         │
-│                                                                │
-│  HBM Access: 1 read + 1 write per token                        │
-│  Bandwidth: 90%+ utilization                                   │
-└────────────────────────────────────────────────────────────────┘
-```
+| Approach | HBM Access | Bandwidth Utilization |
+|:---------|:----------:|:---------------------:|
+| Standard PyTorch | 3 reads + 2 writes per token | ~30-40% |
+| **Triton Fused** | **1 read + 1 write per token** | **90%+** |
 
 **Result:** 1.5-3x faster inference, especially for large batch sizes where HBM bandwidth is the bottleneck.
 
 ---
 
-## ✨ Features
-
-| Feature | Description | Status |
-|:--------|:------------|:------:|
-| 🔥 **Fused RMSNorm+RoPE** | Single-kernel normalization + position encoding | ✅ Ready |
-| ⚡ **Fused Gated MLP** | SwiGLU/GeGLU fusion for efficient MLP | ✅ Ready |
-| 🎯 **FP8 Quantization** | 50% memory savings with <0.5% accuracy loss | ✅ Ready |
-| 🎛️ **Auto-Tuning** | Automatic optimization for your GPU | ✅ Ready |
-| 📊 **Benchmark Suite** | Performance measurement & correctness verification | ✅ Ready |
-| 🌍 **Bilingual Docs** | Complete English & Chinese documentation | ✅ Ready |
-
-### Performance Highlights
+## Features
 
 | Operator | Fusion Strategy | Speedup | Memory Saved |
 |:---------|:----------------|:-------:|:------------:|
@@ -67,13 +52,34 @@ Transformer inference is **memory-bound**, not compute-bound.
 | `fused_gated_mlp` | Gate & Up projection + SiLU/GELU | **~1.5x** | 1 fewer intermediate tensor |
 | `fp8_gemm` | FP8 matmul with dynamic scaling | **~1.4x** | **50%** weight storage |
 
+### Key Capabilities
+
+- ✅ **Drop-in replacement** — No model architecture changes needed
+- ✅ **Framework compatible** — Works with HuggingFace, PyTorch, vLLM, TGI
+- ✅ **Verified accuracy** — Numerically validated against PyTorch reference
+- ✅ **FP8 overflow handling** — Automatic detection and recovery (<0.5% error)
+- ✅ **GPU auto-tuning** — Automatic optimization for your specific GPU
+- ✅ **Comprehensive benchmarks** — Performance and correctness verification tools
+
 ---
 
-## 🚀 Quick Start
+## Quick Start
+
+### Prerequisites
+
+- **GPU:** NVIDIA Ampere (A100, RTX 30xx) or newer recommended
+- **CUDA:** Version 11.8 or higher (12.1+ preferred)
+- **Python:** 3.9 or higher
+- **PyTorch:** 2.0 or higher
+- **Triton:** 2.1 or higher
 
 ### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/LessUp/triton-fused-ops.git
+cd triton-fused-ops
+
 # Development installation (recommended)
 pip install -e ".[dev]"
 
@@ -83,9 +89,13 @@ pip install -e .
 
 **Note:** The package is not yet published on PyPI. Use the development installation above.
 
-**Requirements:** Python ≥3.9, PyTorch ≥2.0, Triton ≥2.1, CUDA ≥11.8 (Ampere or newer recommended)
+### Verify Installation
 
-### 3-Line Integration
+```bash
+python -c "from triton_ops import fused_rmsnorm_rope; print('✓ Installation successful')"
+```
+
+### Basic Usage
 
 ```python
 import torch
@@ -139,9 +149,25 @@ class LlamaDecoderLayer(torch.nn.Module):
         return x
 ```
 
+### FP8 Quantization
+
+```python
+from triton_ops import quantize_fp8, fp8_gemm
+
+# Dynamic scaling — automatic range detection
+tensor = torch.randn(1024, 4096, device='cuda', dtype=torch.float16)
+quantized, scale = quantize_fp8(tensor)
+# Scale formula: max_abs / 448.0 (448 is FP8 E4M3 max value)
+
+# FP8 GEMM with FP32 accumulation for numerical stability
+a_fp8, a_scale = quantize_fp8(a)
+b_fp8, b_scale = quantize_fp8(b)
+output = fp8_gemm(a_fp8, b_fp8, a_scale, b_scale)  # Returns FP16
+```
+
 ---
 
-## 📊 Benchmarks
+## Benchmarks
 
 Tested on NVIDIA A100 80GB, CUDA 12.1.
 
@@ -171,73 +197,40 @@ Tested on NVIDIA A100 80GB, CUDA 12.1.
 
 ---
 
-## 📖 Documentation
+## Documentation
 
-### Getting Started
-- [Installation Guide](docs/en/getting-started/installation.md)
-- [Quick Start](docs/en/getting-started/quickstart.md)
-- [Examples](docs/en/getting-started/examples.md)
-
-### API Reference
-- [Core Kernels](docs/en/api/kernels.md) — RMSNorm+RoPE, Gated MLP, FP8 GEMM
-- [Quantization](docs/en/api/quantization.md) — FP8 quantization utilities
-- [Auto-Tuning](docs/en/api/autotuner.md) — Configuration optimization
-- [Benchmark](docs/en/api/benchmark.md) — Performance measurement tools
-
-### Guides
-- [Integration Guide](docs/en/guides/integration.md) — HuggingFace, PyTorch, vLLM
-- [Performance Tuning](docs/en/guides/performance.md) — GPU optimization
-- [FP8 Best Practices](docs/en/guides/fp8-best-practices.md) — Quantization tips
-
-### Internal
-- [Architecture](docs/en/internals/architecture.md) — Library design
-- [Kernel Design](docs/en/internals/kernel-design.md) — Implementation details
-- [Memory Optimization](docs/en/internals/memory-optimization.md) — Fusion strategies
+- [Installation Guide](https://lessup.github.io/triton-fused-ops/docs/en/getting-started/installation.html)
+- [Quick Start](https://lessup.github.io/triton-fused-ops/docs/en/getting-started/quickstart.html)
+- [API Reference](https://lessup.github.io/triton-fused-ops/docs/en/api/kernels.html)
+- [Integration Guide](https://lessup.github.io/triton-fused-ops/docs/en/guides/integration.html)
 
 ---
 
-## 🔧 Technical Deep Dive
+## API Reference
 
-### Kernel Fusion Strategy
+### Functions
 
-```
-Standard (PyTorch Native):
-┌─────────┐    HBM    ┌─────────┐    HBM    ┌─────────┐
-│  Input  │ ────────► │ RMSNorm │ ────────► │  RoPE   │ ────────► Output
-│  (x)    │           │  Kernel │  (x_norm) │  Kernel │
-└─────────┘           └─────────┘           └─────────┘
-     │                    │                     │
-     └────────────────────┴─────────────────────┘
-              3 HBM reads, 2 HBM writes per element
+| Function | Signature | Description |
+|:---------|:----------|:------------|
+| `fused_rmsnorm_rope` | `(x, weight, cos, sin, eps=1e-6, num_heads=None)` → `Tensor` | RMSNorm + RoPE fusion |
+| `fused_gated_mlp` | `(x, gate_weight, up_weight, activation='silu')` → `Tensor` | SwiGLU/GeGLU fusion |
+| `fp8_gemm` | `(a, b, a_scale=None, b_scale=None, output_dtype=torch.float16)` → `Tensor` | Quantized matmul |
+| `quantize_fp8` | `(tensor, scale=None)` → `(Tensor, scale)` | E4M3 quantization |
+| `dequantize_fp8` | `(tensor, scale, dtype=torch.float16)` → `Tensor` | E4M3 dequantization |
 
-Fused (This Library):
-┌─────────┐                              ┌─────────┐
-│  Input  │ ─────► ┌────────────────┐ ──► │ Output  │
-│  (x)    │        │ RMSNorm + RoPE │      │ (x_out) │
-└─────────┘        │  (registers)   │      └─────────┘
-    HBM            └────────────────┘         HBM
-                         SRAM
-              1 HBM read, 1 HBM write per element
-```
+### Modules
 
-### FP8 E4M3 Format Details
+| Class | `__init__` | Forward |
+|:------|:-----------|:--------|
+| `FusedRMSNormRoPE` | `(hidden_dim, head_dim, eps=1e-6)` | `(x, cos, sin)` → `x` |
+| `FusedGatedMLP` | `(hidden_dim, intermediate_dim, activation='silu')` | `(x)` → `x` |
+| `FP8Linear` | `(in_features, out_features, bias=False)` | `(x)` → `x` |
 
-- **1 sign bit, 4 exponent bits, 3 mantissa bits**
-- **Max representable:** 448.0
-- **Dynamic scaling:** `scale = max_abs(tensor) / 448.0`
-- **Overflow detection:** Automatic retry with adjusted scale
-
-### Hardware Support
-
-| GPU Architecture | FP16 | FP8 | Best For |
-|:----------------|:----:|:---:|:---------|
-| Ampere (A100) | ✅ | ⚠️ emu | Production inference |
-| Ada (RTX 4090) | ✅ | ✅ | Edge deployment |
-| Hopper (H100) | ✅ | ✅ | Large-scale serving |
+See [📖 Full API Docs](https://lessup.github.io/triton-fused-ops/) for detailed signatures.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 triton_ops/
@@ -259,7 +252,7 @@ triton_ops/
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -279,7 +272,7 @@ python -m tests.benchmarks.bench_fp8_gemm
 
 ---
 
-## 💡 Use Cases
+## Use Cases
 
 | Use Case | Solution | Benefit |
 |:---------|:---------|:--------|
@@ -290,31 +283,91 @@ python -m tests.benchmarks.bench_fp8_gemm
 
 ---
 
-## 📝 API Reference
+## Technical Deep Dive
 
-### Functions
+### Kernel Fusion Strategy
 
-| Function | Signature | Description |
-|:---------|:----------|:------------|
-| `fused_rmsnorm_rope` | `(x, weight, cos, sin, eps=1e-6)` → `Tensor` | RMSNorm + RoPE fusion |
-| `fused_gated_mlp` | `(x, gate_w, up_w, activation='silu')` → `Tensor` | SwiGLU/GeGLU fusion |
-| `fp8_gemm` | `(a, b, a_scale=None, b_scale=None)` → `Tensor` | Quantized matmul |
-| `quantize_fp8` | `(tensor, scale=None)` → `(Tensor, scale)` | E4M3 quantization |
-| `dequantize_fp8` | `(tensor, scale, dtype)` → `Tensor` | E4M3 dequantization |
+```mermaid
+flowchart LR
+    subgraph Standard["Standard (PyTorch Native): 3 HBM reads, 2 HBM writes"]
+        direction TB
+        S1[Input] -->|HBM| S2[RMSNorm] -->|HBM<br/>x_norm| S3[RoPE] -->|HBM| S4[Output]
+    end
+    
+    subgraph Fused["Fused (This Library): 1 HBM read, 1 HBM write"]
+        direction TB
+        F1[Input] -->|HBM| F2["RMSNorm + RoPE<br/>(registers/SRAM)"] -->|HBM| F4[Output]
+    end
+```
 
-### Modules
+### FP8 E4M3 Format Details
 
-| Class | `__init__` | Forward |
-|:------|:-----------|:--------|
-| `FusedRMSNormRoPE` | `(hidden_dim, head_dim, eps=1e-6)` | `(x, cos, sin)` → `x` |
-| `FusedGatedMLP` | `(hidden_dim, intermediate_dim, activation='silu')` | `(x)` → `x` |
-| `FP8Linear` | `(in_features, out_features, bias=False)` | `(x)` → `x` |
+- **1 sign bit, 4 exponent bits, 3 mantissa bits**
+- **Max representable:** 448.0
+- **Dynamic scaling:** `scale = max_abs(tensor) / 448.0`
+- **Overflow detection:** Automatic retry with adjusted scale
 
-See [📖 Full API Docs](https://lessup.github.io/triton-fused-ops/docs/en/) for detailed signatures.
+### Hardware Support
+
+| GPU Architecture | FP16 | FP8 | Best For |
+|:----------------|:----:|:---:|:---------|
+| Ampere (A100) | ✅ | ⚠️ emu | Production inference |
+| Ada (RTX 4090) | ✅ | ✅ | Edge deployment |
+| Hopper (H100) | ✅ | ✅ | Large-scale serving |
+
+> **Note:** FP8 on Ampere uses emulation; native FP8 support requires Ada/Hopper.
 
 ---
 
-## 🤝 Contributing
+## Troubleshooting
+
+### Installation Issues
+
+| Issue | Solution |
+|:------|:---------|
+| `ImportError: No module named triton` | Install Triton: `pip install triton>=2.1.0` |
+| `CUDA_ERROR_NO_DEVICE` | Verify CUDA is available: `torch.cuda.is_available()` |
+| `RuntimeError: CUDA out of memory` | Reduce batch size or enable FP8 quantization |
+| `Compilation error` | Ensure CUDA toolkit matches PyTorch CUDA version |
+
+### Performance Issues
+
+| Symptom | Likely Cause | Solution |
+|:--------|:-------------|:---------|
+| No speedup observed | Small batch size | Fusion benefits grow with batch size; test with batch ≥ 4 |
+| Slower than PyTorch | GPU not utilized | Check `nvidia-smi` and ensure inputs are on CUDA |
+| Bandwidth < 80% | Wrong kernel config | Run auto-tuner first: `TritonAutoTuner().optimize(...)` |
+| FP8 accuracy issues | Scale overflow | Check input max values are within FP8 range (< 448) |
+
+### Verification Steps
+
+```python
+# 1. Check GPU availability
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+# 2. Verify basic operation
+from triton_ops import fused_rmsnorm_rope
+x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
+weight = torch.ones(4096, device='cuda', dtype=torch.float16)
+cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+out = fused_rmsnorm_rope(x, weight, cos, sin)
+print(f"Output shape: {out.shape} ✓")
+
+# 3. Run correctness check
+from triton_ops import quantize_fp8, dequantize_fp8
+tensor = torch.randn(1024, 1024, device='cuda', dtype=torch.float16)
+quantized, scale = quantize_fp8(tensor)
+recovered = dequantize_fp8(quantized, scale)
+error = torch.abs(tensor - recovered).mean().item()
+print(f"FP8 reconstruction error: {error:.6f} ✓")
+```
+
+---
+
+## Contributing
 
 ```bash
 # Setup
@@ -335,13 +388,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ---
 
-## 📄 License
+## License
 
 MIT — free for commercial and research use.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Built with [OpenAI Triton](https://github.com/openai/triton) and inspired by [FlashAttention](https://github.com/Dao-AILab/flash-attention)'s memory-efficient kernels.
 
@@ -349,7 +402,7 @@ Built with [OpenAI Triton](https://github.com/openai/triton) and inspired by [Fl
 
 <div align="center">
 
-**[⬆ Back to Top](#-triton-fused-operators)**
+**[Back to Top](#triton-fused-operators)**
 
 Star ⭐ if this helps your LLM deployment!
 
