@@ -11,6 +11,7 @@ group :jekyll_plugins do
   gem "jekyll-feed"
   gem "jekyll-redirect-from"
   gem "jekyll-minifier"
+  gem "jekyll-include-cache"
 end
 
 # Windows and JRuby does not include zoneinfo files
