@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+staged_python_files="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.py$' || true)"
+
+if [[ -z "${staged_python_files}" ]]; then
+  exit 0
+fi
+
+if ! command -v ruff >/dev/null 2>&1; then
+  echo "pre-commit: ruff is required for Python formatting/linting" >&2
+  exit 1
+fi
+
+echo "pre-commit: formatting staged Python files with ruff"
+while IFS= read -r file; do
+  [[ -f "${file}" ]] || continue
+  ruff format "${file}"
+done <<< "${staged_python_files}"
+
+echo "pre-commit: lint-fixing staged Python files with ruff"
+while IFS= read -r file; do
+  [[ -f "${file}" ]] || continue
+  ruff check --fix "${file}"
+done <<< "${staged_python_files}"
+
+while IFS= read -r file; do
+  [[ -f "${file}" ]] || continue
+  git add "${file}"
+done <<< "${staged_python_files}"
+
+echo "pre-commit: done"

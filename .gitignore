@@ -41,3 +41,11 @@ _site/
 # Benchmark reports
 *.nsys-rep
 *.ncu-rep
+
+# Claude personal preferences
+CLAUDE.local.md
+.claude/settings.local.json
+
+# BMad Method V6
+_bmad/
+_bmad-output/

@@ -1,0 +1,28 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Python 3.9+, PyTorch 2.0+, Triton 2.1+, CUDA
+  Testing: pytest, hypothesis for property-based testing
+  Key patterns: Operator fusion, FP8 quantization, Auto-tuning
+
+  Project: High-performance Triton operators for Transformer models with
+  operator fusion and FP8 quantization. Reduces HBM access and improves
+  inference latency for decoding phase.
+
+rules:
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Include numerical tolerances for correctness properties
+    - Reference mathematical formulas with standard notation
+  proposal:
+    - List affected kernel files
+    - Include performance impact assessment
+    - Consider memory access patterns
+  design:
+    - Document mathematical formulas in LaTeX notation
+    - Include memory access pattern diagrams
+    - Specify numerical precision requirements
+  tasks:
+    - Reference requirement IDs for traceability (e.g., _Requirements: 1.1, 2.3_)
+    - Mark tasks as testable units
+    - Include validation criteria for each task
