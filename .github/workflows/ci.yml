@@ -15,7 +15,6 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,19 +25,18 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install linting tools
+      - name: Install tooling
         run: |
           python -m pip install --upgrade pip
           pip install ruff
 
-      - name: Run Ruff lint
-        run: ruff check .
-
-      - name: Run Ruff format check
+      - name: Ruff format check
         run: ruff format --check .
 
+      - name: Ruff lint check
+        run: ruff check .
+
   type-check:
-    name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,20 +50,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mypy torch --index-url https://download.pytorch.org/whl/cpu
-          pip install triton
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install triton mypy
+          pip install -e .
 
-      - name: Run Mypy
+      - name: Mypy
         run: mypy triton_ops/ --ignore-missing-imports
 
   test:
-    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
-
     steps:
       - uses: actions/checkout@v4
 
@@ -79,25 +76,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install triton pytest pytest-cov hypothesis
+          pip install triton pytest hypothesis pytest-cov
           pip install -e .
 
-      - name: Run tests (CPU-only, skip GPU tests)
+      - name: CPU-safe tests
         run: |
-          pytest tests/ -v --cov=triton_ops --cov-report=xml --cov-report=term-missing \
-            -k "not cuda and not gpu" --ignore=tests/benchmarks/ || true
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        if: matrix.python-version == '3.11'
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          pytest tests/ -v --cov=triton_ops --cov-report=term-missing \
+            -k "not cuda and not gpu" --ignore=tests/benchmarks/
 
   build:
-    name: Build Package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,19 +95,13 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install build tools
+      - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
           pip install build twine
 
       - name: Build package
-        run: python -m build
+        run: python3 -m build
 
-      - name: Check package
+      - name: Validate package metadata
         run: twine check dist/*
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/

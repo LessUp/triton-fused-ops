@@ -62,7 +62,6 @@ dev = [
     "pytest>=7.0.0",
     "pytest-xdist>=3.0.0",
     "hypothesis>=6.0.0",
-    "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
@@ -80,17 +79,14 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ["py39", "py310", "py311"]
-
 [tool.ruff]
 line-length = 100
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP"]
 ignore = [
-    "E501",  # Line too long (handled by black)
+    "E501",  # Line too long (handled by formatter policy)
     "UP035", # Deprecated typing imports (for Python 3.9 compatibility)
     "UP006", # Use dict/list instead of Dict/List (for Python 3.9 compatibility)
 ]
@@ -105,5 +101,6 @@ python_version = "3.9"
 warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
+follow_imports = "skip"
 no_implicit_optional = false
 check_untyped_defs = false

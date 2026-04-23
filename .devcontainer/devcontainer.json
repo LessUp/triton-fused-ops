@@ -20,7 +20,6 @@
             "extensions": [
                 "ms-python.python",
                 "ms-python.vscode-pylance",
-                "ms-python.black-formatter",
                 "charliermarsh.ruff",
                 "ms-python.mypy-type-checker",
                 "tamasfe.even-better-toml",
@@ -30,9 +29,9 @@
                 "python.defaultInterpreterPath": "/usr/bin/python3",
                 "python.analysis.typeCheckingMode": "basic",
                 "editor.formatOnSave": true,
-                "editor.defaultFormatter": "ms-python.black-formatter",
+                "editor.defaultFormatter": "charliermarsh.ruff",
                 "[python]": {
-                    "editor.defaultFormatter": "ms-python.black-formatter",
+                    "editor.defaultFormatter": "charliermarsh.ruff",
                     "editor.codeActionsOnSave": {
                         "source.organizeImports": "explicit"
                     }

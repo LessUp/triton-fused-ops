@@ -1,162 +1,53 @@
-# Site Settings
 title: Triton Fused Ops
-description: >
-  高性能 Triton 算子库 — RMSNorm+RoPE 融合 · Gated MLP 融合 · FP8 GEMM · Auto-Tuning。
-  专为 Transformer 模型优化，提供接近硬件极限的推理吞吐。
+description: "Fused Triton kernels for Transformer inference (RMSNorm+RoPE, Gated MLP, FP8 GEMM)."
 
-# Theme Configuration
+url: https://lessup.github.io
+baseurl: /triton-fused-ops
+repository: LessUp/triton-fused-ops
+lang: en
+
 remote_theme: just-the-docs/just-the-docs@v0.8.2
 plugins:
   - jekyll-remote-theme
   - jekyll-seo-tag
   - jekyll-sitemap
-  - jekyll-feed
-  - jekyll-redirect-from
 
-# Repository Information
-repository: LessUp/triton-fused-ops
-github_username: LessUp
-show_downloads: true
-
-# SEO & Metadata
-url: https://lessup.github.io
-baseurl: /triton-fused-ops
-lang: zh-CN
-author:
-  name: LessUp
-  email: lessup@example.com
-twitter:
-  username: lessup
-  card: summary_large_image
-
-# Color Scheme
-color_scheme: dark
-
-# Enable Mermaid Diagrams
-mermaid:
-  version: "10.6.1"
-  
-# MathJax for equations
-mathjax:
-  version: "3.2.2"
-
-# Search Configuration
+color_scheme: light
 search_enabled: true
-search:
-  heading_level: 2
-  previews: 2
-  preview_words_before: 3
-  preview_words_after: 3
-  tokenizer_separator: /[\s/]+/
-  rel_url: true
-  button: false
-
-# Auxiliary Navigation
-aux_links:
-  "📖 Documentation":
-    - "//lessup.github.io/triton-fused-ops/docs/en/"
-  "🇨🇳 中文文档":
-    - "//lessup.github.io/triton-fused-ops/docs/zh/"
-  "💻 GitHub":
-    - "//github.com/LessUp/triton-fused-ops"
-  "📦 PyPI":
-    - "//pypi.org/project/triton-fused-ops"
-
-aux_links_new_tab: true
-
-# Footer Configuration
-footer_content: >
-  Copyright &copy; 2026 LessUp. Distributed under an <a href="https://github.com/LessUp/triton-fused-ops/blob/main/LICENSE">MIT license.</a>
-  <br>
-  Powered by <a href="https://just-the-docs.com">Just the Docs</a> &middot; Built with ❤️ for the AI community
-
-# Back to Top
+heading_anchors: true
 back_to_top: true
 back_to_top_text: "Back to top"
 
-# Heading Anchors
-heading_anchors: true
+aux_links:
+  "Quick Start":
+    - "/docs/en/getting-started/quickstart/"
+  "English Docs":
+    - "/docs/en/"
+  "中文文档":
+    - "/docs/zh/"
+  "GitHub":
+    - "https://github.com/LessUp/triton-fused-ops"
+aux_links_new_tab: true
 
-# Callouts
-callouts_level: quiet
-callouts:
-  highlight:
-    color: yellow
-  important:
-    title: Important
-    color: blue
-  new:
-    title: New
-    color: green
-  note:
-    title: Note
-    color: purple
-  warning:
-    title: Warning
-    color: red
-
-# Kramdown configuration
-kramdown:
-  syntax_highlighter: rouge
-  input: GFM
-  hard_wrap: false
-  math_engine: mathjax
-  math_engine_opts:
-    preview: true
-    preview_as_code: true
-
-# Sass/SCSS
-sass:
-  style: compressed
-  sass_dir: _sass
-
-# Collections
 collections:
   docs:
     permalink: "/:collection/:path/"
     output: true
 
-# Default Layouts
 defaults:
   - scope:
       path: ""
-      type: "pages"
+      type: pages
     values:
       layout: default
-      nav_order: 1
-  - scope:
-      path: "docs/en"
-      type: "pages"
-    values:
-      layout: default
-      nav_order: 2
-      parent: "Documentation"
-  - scope:
-      path: "docs/zh"
-      type: "pages"
-    values:
-      layout: default
-      nav_order: 3
-      parent: "中文文档"
 
-# Navigation Structure
-nav_external_links:
-  - title: "📊 Live Benchmarks"
-    url: "https://lessup.github.io/triton-fused-ops/benchmarks"
-    hide_icon: false
-  - title: "🚀 Quick Start"
-    url: "https://lessup.github.io/triton-fused-ops/docs/en/getting-started/quickstart"
-    hide_icon: false
-
-# Exclude files from Jekyll build
 exclude:
   - .git
   - .github
-  - .gitignore
   - .venv
+  - .venv*
   - .pytest_cache
   - .hypothesis
-  - .triton
   - __pycache__
   - "*.egg-info"
   - dist
@@ -168,54 +59,8 @@ exclude:
   - docker-compose.yml
   - pyproject.toml
   - .editorconfig
-  - .pre-commit-config.yaml
-  - Gemfile
-  - Gemfile.lock
-  - vendor
-  - "*.py"
-  - "*.sh"
-  - node_modules
-
-# Compression
-compress_html:
-  clippings: all
-  comments: ["<!-- ", " -->"]
-  endings: all
-  startings: [html, head, body]
-
-# Liquid settings
-liquid:
-  error_mode: strict
-  strict_filters: true
-  strict_variables: false
-
-# Jekyll settings
-markdown_ext: "markdown,mkdown,mkdn,mkd,md"
-timezone: Asia/Shanghai
-encoding: UTF-8
-
-# Analytics (optional)
-# ga_tracking: G-XXXXXXXXXX
-# ga_tracking_anonymize_ip: true
-
-# Favicon
-favicon_ico: "/assets/images/favicon.ico"
-
-# Logo
-logo: "/assets/images/logo.png"
-
-# Social Share
-social:
-  name: Triton Fused Ops
-  links:
-    - https://github.com/LessUp/triton-fused-ops
-    - https://twitter.com/lessup
-
-# Web App Manifest
-web_manifest:
-  short_name: TritonOps
-  name: Triton Fused Ops
-  start_url: "/triton-fused-ops/"
-  display: standalone
-  theme_color: "#7253ed"
-  background_color: "#ffffff"
+  - .devcontainer
+  - .vscode
+  - .githooks
+  - openspec
+  - CLAUDE.local.md

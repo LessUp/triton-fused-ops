@@ -7,6 +7,13 @@
 <!-- Link to the issue this PR addresses (if applicable) -->
 Fixes #
 
+## OpenSpec Change
+
+<!-- Required for non-trivial work -->
+- Change name: ``
+- [ ] This PR maps to an active OpenSpec change
+- [ ] `tasks.md` checkboxes are updated for completed work
+
 ## Type of Change
 
 <!-- Mark the appropriate option with an [x] -->
@@ -31,7 +38,7 @@ Fixes #
 
 <!-- Describe the tests you ran to verify your changes -->
 
-- [ ] All existing tests pass (`pytest tests/ -v`)
+- [ ] Baseline tests pass (`pytest tests/ -v -k "not cuda and not gpu" --ignore=tests/benchmarks/`)
 - [ ] New tests added for new functionality
 - [ ] Tested on GPU with CUDA
 
@@ -47,9 +54,10 @@ Fixes #
 <!-- Mark completed items with an [x] -->
 
 - [ ] My code follows the project's style guidelines
-- [ ] I have run `black .` to format my code
+- [ ] I have run `ruff format --check .`
 - [ ] I have run `ruff check .` and fixed any issues
 - [ ] I have run `mypy triton_ops/` and fixed any type errors
+- [ ] I have run `python3 -m build`
 - [ ] I have added/updated docstrings for new/modified functions
 - [ ] I have added type hints to new functions
 - [ ] I have updated the documentation if needed
