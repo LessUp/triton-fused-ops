@@ -90,9 +90,9 @@ class TestFP8GEMMCorrectness:
 
         # Mean relative error should be within 1%
         mean_rel_error = rel_error.mean().item()
-        assert (
-            mean_rel_error < 0.05
-        ), f"Mean relative error {mean_rel_error:.4f} exceeds 5% threshold"
+        assert mean_rel_error < 0.05, (
+            f"Mean relative error {mean_rel_error:.4f} exceeds 5% threshold"
+        )
 
 
 class TestFP8GEMMEdgeCases:

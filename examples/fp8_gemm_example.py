@@ -209,8 +209,10 @@ def demo_accuracy_analysis():
         ),
         (
             "Sparse (90% zeros)",
-            lambda: torch.randn(512, 512, device="cuda", dtype=torch.float16)
-            * (torch.rand(512, 512, device="cuda") > 0.9).half(),
+            lambda: (
+                torch.randn(512, 512, device="cuda", dtype=torch.float16)
+                * (torch.rand(512, 512, device="cuda") > 0.9).half()
+            ),
         ),
     ]
 

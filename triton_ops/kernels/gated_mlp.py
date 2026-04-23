@@ -195,7 +195,7 @@ def fused_gated_mlp(
     batch_size, seq_len, hidden_dim, intermediate_dim = validate_gated_mlp_inputs(
         x, gate_weight, up_weight, activation
     )
-    
+
     # Handle empty tensors
     if batch_size == 0 or seq_len == 0 or hidden_dim == 0 or intermediate_dim == 0:
         return torch.empty(batch_size, seq_len, intermediate_dim, dtype=x.dtype, device=x.device)
@@ -205,7 +205,9 @@ def fused_gated_mlp(
 
     # Validate and determine activation type
     if activation not in VALID_ACTIVATIONS:
-        raise ValueError(f"activation must be '{ACTIVATION_SILU}' or '{ACTIVATION_GELU}', got '{activation}'")
+        raise ValueError(
+            f"activation must be '{ACTIVATION_SILU}' or '{ACTIVATION_GELU}', got '{activation}'"
+        )
     activation_type = 0 if activation == ACTIVATION_SILU else 1
 
     # Block sizes

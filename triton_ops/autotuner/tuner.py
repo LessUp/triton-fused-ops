@@ -1,10 +1,7 @@
 """Auto-tuning framework for Triton kernels."""
 
-import logging
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import torch
 
 from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
@@ -94,6 +91,7 @@ class TritonAutoTuner:
 
         except Exception as e:
             import warnings
+
             warnings.warn(f"Configuration {config} failed: {e}")
             return None
 

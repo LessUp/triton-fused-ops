@@ -58,7 +58,9 @@ class TestGatedMLPCorrectness:
             reference_output.float(),
             rtol=1e-2,
             atol=1e-4,
-        ), f"Output mismatch for {activation}: max diff = {(triton_output - reference_output).abs().max()}"
+        ), (
+            f"Output mismatch for {activation}: max diff = {(triton_output - reference_output).abs().max()}"
+        )
 
     @given(
         batch_size=st.integers(min_value=1, max_value=64),

@@ -292,7 +292,7 @@ def fused_rmsnorm_rope(
     validate_eps(eps)
     validate_head_dim(head_dim)
     validate_positive_dimensions(batch_size=batch_size, seq_len=seq_len, hidden_dim=hidden_dim)
-    
+
     # Handle empty tensors
     if batch_size == 0 or seq_len == 0 or hidden_dim == 0:
         return torch.empty_like(x)

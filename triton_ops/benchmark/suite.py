@@ -189,7 +189,13 @@ class BenchmarkSuite:
                 bandwidth_utilization=0.0,
             )
 
-        speedup = pytorch_latency / triton_latency if triton_latency > 0 else float('inf') if pytorch_latency > 0 else 0
+        speedup = (
+            pytorch_latency / triton_latency
+            if triton_latency > 0
+            else float("inf")
+            if pytorch_latency > 0
+            else 0
+        )
 
         comparison = ComparisonResult(
             kernel_name=kernel_name,

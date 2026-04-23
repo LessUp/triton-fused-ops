@@ -13,7 +13,8 @@ import pytest
 
 # Try to import hypothesis for property-based testing
 try:
-    from hypothesis import given, settings, strategies as st
+    from hypothesis import given, settings
+    from hypothesis import strategies as st
 
     HAS_HYPOTHESIS = True
 except ImportError:
@@ -132,10 +133,10 @@ class TestTypeAnnotations:
     def test_dataclasses_have_type_annotations(self):
         """Verify dataclass fields have type annotations."""
         from triton_ops.models import (
-            TensorSpec,
-            KernelMetrics,
-            TuningResult,
             FP8Format,
+            KernelMetrics,
+            TensorSpec,
+            TuningResult,
         )
 
         dataclasses_to_check = [TensorSpec, KernelMetrics, TuningResult, FP8Format]
@@ -191,16 +192,13 @@ class TestDocstrings:
                 p
                 for p in sig.parameters.values()
                 if p.name not in ("self", "cls")
-                and p.kind
-                not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+                and p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
             ]
 
             if len(params) > 0 and func.__doc__:
                 doc = func.__doc__
                 # Should have Args section or Parameters section
-                has_args_doc = (
-                    "Args:" in doc or "Parameters:" in doc or "Arguments:" in doc
-                )
+                has_args_doc = "Args:" in doc or "Parameters:" in doc or "Arguments:" in doc
                 # Soft check - some simple functions may not need detailed docs
                 if not has_args_doc and len(params) > 2:
                     pass  # Could log warning for functions with many undocumented params

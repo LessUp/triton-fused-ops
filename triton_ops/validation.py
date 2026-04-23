@@ -58,8 +58,7 @@ def _check_dtype(
     """
     if tensor.dtype not in supported_dtypes:
         raise UnsupportedDtypeError(
-            f"{tensor_name} has unsupported dtype {tensor.dtype}, "
-            f"supported: {supported_dtypes}",
+            f"{tensor_name} has unsupported dtype {tensor.dtype}, supported: {supported_dtypes}",
             dtype=tensor.dtype,
             supported_dtypes=supported_dtypes,
             tensor_name=tensor_name,
@@ -91,7 +90,7 @@ def _check_same_device(*tensors: Tuple[torch.Tensor, str]) -> None:
     """
     if len(tensors) < 2:
         return
-    
+
     first_device = tensors[0][0].device
     for tensor, name in tensors[1:]:
         if tensor.device != first_device:
@@ -132,7 +131,7 @@ def validate_rmsnorm_rope_inputs(
     _check_cuda(weight, "weight")
     _check_cuda(cos, "cos")
     _check_cuda(sin, "sin")
-    
+
     # Check all tensors on same device
     _check_same_device((x, "x"), (weight, "weight"), (cos, "cos"), (sin, "sin"))
 
@@ -236,7 +235,7 @@ def validate_gated_mlp_inputs(
     _check_cuda(x, "x")
     _check_cuda(gate_weight, "gate_weight")
     _check_cuda(up_weight, "up_weight")
-    
+
     # Check all tensors on same device
     _check_same_device((x, "x"), (gate_weight, "gate_weight"), (up_weight, "up_weight"))
 
@@ -320,7 +319,7 @@ def validate_fp8_gemm_inputs(
     _check_cuda(b, "b")
     _check_cuda(a_scale, "a_scale")
     _check_cuda(b_scale, "b_scale")
-    
+
     # Check all tensors on same device
     _check_same_device((a, "a"), (b, "b"), (a_scale, "a_scale"), (b_scale, "b_scale"))
 
@@ -417,9 +416,7 @@ def validate_head_dim(head_dim: int) -> None:
         ValueError: If head_dim is not even
     """
     if head_dim % 2 != 0:
-        raise ValueError(
-            f"head_dim must be even for RoPE rotation, got {head_dim}"
-        )
+        raise ValueError(f"head_dim must be even for RoPE rotation, got {head_dim}")
 
 
 def validate_eps(eps: float) -> None:

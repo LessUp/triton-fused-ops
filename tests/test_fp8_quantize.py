@@ -53,9 +53,9 @@ class TestFP8QuantizationRoundTrip:
 
         # Most values should be within tolerance
         within_tolerance = (rel_error < max_quantization_error).float().mean()
-        assert (
-            within_tolerance > 0.95
-        ), f"Only {within_tolerance*100:.1f}% of values within tolerance"
+        assert within_tolerance > 0.95, (
+            f"Only {within_tolerance * 100:.1f}% of values within tolerance"
+        )
 
     @given(
         numel=st.integers(min_value=100, max_value=10000),
@@ -75,9 +75,9 @@ class TestFP8QuantizationRoundTrip:
 
         # Verify scaled tensor is within FP8 range
         scaled = tensor.float() * scale
-        assert (
-            scaled.abs().max() <= FP8Format.max_value * 1.01
-        ), "Scaled tensor exceeds FP8 max value"
+        assert scaled.abs().max() <= FP8Format.max_value * 1.01, (
+            "Scaled tensor exceeds FP8 max value"
+        )
 
 
 class TestFP8OverflowHandling:

@@ -151,9 +151,9 @@ class TestRMSNormRoPEEdgeCases:
         output = fused_rmsnorm_rope(x, weight, cos, sin)
 
         # Inf should propagate (may become NaN due to operations)
-        assert (
-            torch.isinf(output).any() or torch.isnan(output).any()
-        ), "Inf should propagate through the kernel"
+        assert torch.isinf(output).any() or torch.isnan(output).any(), (
+            "Inf should propagate through the kernel"
+        )
 
     def test_single_element(self):
         """Test with minimal dimensions."""

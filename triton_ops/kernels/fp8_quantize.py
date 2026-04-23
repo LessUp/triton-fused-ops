@@ -163,15 +163,17 @@ def quantize_fp8(
         )
 
     validate_fp8_quantize_inputs(tensor, scale)
-    
+
     # Handle empty tensors
     if tensor.numel() == 0:
-        return torch.empty_like(tensor, dtype=torch.uint8), torch.tensor(1.0, device=tensor.device, dtype=torch.float32)
+        return torch.empty_like(tensor, dtype=torch.uint8), torch.tensor(
+            1.0, device=tensor.device, dtype=torch.float32
+        )
 
     # Compute scale if not provided
     if scale is None:
         scale = FP8Format.compute_scale(tensor)
-        
+
     # Validate scale is positive to avoid division by zero
     if scale.item() <= 0:
         raise NumericalOverflowError(
