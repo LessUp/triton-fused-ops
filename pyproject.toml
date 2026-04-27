@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "triton-fused-ops"
-version = "1.0.0"
+version = "1.0.1"
 description = "High-performance Triton operators for Transformer models with operator fusion and FP8 quantization"
 readme = "README.md"
 license = {text = "MIT"}

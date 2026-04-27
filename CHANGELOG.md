@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-04-27
+
+### Fixed
+- FP8 GEMM scale validation: now requires scale factor when inputs are already FP8
+- Optional type annotations in `fp8_gemm.py`, `fp8_quantize.py`, and `api.py`
+- Type syntax consistency: unified use of `Tuple` from typing module
+- Exception handling in `tuner.py`: narrowed from `Exception` to `RuntimeError, OSError`
+- TOCTOU race condition in `cache.py`: removed redundant `exists()` check
+
+### Changed
+- Archived completed OpenSpec change `prepare-project-for-archive`
+- Removed `_bmad/` and `_bmad-output/` residual directories
+- Removed `_bmad` entries from `.gitignore`
+- Configured Git hooks path to `.githooks`
+
+### Added
+- pytest-cov configuration with 70% coverage threshold
+
+---
+
 ## [Unreleased]
 
 ### Added
