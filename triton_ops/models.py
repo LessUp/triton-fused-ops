@@ -525,4 +525,4 @@ class FP8Format:
             False
         """
         scaled = tensor * scale
-        return scaled.abs().max() <= FP8Format.max_value
+        return bool(scaled.abs().max() <= FP8Format.max_value)

@@ -1,7 +1,7 @@
 # Triton Fused Operators Library - Specification
 
-> **Version:** 1.0.0
-> **Last Updated:** 2026-04-23
+> **Version:** 1.0.1
+> **Last Updated:** 2026-04-27
 
 ---
 

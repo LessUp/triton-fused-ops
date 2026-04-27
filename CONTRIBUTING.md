@@ -6,7 +6,7 @@ This repository is maintained with a **spec-driven, quality-first** workflow.
 
 ## 1. Code of conduct
 
-Please follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Please follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 ## 2. Local setup
 

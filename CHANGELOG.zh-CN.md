@@ -7,18 +7,27 @@
 
 ---
 
-## [未发布]
+## [1.0.1] - 2026-04-27
 
-### 新增
-- 专业双语文档，完整支持中英文
-- 重构 docs/ 目录，提供全面的指南和 API 参考
-- 新的内部架构文档
-- 增强的性能优化指南
+### 修复
+- FP8 GEMM 缩放验证：当输入已是 FP8 时现在要求缩放因子
+- `fp8_gemm.py`、`fp8_quantize.py` 和 `api.py` 中的可选类型注解
+- 类型语法一致性：统一使用 `typing` 模块的 `Tuple`
+- `tuner.py` 异常处理：从 `Exception` 收窄为 `RuntimeError, OSError`
+- `cache.py` 中的 TOCTOU 竞态条件：移除冗余的 `exists()` 检查
 
 ### 变更
-- 重构变更日志为 Keep a Changelog 标准格式
-- 优化项目首页以提供更好的用户体验
-- 更新 API 文档，添加更多示例
+- 归档已完成的 OpenSpec 变更 `prepare-project-for-archive`
+- 移除 `_bmad/` 和 `_bmad-output/` 残留目录
+- 从 `.gitignore` 中移除 `_bmad` 条目
+- 配置 Git hooks 路径为 `.githooks`
+
+### 新增
+- pytest-cov 配置，覆盖率阈值 70%
+
+---
+
+## [未发布]
 
 ---
 

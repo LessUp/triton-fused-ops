@@ -104,7 +104,7 @@ References
 - `FP8 Formats for Deep Learning <https://arxiv.org/abs/2209.05433>`_
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Core functional API
 # Auto-tuning framework

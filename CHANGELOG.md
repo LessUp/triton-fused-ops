@@ -29,17 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Professional bilingual documentation with complete English and Chinese support
-- Restructured docs/ directory with comprehensive guides and API references
-- New internal architecture documentation
-- Enhanced performance tuning guides
-
-### Changed
-- Refactored changelog to Keep a Changelog standard format
-- Optimized project landing pages for better user experience
-- Updated API documentation with more examples
-
 ---
 
 ## [1.0.0] - 2026-04-16

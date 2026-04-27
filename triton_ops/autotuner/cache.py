@@ -81,7 +81,7 @@ class ConfigCache:
                 # Store in memory cache for faster access
                 with self._lock:
                     self._memory_cache[key] = config
-                return config.copy()
+                return dict(config.copy())
             except FileNotFoundError:
                 # Cache miss - file doesn't exist
                 pass

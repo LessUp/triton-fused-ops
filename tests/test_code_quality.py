@@ -270,7 +270,7 @@ class TestFileStructure:
             "README.md",
             "LICENSE",
             "CONTRIBUTING.md",
-            "CODE_OF_CONDUCT.md",
+            ".github/CODE_OF_CONDUCT.md",
             "CHANGELOG.md",
             "pyproject.toml",
             "triton_ops/py.typed",

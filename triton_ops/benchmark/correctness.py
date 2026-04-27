@@ -82,11 +82,13 @@ class CorrectnessVerifier:
         Returns:
             True if outputs are close within tolerance
         """
-        return torch.allclose(
-            actual.float(),
-            expected.float(),
-            rtol=self.rtol,
-            atol=self.atol,
+        return bool(
+            torch.allclose(
+                actual.float(),
+                expected.float(),
+                rtol=self.rtol,
+                atol=self.atol,
+            )
         )
 
     def compute_relative_error(
@@ -105,7 +107,7 @@ class CorrectnessVerifier:
         """
         abs_diff = (actual.float() - expected.float()).abs()
         rel_diff = abs_diff / (expected.float().abs() + 1e-10)
-        return rel_diff.max().item()
+        return float(rel_diff.max().item())
 
 
 def verify_fp8_accuracy(
