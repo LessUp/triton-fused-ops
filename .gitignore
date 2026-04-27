@@ -45,7 +45,3 @@ _site/
 # Claude personal preferences
 CLAUDE.local.md
 .claude/settings.local.json
-
-# BMad Method V6
-_bmad/
-_bmad-output/

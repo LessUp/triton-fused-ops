@@ -60,6 +60,7 @@ Changelog = "https://github.com/LessUp/triton-fused-ops/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
     "pytest-xdist>=3.0.0",
     "hypothesis>=6.0.0",
     "ruff>=0.1.0",
@@ -78,6 +79,23 @@ addopts = "-v --tb=short"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.coverage.run]
+source = ["triton_ops"]
+branch = true
+omit = [
+    "triton_ops/__init__.py",
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+fail_under = 70
 
 [tool.ruff]
 line-length = 100

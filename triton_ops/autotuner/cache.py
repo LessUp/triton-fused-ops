@@ -74,16 +74,19 @@ class ConfigCache:
         # Check file cache
         if self.cache_dir:
             cache_file = self.cache_dir / f"{key}.json"
-            if cache_file.exists():
-                try:
-                    with open(cache_file) as f:
-                        config = json.load(f)
-                    # Store in memory cache for faster access
-                    with self._lock:
-                        self._memory_cache[key] = config
-                    return config.copy()
-                except (OSError, json.JSONDecodeError) as e:
-                    _logger.debug("Failed to load cache file %s: %s", cache_file, e)
+            # Use try-except directly to avoid TOCTOU race between exists() and open()
+            try:
+                with open(cache_file) as f:
+                    config = json.load(f)
+                # Store in memory cache for faster access
+                with self._lock:
+                    self._memory_cache[key] = config
+                return config.copy()
+            except FileNotFoundError:
+                # Cache miss - file doesn't exist
+                pass
+            except (OSError, json.JSONDecodeError) as e:
+                _logger.debug("Failed to load cache file %s: %s", cache_file, e)
 
         return None
 

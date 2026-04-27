@@ -293,8 +293,8 @@ def validate_gated_mlp_inputs(
 def validate_fp8_gemm_inputs(
     a: torch.Tensor,
     b: torch.Tensor,
-    a_scale: torch.Tensor,
-    b_scale: torch.Tensor,
+    a_scale: Optional[torch.Tensor],
+    b_scale: Optional[torch.Tensor],
     output_dtype: torch.dtype = torch.float16,
 ) -> Tuple[int, int, int]:
     """Validate inputs for FP8 GEMM kernel.
@@ -302,8 +302,8 @@ def validate_fp8_gemm_inputs(
     Args:
         a: First matrix [M, K] in FP8 or float
         b: Second matrix [K, N] in FP8 or float
-        a_scale: Scaling factor for A
-        b_scale: Scaling factor for B
+        a_scale: Scaling factor for A (required if A is FP8)
+        b_scale: Scaling factor for B (required if B is FP8)
         output_dtype: Output data type
 
     Returns:
@@ -313,15 +313,37 @@ def validate_fp8_gemm_inputs(
         ShapeMismatchError: If tensor shapes are incompatible
         UnsupportedDtypeError: If tensor dtypes are unsupported
         DeviceError: If tensors are not on CUDA device
+        ValueError: If FP8 inputs are missing required scale factors
     """
     # Check CUDA
     _check_cuda(a, "a")
     _check_cuda(b, "b")
-    _check_cuda(a_scale, "a_scale")
-    _check_cuda(b_scale, "b_scale")
+
+    # Check FP8 scale requirements before other validations
+    if a.dtype in SUPPORTED_DTYPES_FP8 and a_scale is None:
+        raise ValueError(
+            f"a_scale is required when A is FP8 (dtype={a.dtype}). "
+            "Provide the scale factor used during quantization."
+        )
+    if b.dtype in SUPPORTED_DTYPES_FP8 and b_scale is None:
+        raise ValueError(
+            f"b_scale is required when B is FP8 (dtype={b.dtype}). "
+            "Provide the scale factor used during quantization."
+        )
+
+    # Check scale tensors if provided
+    if a_scale is not None:
+        _check_cuda(a_scale, "a_scale")
+    if b_scale is not None:
+        _check_cuda(b_scale, "b_scale")
 
     # Check all tensors on same device
-    _check_same_device((a, "a"), (b, "b"), (a_scale, "a_scale"), (b_scale, "b_scale"))
+    tensors_to_check = [(a, "a"), (b, "b")]
+    if a_scale is not None:
+        tensors_to_check.append((a_scale, "a_scale"))
+    if b_scale is not None:
+        tensors_to_check.append((b_scale, "b_scale"))
+    _check_same_device(*tensors_to_check)
 
     # Check contiguous
     _check_contiguous(a, "a")

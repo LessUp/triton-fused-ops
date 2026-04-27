@@ -3,7 +3,7 @@
 This module provides a unified, user-friendly interface for all Triton operators.
 """
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 
 import torch
 
@@ -128,7 +128,7 @@ def fp8_gemm(
 def quantize_fp8(
     tensor: torch.Tensor,
     scale: Optional[torch.Tensor] = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Quantize tensor to FP8 E4M3 format.
 
     FP8 E4M3 format: 1 sign bit, 4 exponent bits, 3 mantissa bits.

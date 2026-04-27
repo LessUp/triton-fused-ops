@@ -89,7 +89,8 @@ class TritonAutoTuner:
                 bandwidth_utilization=bandwidth_utilization,
             )
 
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
+            # Catch CUDA runtime errors and OS-level errors during kernel execution
             import warnings
 
             warnings.warn(f"Configuration {config} failed: {e}")

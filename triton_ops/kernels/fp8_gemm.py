@@ -7,6 +7,8 @@ This module implements FP8 matrix multiplication with:
 - Block pointer optimization for efficient memory access
 """
 
+from typing import Optional
+
 import torch
 import triton
 import triton.language as tl
@@ -130,8 +132,8 @@ def fp8_gemm_kernel(
 def fp8_gemm(
     a: torch.Tensor,
     b: torch.Tensor,
-    a_scale: torch.Tensor = None,
-    b_scale: torch.Tensor = None,
+    a_scale: Optional[torch.Tensor] = None,
+    b_scale: Optional[torch.Tensor] = None,
     output_dtype: torch.dtype = torch.float16,
 ) -> torch.Tensor:
     """Perform FP8 matrix multiplication.

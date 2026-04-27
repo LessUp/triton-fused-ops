@@ -5,6 +5,8 @@ FP8 E4M3 format: 1 sign bit, 4 exponent bits, 3 mantissa bits.
 Max representable value: 448.0
 """
 
+from typing import Optional, Tuple
+
 import torch
 import triton
 import triton.language as tl
@@ -138,8 +140,8 @@ def compute_scale_kernel(
 
 def quantize_fp8(
     tensor: torch.Tensor,
-    scale: torch.Tensor = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+    scale: Optional[torch.Tensor] = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Quantize tensor to FP8 E4M3 format.
 
     Args:
