@@ -1,234 +1,87 @@
 ---
 layout: default
-title: "Architecture — Triton Fused Ops"
-description: "Triton Fused Ops library architecture overview"
+title: Architecture
+parent: Internals
+grand_parent: Documentation
+nav_order: 1
+description: "How the repository is structured and how the modules relate"
 ---
 
-# Architecture Overview
+# Architecture
 
-Understanding the overall architecture of Triton Fused Ops.
+The repository is organized around a small public API layer backed by validation helpers, Triton kernel implementations, performance tooling, and shared data models.
 
----
+## Module map
 
-## High-Level Design
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        API Layer                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Kernels    │  │  Autotuner   │  │  Benchmark   │          │
-│  │   (api.py)   │  │   (tuner)    │  │   (suite)    │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Triton Kernel Layer                           │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐     │
-│  │ rmsnorm_rope   │  │  gated_mlp     │  │   fp8_gemm     │     │
-│  │   (triton)     │  │   (triton)     │  │   (triton)     │     │
-│  └────────────────┘  └────────────────┘  └────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       GPU Hardware                               │
-│              CUDA / PTX / SASS Instructions                      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Module Organization
-
-```
+```text
 triton_ops/
-├── __init__.py          # Public API exports
-├── api.py               # Clean functional API
-├── models.py            # Data models and types
-├── exceptions.py        # Custom exceptions
-├── utils.py             # Utility functions
-├── kernels/             # Triton kernel implementations
+├── __init__.py          # root exports
+├── api.py               # convenience API wrappers
+├── models.py            # dataclasses and metric/result containers
+├── exceptions.py        # custom exception types
+├── validation.py        # runtime input checks
+├── utils.py             # shared helpers and constants
+├── kernels/
 │   ├── rmsnorm_rope.py
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
-├── autotuner/           # Auto-tuning framework
-│   ├── tuner.py
+├── autotuner/
 │   ├── configs.py
+│   ├── tuner.py
 │   └── cache.py
-└── benchmark/           # Benchmark suite
-    ├── suite.py
+└── benchmark/
     ├── correctness.py
-    └── report.py
+    ├── report.py
+    └── suite.py
 ```
 
----
+## Responsibility split
 
-## Design Principles
+### Public API layer
 
-### 1. Separation of Concerns
+`triton_ops.__init__` is the main public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, and exception types.
 
-| Layer | Responsibility |
-|:------|:---------------|
-| **API Layer** | User-facing interface, input validation |
-| **Kernel Layer** | Low-level Triton implementations |
-| **Tuning Layer** | Configuration optimization |
-| **Hardware** | Actual computation |
+`triton_ops.api` mirrors the same high-level concepts with convenience wrappers, but the root package is the primary user-facing entry point.
 
-### 2. Lazy Loading
+### Validation layer
 
-Kernels and configurations are loaded on first use:
+`validation.py` centralizes input contracts:
 
-```python
-# Kernels are not compiled until first call
-from triton_ops import fused_rmsnorm_rope
+- device placement,
+- dtype support,
+- contiguity,
+- shape compatibility,
+- scalar parameter checks.
 
-# First call triggers Triton JIT compilation
-output = fused_rmsnorm_rope(x, weight, cos, sin)
+This keeps the kernel entry points smaller and makes the constraints reusable in tests and wrappers.
 
-# Subsequent calls use cached binary
-```
+### Kernel layer
 
-### 3. Type Safety
+The `kernels/` package contains the Triton implementations plus CPU/PyTorch reference implementations used for verification.
 
-Comprehensive type hints throughout:
+Each kernel module typically contains:
 
-```python
-def fused_rmsnorm_rope(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    cos: torch.Tensor,
-    sin: torch.Tensor,
-    eps: float = 1e-6,
-) -> torch.Tensor:
-    ...
-```
+- the Triton kernel,
+- the user-facing Python launcher,
+- a reference function,
+- an optional `nn.Module` wrapper.
 
----
+### Support tooling
 
-## Kernel Registration
+The autotuner and benchmark packages are separate from the kernel runtime path. They exist to support measurement, experimentation, and reporting rather than to hide tuning logic inside every API call.
 
-```python
-# triton_ops/__init__.py
+## Design intent
 
-# Kernels
-from .kernels.rmsnorm_rope import (
-    fused_rmsnorm_rope,
-    FusedRMSNormRoPE,
-)
-from .kernels.gated_mlp import (
-    fused_gated_mlp,
-    FusedGatedMLP,
-)
-from .kernels.fp8_gemm import (
-    fp8_gemm,
-    FP8Linear,
-)
-from .kernels.fp8_quantize import (
-    quantize_fp8,
-    dequantize_fp8,
-    quantize_fp8_with_overflow_handling,
-)
+The architecture is biased toward:
 
-# Autotuner
-from .autotuner.tuner import (
-    TritonAutoTuner,
-    ConfigCache,
-)
-from .autotuner.configs import (
-    RMSNORM_ROPE_CONFIGS,
-    GATED_MLP_CONFIGS,
-    FP8_GEMM_CONFIGS,
-)
+- explicit runtime contracts,
+- testable reference paths,
+- a small set of exported primitives,
+- support code that can be reused without modifying the kernels themselves.
 
-__all__ = [
-    # Kernels
-    "fused_rmsnorm_rope",
-    "FusedRMSNormRoPE",
-    "fused_gated_mlp",
-    "FusedGatedMLP",
-    "fp8_gemm",
-    "FP8Linear",
-    # Quantization
-    "quantize_fp8",
-    "dequantize_fp8",
-    "quantize_fp8_with_overflow_handling",
-    # Autotuner
-    "TritonAutoTuner",
-    "ConfigCache",
-    "RMSNORM_ROPE_CONFIGS",
-    "GATED_MLP_CONFIGS",
-    "FP8_GEMM_CONFIGS",
-]
-```
+## Important architectural boundaries
 
----
-
-## Error Handling
-
-### Exception Hierarchy
-
-```
-TritonOpsError (base)
-├── DeviceError
-│   └── CUDA unavailable
-├── ShapeMismatchError
-│   └── Tensor shape incompatibility
-├── DtypeError
-│   └── Unsupported data type
-├── TuningError
-│   └── Auto-tuning failure
-└── NumericalError
-    └── Overflow in quantization
-```
-
-### Usage Example
-
-```python
-from triton_ops import fused_rmsnorm_rope, DeviceError, ShapeMismatchError
-
-try:
-    output = fused_rmsnorm_rope(x, weight, cos, sin)
-except DeviceError as e:
-    print(f"CUDA error: {e}")
-except ShapeMismatchError as e:
-    print(f"Shape error: {e}")
-```
-
----
-
-## Extension Points
-
-### Adding a New Kernel
-
-1. Implement Triton kernel in `kernels/`
-2. Add functional API in `kernels/<name>.py`
-3. Add module wrapper (optional)
-4. Export in `__init__.py`
-5. Add configuration space in `autotuner/configs.py`
-6. Add tests in `tests/`
-
-### Adding Autotuner Support
-
-```python
-# In autotuner/configs.py
-
-MY_KERNEL_CONFIGS = {
-    "BLOCK_M": [64, 128, 256],
-    "BLOCK_N": [64, 128, 256],
-    "num_warps": [4, 8],
-}
-
-# In __init__.py
-from .autotuner.configs import MY_KERNEL_CONFIGS
-__all__.append("MY_KERNEL_CONFIGS")
-```
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#architecture-overview)** | **[← Back to Internals](../)**
-
-</div>
+- The repository does not ship a full transformer model stack.
+- The fused kernels are building blocks intended to be embedded into larger inference code.
+- Benchmarking and autotuning are companion tools, not mandatory runtime layers.

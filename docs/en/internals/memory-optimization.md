@@ -1,194 +1,55 @@
 ---
 layout: default
-title: "Memory Optimization — Triton Fused Ops"
-description: "Fusion strategies and memory optimization techniques"
+title: Memory Optimization
+parent: Internals
+grand_parent: Documentation
+nav_order: 3
+description: "How fusion and FP8 reduce memory pressure in the repository kernels"
 ---
 
 # Memory Optimization
 
-Fusion strategies and memory optimization techniques.
+Much of the value in this repository comes from reducing unnecessary memory movement.
 
----
+## Why fusion helps
 
-## Fusion Strategy
+Many transformer subgraphs are not limited only by arithmetic throughput. They also spend time moving intermediate tensors through HBM.
 
-### Why Fuse?
+Fusion helps by keeping intermediate values closer to the executing kernel logic rather than writing them out and reading them back.
 
-| Operation | Unfused | Fused | Improvement |
-|:----------|:--------|:------|:------------|
-| **RMSNorm + RoPE** | 5 HBM accesses | 2 HBM accesses | **2.5x** reduction |
-| **Gated MLP** | 4 HBM accesses | 2 HBM accesses | **2x** reduction |
-| **FP8 Quant + GEMM** | Separate ops | Single kernel | **1.5x** speedup |
+## `fused_rmsnorm_rope`
 
-### Memory Bandwidth Bottleneck
+The main win is that normalized values do not have to be materialized as a separate global tensor before applying RoPE.
 
-```
-Standard Implementation:
-┌─────────┐        ┌─────────┐        ┌─────────┐
-│  Input  │──HBM──►│ Kernel1 │──HBM──►│ Kernel2 │──HBM──► Output
-│  (HBM)  │  read  │  (HBM)  │ write  │  (HBM)  │ write │  (HBM)
-└─────────┘        └─────────┘  read  └─────────┘       └─────────┘
-                                                              
-Total: 3 reads, 2 writes per element
-Peak bandwidth: ~30-40% utilized
+Practical effect:
 
-Fused Implementation:
-┌─────────┐                             ┌─────────┐
-│  Input  │─────────►┌─────────┐────────►│ Output  │
-│  (HBM)  │    HBM   │  Fused  │   HBM   │  (HBM)  │
-└─────────┘   read   │  Kernel │  write  └─────────┘
-                     │ (SRAM)  │
-                     └─────────┘
-                          │
-                     Registers/SRAM
-                     (No HBM traffic)
+- fewer HBM reads and writes,
+- less launch overhead than two separate operations,
+- a more bandwidth-oriented optimization profile.
 
-Total: 1 read, 1 write per element
-Peak bandwidth: 90%+ utilized
-```
+## `fused_gated_mlp`
 
----
+The input tile is reused to feed two projections in one kernel path, and the activation is applied before the final write.
 
-## SRAM Utilization
+This reduces the amount of intermediate state that would otherwise move through memory across separate operators.
 
-### Register Pressure
+## FP8 path
 
-| Kernel | Registers per Thread | Threads per Block | Total Registers |
-|:-------|:--------------------|:------------------|:----------------|
-| **RMSNorm** | 64-128 | 128-256 | 8K-32K |
-| **GEMM** | 128-256 | 128-256 | 16K-64K |
-| **Reduction** | 32-64 | 256-512 | 8K-32K |
+`fp8_gemm` also cuts memory pressure by using one-byte stored values for quantized matrices.
 
-### Shared Memory Layout
+That affects both:
 
-```python
-@triton.jit
-def optimized_kernel(...):
-    # Allocate shared memory
-    smem = tl.static_alloc_shared(4 * 1024)  # 4KB per block
-    
-    # Load to SMEM
-    smem_ptr = smem + tl.arange(0, BLOCK_SIZE)
-    tl.store(smem_ptr, values)
-    tl.debug_barrier()  # Ensure all threads stored
-    
-    # Read from SMEM
-    values = tl.load(smem_ptr)
-```
+- storage footprint,
+- bytes moved per matrix load.
 
----
+The trade-off is controlled quantization error, which is why the FP8 guides emphasize baseline comparison.
 
-## Quantization Impact
+## What to watch in practice
 
-### FP8 Memory Savings
+- tensor contiguity,
+- shape choices that align well with the kernel's tiling strategy,
+- whether the workload is truly dominated by the fused region rather than by surrounding model code.
 
-| Component | FP16 | FP8 | Savings |
-|:----------|:----:|:---:|:--------|
-| **Weights** | 100% | 50% | **50%** |
-| **Activations** | 100% | 50% | **50%** |
-| **KV Cache** | 100% | 50% | **50%** |
+## Bottom line
 
-### Memory Bandwidth with FP8
-
-```
-FP16 GEMM:
-┌─────────┐     2 bytes     ┌─────────┐
-│   A     │───────────────►│  ALU    │
-│ (FP16)  │     per elem   │         │
-└─────────┘                └─────────┘
-Read bandwidth: 2 * M * K bytes
-
-FP8 GEMM:
-┌─────────┐     1 byte     ┌─────────┐
-│   A     │──────────────►│  ALU    │
-│  (FP8)  │    per elem   │         │
-└─────────┘               └─────────┘
-Read bandwidth: 1 * M * K bytes
-Effective bandwidth: 2x
-```
-
----
-
-## Cache Optimization
-
-### L2 Cache Utilization
-
-```python
-@triton.jit
-def cache_optimized_kernel(
-    input_ptr, output_ptr,
-    stride_m, stride_n,
-    BLOCK_M: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-):
-    pid = tl.program_id(0)
-    
-    # Group blocks for better L2 locality
-    num_pid_m = tl.cdiv(M, BLOCK_M)
-    num_pid_n = tl.cdiv(N, BLOCK_N)
-    
-    # Swizzle program IDs
-    pid_m = pid // num_pid_n
-    pid_n = pid % num_pid_n
-    
-    # Compute memory offsets
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-    
-    # Access pattern
-    ptrs = input_ptr + offs_m[:, None] * stride_m + offs_n[None, :] * stride_n
-```
-
-### Memory Coalescing Patterns
-
-```
-Good (Coalesced):
-Thread 0: addr + 0
-Thread 1: addr + 1
-Thread 2: addr + 2
-Thread 3: addr + 3
-...
-→ Single memory transaction
-
-Bad (Uncoalesced):
-Thread 0: addr + 0
-Thread 1: addr + 64
-Thread 2: addr + 128
-Thread 3: addr + 192
-...
-→ Multiple memory transactions
-```
-
----
-
-## Optimization Checklist
-
-### Kernel Design
-
-- [ ] Minimize HBM accesses
-- [ ] Maximize register/SRAM usage
-- [ ] Use coalesced memory access
-- [ ] Avoid bank conflicts in shared memory
-- [ ] Balance parallelism vs resource usage
-
-### Fusion Opportunities
-
-- [ ] Element-wise ops before/after matmul
-- [ ] Normalization + activation
-- [ ] Quantization + dequantization pairs
-- [ ] Multiple small reductions
-
-### Auto-Tuning
-
-- [ ] Try different block sizes
-- [ ] Adjust warp counts
-- [ ] Pipeline stages for memory operations
-- [ ] Cache configurations
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#memory-optimization)** | **[← Back to Internals](../)**
-
-</div>
+The repository is most effective when the removed memory traffic actually matters for the target workload. The biggest gains come from hot paths where intermediate tensors would otherwise be written to and read from HBM repeatedly.

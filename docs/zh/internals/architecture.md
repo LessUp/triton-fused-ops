@@ -1,234 +1,87 @@
 ---
 layout: default
-title: "架构设计 — Triton Fused Ops"
-description: "Triton Fused Ops 整体架构概览"
+title: 架构设计
+parent: 内部实现
+grand_parent: 中文文档
+nav_order: 1
+description: "仓库的模块结构与各层职责关系"
 ---
 
-# 架构设计概览
+# 架构设计
 
-理解 Triton Fused Ops 的整体架构。
+仓库整体围绕一个小而清晰的公开 API 层构建，下面连接输入校验、Triton kernel 实现、性能工具层和共享数据模型。
 
----
+## 模块地图
 
-## 高层设计
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        API 层                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │    核心算子   │  │    自动调优   │  │    基准测试   │          │
-│  │   (api.py)   │  │   (tuner)    │  │   (suite)    │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Triton Kernel 层                              │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐     │
-│  │ rmsnorm_rope   │  │  gated_mlp     │  │   fp8_gemm     │     │
-│  │   (triton)     │  │   (triton)     │  │   (triton)     │     │
-│  └────────────────┘  └────────────────┘  └────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       GPU 硬件                                   │
-│              CUDA / PTX / SASS 指令集                            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 模块组织
-
-```
+```text
 triton_ops/
-├── __init__.py          # 公共 API 导出
-├── api.py               # 简洁函数式 API
-├── models.py            # 数据模型和类型
-├── exceptions.py        # 自定义异常
-├── utils.py             # 工具函数
-├── kernels/             # Triton 算子实现
+├── __init__.py          # 根包导出
+├── api.py               # 便捷 API 包装
+├── models.py            # dataclass 与指标/结果容器
+├── exceptions.py        # 自定义异常类型
+├── validation.py        # 运行时输入校验
+├── utils.py             # 公共 helper 与常量
+├── kernels/
 │   ├── rmsnorm_rope.py
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
-├── autotuner/           # 自动调优框架
-│   ├── tuner.py
+├── autotuner/
 │   ├── configs.py
+│   ├── tuner.py
 │   └── cache.py
-└── benchmark/           # 基准测试套件
-    ├── suite.py
+└── benchmark/
     ├── correctness.py
-    └── report.py
+    ├── report.py
+    └── suite.py
 ```
 
----
+## 职责拆分
 
-## 设计原则
+### 公开 API 层
 
-### 1. 关注点分离
+`triton_ops.__init__` 是主要用户入口，导出 kernel、模块封装、量化 helper、benchmark 类、自动调优工具、dataclass 和异常类型。
 
-| 层级 | 职责 |
-|:------|:---------------|
-| **API 层** | 用户界面、输入验证 |
-| **Kernel 层** | 底层 Triton 实现 |
-| **调优层** | 配置优化 |
-| **硬件层** | 实际计算 |
+`triton_ops.api` 也提供了一层便捷封装，但根包仍然是主要公开接口。
 
-### 2. 延迟加载
+### 校验层
 
-算子和配置在首次使用时才加载：
+`validation.py` 统一管理输入契约：
 
-```python
-# 算子在首次调用前不会编译
-from triton_ops import fused_rmsnorm_rope
+- device 放置，
+- dtype 支持，
+- contiguous 要求，
+- shape 兼容性，
+- 标量参数检查。
 
-# 首次调用触发 Triton JIT 编译
-output = fused_rmsnorm_rope(x, weight, cos, sin)
+这样 kernel 入口就不用重复写大量样板校验逻辑，测试和 wrapper 也能复用同一套规则。
 
-# 后续调用使用缓存的二进制文件
-```
+### Kernel 层
 
-### 3. 类型安全
+`kernels/` 中放的是 Triton 实现，以及用于正确性对照的 PyTorch reference 实现。
 
-全面的类型提示：
+每个 kernel 模块通常包含：
 
-```python
-def fused_rmsnorm_rope(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    cos: torch.Tensor,
-    sin: torch.Tensor,
-    eps: float = 1e-6,
-) -> torch.Tensor:
-    ...
-```
+- Triton kernel 本体，
+- 用户可调用的 Python launcher，
+- reference 函数，
+- 可选的 `nn.Module` 封装。
 
----
+### 支撑工具层
 
-## 核心算子注册
+自动调优和 benchmark 都独立于 kernel 运行路径存在。它们的目标是帮助实验、验证和报告，而不是把所有调优逻辑都隐式塞进每次 API 调用里。
 
-```python
-# triton_ops/__init__.py
+## 架构意图
 
-# 核心算子
-from .kernels.rmsnorm_rope import (
-    fused_rmsnorm_rope,
-    FusedRMSNormRoPE,
-)
-from .kernels.gated_mlp import (
-    fused_gated_mlp,
-    FusedGatedMLP,
-)
-from .kernels.fp8_gemm import (
-    fp8_gemm,
-    FP8Linear,
-)
-from .kernels.fp8_quantize import (
-    quantize_fp8,
-    dequantize_fp8,
-    quantize_fp8_with_overflow_handling,
-)
+这个结构偏向于：
 
-# 自动调优
-from .autotuner.tuner import (
-    TritonAutoTuner,
-    ConfigCache,
-)
-from .autotuner.configs import (
-    RMSNORM_ROPE_CONFIGS,
-    GATED_MLP_CONFIGS,
-    FP8_GEMM_CONFIGS,
-)
+- 显式的运行契约，
+- 可验证的 reference 路径，
+- 小而明确的导出原语集合，
+- 可独立复用的支持代码。
 
-__all__ = [
-    # 核心算子
-    "fused_rmsnorm_rope",
-    "FusedRMSNormRoPE",
-    "fused_gated_mlp",
-    "FusedGatedMLP",
-    "fp8_gemm",
-    "FP8Linear",
-    # 量化
-    "quantize_fp8",
-    "dequantize_fp8",
-    "quantize_fp8_with_overflow_handling",
-    # 自动调优
-    "TritonAutoTuner",
-    "ConfigCache",
-    "RMSNORM_ROPE_CONFIGS",
-    "GATED_MLP_CONFIGS",
-    "FP8_GEMM_CONFIGS",
-]
-```
+## 关键边界
 
----
-
-## 错误处理
-
-### 异常层次结构
-
-```
-TritonOpsError (基类)
-├── DeviceError
-│   └── CUDA 不可用
-├── ShapeMismatchError
-│   └── 张量形状不兼容
-├── DtypeError
-│   └── 不支持的数据类型
-├── TuningError
-│   └── 自动调优失败
-└── NumericalError
-    └── 量化溢出
-```
-
-### 使用示例
-
-```python
-from triton_ops import fused_rmsnorm_rope, DeviceError, ShapeMismatchError
-
-try:
-    output = fused_rmsnorm_rope(x, weight, cos, sin)
-except DeviceError as e:
-    print(f"CUDA 错误: {e}")
-except ShapeMismatchError as e:
-    print(f"形状错误: {e}")
-```
-
----
-
-## 扩展点
-
-### 添加新算子
-
-1. 在 `kernels/` 中实现 Triton 算子
-2. 在 `kernels/<name>.py` 中添加函数式 API
-3. 添加模块封装（可选）
-4. 在 `__init__.py` 中导出
-5. 在 `autotuner/configs.py` 中添加配置空间
-6. 在 `tests/` 中添加测试
-
-### 添加自动调优支持
-
-```python
-# 在 autotuner/configs.py 中
-
-MY_KERNEL_CONFIGS = {
-    "BLOCK_M": [64, 128, 256],
-    "BLOCK_N": [64, 128, 256],
-    "num_warps": [4, 8],
-}
-
-# 在 __init__.py 中
-from .autotuner.configs import MY_KERNEL_CONFIGS
-__all__.append("MY_KERNEL_CONFIGS")
-```
-
----
-
-<div align="center">
-
-**[⬆ 返回顶部](#架构设计概览)** | **[← 返回内部文档](../)**
-
-</div>
+- 仓库不提供完整的 Transformer 模型栈。
+- 这些融合算子更适合作为更大推理系统中的原语组件。
+- benchmark 和 autotuning 是伴随工具层，而不是必须进入正常运行路径的中间层。

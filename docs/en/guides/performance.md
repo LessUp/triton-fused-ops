@@ -1,279 +1,107 @@
 ---
 layout: default
-title: "Performance Tuning — Triton Fused Ops"
-description: "Performance tuning guide for Triton Fused Ops - GPU optimization strategies"
+title: Performance Tuning
+parent: Guides
+grand_parent: Documentation
+nav_order: 2
+description: "How to measure, interpret, and tune performance in this repository"
 ---
 
-# Performance Tuning Guide
+# Performance Tuning
 
-Optimize Triton Fused Ops for your specific hardware.
+This page explains how to measure the shipped kernels correctly and how to reason about tuning work around them.
 
----
+## Start with the right question
 
-## 📑 Table of Contents
+The repository contains three different performance stories:
 
-- [GPU-Specific Optimization](#gpu-specific-optimization)
-- [Memory Bandwidth](#memory-bandwidth)
-- [Auto-Tuning](#auto-tuning)
-- [Batch Size Optimization](#batch-size-optimization)
-- [Profiling](#profiling)
+- `fused_rmsnorm_rope`: primarily a memory-traffic reduction story,
+- `fused_gated_mlp`: a fusion and launch-overhead reduction story,
+- `fp8_gemm`: a quantization plus matrix-multiplication throughput story.
 
----
+Treat them differently when benchmarking.
 
-## GPU-Specific Optimization
-
-### Recommended Configurations by GPU
-
-| GPU | BLOCK_M | BLOCK_N | num_warps | Notes |
-|:----|:--------|:--------|:----------|:------|
-| **A100 80GB** | 128 | 128 | 8 | Balanced for large matrices |
-| **A100 40GB** | 128 | 64 | 8 | Memory-constrained configs |
-| **H100** | 256 | 128 | 8 | Larger blocks for H100 |
-| **RTX 4090** | 128 | 128 | 4 | Fewer warps for Ada |
-| **A6000** | 128 | 128 | 8 | Similar to A100 |
-
-### Environment Variables
-
-```bash
-# CUDA optimization
-export CUDA_LAUNCH_BLOCKING=0
-export CUDA_DEVICE_ORDER=PCI_BUS_ID
-
-# Triton cache
-export TRITON_CACHE_DIR=~/.triton/cache
-
-# PyTorch CUDA settings
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-```
-
----
-
-## Memory Bandwidth
-
-### Understanding Memory Bound vs Compute Bound
-
-```
-Memory Bandwidth Bound:
-┌─────────────────────────────────────────┐
-│  Fused RMSNorm+RoPE: 90%+ bandwidth     │
-│  Small matrices, element-wise ops       │
-│  Solution: Maximize parallelism         │
-└─────────────────────────────────────────┘
-
-Compute Bound:
-┌─────────────────────────────────────────┐
-│  FP8 GEMM: 60-70% bandwidth             │
-│  Large matrices, compute-heavy          │
-│  Solution: Optimize block sizes         │
-└─────────────────────────────────────────┘
-```
-
-### Measuring Bandwidth Utilization
+## Correct timing pattern
 
 ```python
+import time
 import torch
 from triton_ops import fused_rmsnorm_rope
 
-def measure_bandwidth(kernel_fn, *args, bytes_per_element=2):
-    """Measure effective memory bandwidth."""
-    
-    # Calculate total bytes read/written
-    total_bytes = sum(
-        arg.numel() * bytes_per_element 
-        for arg in args if isinstance(arg, torch.Tensor)
-    )
-    
-    # Time the kernel
-    torch.cuda.synchronize()
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    
-    start.record()
-    for _ in range(100):
-        output = kernel_fn(*args)
-    end.record()
-    torch.cuda.synchronize()
-    
-    elapsed_ms = start.elapsed_time(end) / 100
-    bandwidth_gbps = (total_bytes / (1024**3)) / (elapsed_ms / 1000)
-    
-    return bandwidth_gbps
+x = torch.randn(8, 2048, 4096, device="cuda", dtype=torch.float16)
+weight = torch.ones(4096, device="cuda", dtype=torch.float16)
+cos = torch.randn(2048, 64, device="cuda", dtype=torch.float16)
+sin = torch.randn(2048, 64, device="cuda", dtype=torch.float16)
 
-# Measure
-x = torch.randn(8, 2048, 4096, device='cuda', dtype=torch.float16)
-weight = torch.ones(4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(2048, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(2048, 64, device='cuda', dtype=torch.float16)
+for _ in range(10):
+    _ = fused_rmsnorm_rope(x, weight, cos, sin)
+torch.cuda.synchronize()
 
-bandwidth = measure_bandwidth(
-    fused_rmsnorm_rope, x, weight, cos, sin
-)
-print(f"Effective bandwidth: {bandwidth:.1f} GB/s")
+start = time.perf_counter()
+for _ in range(100):
+    _ = fused_rmsnorm_rope(x, weight, cos, sin)
+torch.cuda.synchronize()
+end = time.perf_counter()
 
-# A100 peak: ~2000 GB/s
-# Good utilization: >80%
+print((end - start) / 100 * 1000)
 ```
 
----
+Always include:
 
-## Auto-Tuning
+- warmup runs,
+- explicit synchronization before and after timing,
+- representative shapes from your target model.
 
-### Finding Optimal Configurations
+## Use the built-in benchmark layer when possible
 
-```python
-from triton_ops import TritonAutoTuner, FP8_GEMM_CONFIGS
-import torch
+`BenchmarkSuite` already wraps warmup, repeated execution, correctness verification, and report generation.
 
-def my_gemm(a, b, BLOCK_M=128, BLOCK_N=128, BLOCK_K=32, num_warps=8):
-    # Your kernel implementation
-    pass
+Use it when you want comparable outputs across multiple experiments.
 
-# Create tuner
-tuner = TritonAutoTuner(
-    kernel_fn=my_gemm,
-    config_space={
-        "BLOCK_M": [64, 128, 256],
-        "BLOCK_N": [64, 128, 256],
-        "BLOCK_K": [32, 64],
-        "num_warps": [4, 8],
-    },
-    warmup_runs=10,
-    benchmark_runs=50,
-)
+## Interpreting metrics
 
-# Tune for your problem size
-M, N, K = 4096, 4096, 4096
-a = torch.randn(M, K, device='cuda', dtype=torch.float16)
-b = torch.randn(K, N, device='cuda', dtype=torch.float16)
+The repository provides two metric helpers:
 
-result = tuner.tune(
-    a, b,
-    problem_size=(M, N, K),
-    device=torch.cuda.get_device_name(),
-)
+- `compute_gemm_metrics`
+- `compute_elementwise_metrics`
 
-print(f"Optimal config: {result.best_config}")
-print(f"Latency: {result.metrics.latency_ms:.3f} ms")
-```
+Use them to distinguish between:
 
-### Caching Results
+- computational throughput for GEMM-like work,
+- effective bandwidth for elementwise or reduction-heavy kernels.
 
-```python
-from triton_ops import ConfigCache
+## Tuning custom kernels
 
-# Persistent cache
-cache = ConfigCache(cache_dir="~/.triton_config_cache")
+`TritonAutoTuner` is useful when you own a custom kernel wrapper and want to search configuration space over:
 
-# Store optimal config
-cache.set(
-    kernel_type="fp8_gemm",
-    problem_size=(4096, 4096, 4096),
-    device="NVIDIA A100-SXM4-80GB",
-    config=result.best_config,
-)
+- block sizes,
+- warp counts,
+- other keyword-parameterized launch choices.
 
-# Retrieve later
-cached_config = cache.get(
-    kernel_type="fp8_gemm",
-    problem_size=(4096, 4096, 4096),
-    device="NVIDIA A100-SXM4-80GB",
-)
-```
+The shipped kernel entry points do not automatically search config space during normal calls.
 
----
+## Practical bottleneck checklist
 
-## Batch Size Optimization
+### For `fused_rmsnorm_rope`
 
-### Optimal Batch Sizes
+- check that RoPE cache shapes are correct and contiguous,
+- keep hidden dimensions aligned with the head layout,
+- treat memory traffic as the primary optimization target.
 
-| Operation | Small Batch (1-4) | Medium (8-16) | Large (32+) |
-|:----------|:------------------|:--------------|:------------|
-| **RMSNorm+RoPE** | Good | Excellent | Excellent |
-| **Gated MLP** | Good | Excellent | Excellent |
-| **FP8 GEMM** | Fair | Good | Excellent |
+### For `fused_gated_mlp`
 
-### Dynamic Batch Size Handling
+- benchmark on realistic intermediate dimensions,
+- evaluate activation choice explicitly,
+- remember that a full FFN includes additional surrounding work not measured by this kernel alone.
 
-```python
-import torch
-from triton_ops import fused_rmsnorm_rope
+### For `fp8_gemm`
 
-class DynamicBatcher:
-    """Handle variable batch sizes efficiently."""
-    
-    def __init__(self, max_batch_size=64):
-        self.max_batch_size = max_batch_size
-        self.cache = {}
-    
-    def get_optimal_config(self, batch_size):
-        """Get pre-tuned config for batch size."""
-        if batch_size not in self.cache:
-            # Run auto-tuning for this batch size
-            self.cache[batch_size] = self._tune_for_batch(batch_size)
-        return self.cache[batch_size]
-    
-    def _tune_for_batch(self, batch_size):
-        # Implement tuning logic
-        pass
-```
+- compare auto-quantization against explicit pre-quantization,
+- validate the numerical error against an FP16 baseline,
+- benchmark representative matrix aspect ratios rather than only square matrices.
 
----
+## What not to trust blindly
 
-## Profiling
-
-### Using PyTorch Profiler
-
-```python
-import torch
-from torch.profiler import profile, ProfilerActivity
-from triton_ops import fused_rmsnorm_rope
-
-# Prepare inputs
-x = torch.randn(8, 2048, 4096, device='cuda', dtype=torch.float16)
-weight = torch.ones(4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(2048, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(2048, 64, device='cuda', dtype=torch.float16)
-
-# Profile
-with profile(
-    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-    record_shapes=True,
-    with_stack=True,
-) as prof:
-    for _ in range(10):
-        output = fused_rmsnorm_rope(x, weight, cos, sin)
-
-# Print results
-print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
-
-# Export for visualization
-prof.export_chrome_trace("trace.json")
-```
-
-### Nsight Systems
-
-```bash
-# Profile with Nsight Systems
-nsys profile -o profile_report \
-    python your_script.py
-
-# View results
-nsys-ui profile_report.nsys-rep
-```
-
-### Nsight Compute
-
-```bash
-# Detailed kernel analysis
-ncu --kernel-name my_kernel \
-    --metrics dram__bytes_read.sum,dram__bytes_write.sum \
-    python your_script.py
-```
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#performance-tuning-guide)** | **[← Back to Guides](../)**
-
-</div>
+- A single GPU architecture result does not generalize to every deployment target.
+- A benchmark without synchronization is not meaningful.
+- A latency improvement on isolated kernels does not automatically translate into identical end-to-end model speedup.

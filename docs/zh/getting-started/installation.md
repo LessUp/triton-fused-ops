@@ -1,169 +1,122 @@
 ---
 layout: default
-title: "安装指南 — Triton Fused Ops"
-description: "Triton Fused Ops 安装指南 - 系统要求和安装说明"
+title: 安装指南
+parent: 开始使用
+grand_parent: 中文文档
+nav_order: 1
+description: "Triton Fused Ops 的环境要求与安装流程"
 ---
 
-# 📦 安装指南
+# 安装指南
 
-本指南介绍 Triton Fused Ops 及其依赖项的安装方法。
+本页用于准备可工作的运行环境，并完成最基本的验证。
 
----
+## 基础要求
 
-## ✅ 系统要求
+| 项目 | 基线 | 说明 |
+|:--|:--|:--|
+| Python | `>=3.9` | 来自包元数据约束 |
+| PyTorch | `>=2.0.0` | 真正执行 Triton kernel 需要 CUDA 版 PyTorch |
+| Triton | `>=2.1.0` | OpenAI Triton |
+| GPU | NVIDIA CUDA GPU | 运行 kernel 和 GPU benchmark 需要 |
 
-### 硬件要求
-
-| 组件 | 最低配置 | 推荐配置 |
-|:----------|:--------|:------------|
-| **GPU** | NVIDIA Ampere (SM80) | NVIDIA H100、A100 或 RTX 4090 |
-| **显存** | 8 GB | 16 GB+（大模型需要） |
-| **CUDA** | 11.8 | 12.1+ |
-
-### 软件要求
-
-| 依赖项 | 版本 | 说明 |
-|:-----------|:--------|:------|
-| **Python** | ≥ 3.9 | 推荐 Python 3.10 或 3.11 |
-| **PyTorch** | ≥ 2.0.0 | 需要 CUDA 支持 |
-| **Triton** | ≥ 2.1.0 | OpenAI Triton |
-| **NumPy** | ≥ 1.21.0 | 张量操作所需 |
-
----
-
-## 🚀 安装方法
-
-### 方法 1：开发安装（推荐）
-
-获取最新功能和开发版本：
+## 从源码安装
 
 ```bash
-# 克隆仓库
 git clone https://github.com/LessUp/triton-fused-ops.git
 cd triton-fused-ops
-
-# 以可编辑模式安装，包含开发依赖
 pip install -e ".[dev]"
 ```
 
-### 方法 2：仅核心安装
-
-生产环境使用，依赖最小化：
+如果你只需要包本体：
 
 ```bash
 pip install -e .
 ```
 
-### 方法 3：使用 uv（快速）
-
-如果您使用 `uv` 进行包管理：
+如果使用 `uv`：
 
 ```bash
-# 包含开发依赖
 uv pip install -e ".[dev]"
-
-# 仅核心
-uv pip install -e .
 ```
 
----
+## CPU-safe 基线检查
 
-## 🔧 验证安装
+下面这些命令不要求真正运行 Triton kernel，适合 CI 或仅 CPU 的验证路径：
 
-### 检查 CUDA 可用性
-
-```python
-import torch
-print(f"CUDA 可用: {torch.cuda.is_available()}")
-print(f"CUDA 版本: {torch.version.cuda}")
-print(f"GPU: {torch.cuda.get_device_name(0)}")
+```bash
+python -c "import triton_ops; print(triton_ops.__version__)"
+ruff format --check .
+ruff check .
+mypy triton_ops/
+pytest tests/ -v -k "not cuda and not gpu" --ignore=tests/benchmarks/
+python3 -m build
 ```
 
-### 测试 Triton Fused Ops
+## GPU 冒烟测试
 
 ```python
 import torch
 from triton_ops import fused_rmsnorm_rope
 
-# 测试基本功能
-x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
-weight = torch.ones(4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+assert torch.cuda.is_available()
 
-output = fused_rmsnorm_rope(x, weight, cos, sin)
-print(f"✅ 输出形状: {output.shape}")
-print(f"✅ 输出类型: {output.dtype}")
+batch, seq_len, hidden_dim, head_dim = 2, 128, 4096, 64
+x = torch.randn(batch, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
+weight = torch.ones(hidden_dim, device="cuda", dtype=torch.float16)
+cos = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+sin = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+
+y = fused_rmsnorm_rope(x, weight, cos, sin)
+print(y.shape, y.dtype)
 ```
 
-### 运行测试
+说明：
 
-```bash
-# 运行所有测试
-pytest tests/ -v
+- 当前实现接受 `[seq_len, head_dim]` 形状的 `cos` / `sin`。
+- 验证层也接受 `[1, seq_len, 1, head_dim]` 形状的 4D RoPE cache。
+- 运行时要求输入在 CUDA 上、dtype 合法且内存连续。
 
-# 运行覆盖率测试
-pytest tests/ -v --cov=triton_ops
+## 环境检查
 
-# 运行特定测试文件
-pytest tests/test_fp8_gemm.py -v
+```python
+import torch
+
+print("CUDA 可用:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("CUDA 版本:", torch.version.cuda)
+    print("GPU:", torch.cuda.get_device_name())
 ```
 
----
+## 常见问题
 
-## 🐛 故障排除
+### `CUDA is not available`
 
-### 问题："CUDA is not available"
+常见原因：
 
-**原因：** PyTorch 未安装 CUDA 支持，或 CUDA 配置不正确。
+- 当前 PyTorch 不是 CUDA 版本。
+- 当前 Python 环境看不到对应的 NVIDIA 驱动或运行时。
 
-**解决方法：**
+常见修复：
+
 ```bash
-# 重新安装带 CUDA 支持的 PyTorch
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### 问题："Triton not found"
+### 调用 kernel 时出现 `DeviceError`
 
-**原因：** 未安装 Triton 包。
+导出的 kernel 会先检查输入是否位于 CUDA。请确保所有输入在同一个 CUDA 设备上，并且保持 contiguous。
 
-**解决方法：**
-```bash
-pip install triton>=2.1.0
-```
+### 出现 `UnsupportedDtypeError` 或 shape 校验失败
 
-### 问题：编译扩展导入错误
+请直接对照 API 页中的输入契约：
 
-**原因：** PyTorch 和 Triton 版本不匹配。
+- `fused_rmsnorm_rope`：3D `x`、1D `weight`、2D 或 4D RoPE cache。
+- `fused_gated_mlp`：3D `x`、2D 权重、激活函数只能是 `"silu"` 或 `"gelu"`。
+- `fp8_gemm`：2D 矩阵；若输入已经是预量化 FP8，则必须提供对应 scale。
 
-**解决方法：**
-```bash
-# 升级两者到最新兼容版本
-pip install --upgrade torch triton
-```
+## 下一步
 
----
-
-## 📋 GPU 架构支持
-
-| 架构 | FP16 | FP8 | 说明 |
-|:-------------|:----:|:---:|:------|
-| Ampere (A100) | ✅ | ⚠️ 模拟 | 生产就绪 |
-| Ada (RTX 4090) | ✅ | ✅ | 边缘部署 |
-| Hopper (H100) | ✅ | ✅ | FP8 最佳 |
-
----
-
-## 🎯 下一步
-
-- [快速开始指南](./quickstart.md) — 运行您的第一个融合算子
-- [示例教程](./examples.md) — 从实用示例学习
-- [API 参考](../api/kernels.md) — 探索 API
-
----
-
-<div align="center">
-
-**[⬆ 返回顶部](#-安装指南)** | **[← 返回文档](../)**
-
-</div>
+- [快速开始]({{ '/docs/zh/getting-started/quickstart/' | relative_url }})
+- [示例教程]({{ '/docs/zh/getting-started/examples/' | relative_url }})
+- [核心算子 API]({{ '/docs/zh/api/kernels/' | relative_url }})

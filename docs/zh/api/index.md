@@ -1,90 +1,77 @@
 ---
 layout: default
-title: "API 参考 — Triton Fused Ops"
-description: "Triton Fused Ops 完整 API 参考 - 核心算子、量化、自动调优和基准测试工具"
+title: API 参考
+parent: 中文文档
+nav_order: 2
+has_children: true
+permalink: /docs/zh/api/
+description: "核心算子、量化、自动调优、校验与支撑类型的公开 API 参考"
 ---
 
-# 📖 API 参考
+# API 参考
 
-Triton Fused Ops 的完整 API 文档。
+本节聚焦仓库当前维护的 API 表面，以及与这些接口密切相关的支撑模块。
 
----
+## 根包导出
 
-## 📚 API 章节
-
-| 章节 | 说明 | 链接 |
-|:--------|:------------|:-----|
-| **核心算子** | 融合 RMSNorm+RoPE、Gated MLP、FP8 GEMM | [kernels.md](kernels.md) |
-| **量化** | FP8 量化工具 | [quantization.md](quantization.md) |
-| **自动调优** | 自动算子配置 | [autotuner.md](autotuner.md) |
-| **基准测试** | 性能测量工具 | [benchmark.md](benchmark.md) |
-
----
-
-## 🎯 API 快速概览
-
-### 函数式 API
+根包 `triton_ops` 从 `__init__.py` 暴露主要用户接口。
 
 ```python
 from triton_ops import (
-    # 融合算子
-    fused_rmsnorm_rope,      # RMSNorm + RoPE 融合
-    fused_gated_mlp,         # Gated MLP (SwiGLU/GeGLU)
-    fp8_gemm,                # FP8 量化 GEMM
-    
-    # 量化
-    quantize_fp8,            # 量化为 FP8
-    dequantize_fp8,          # 从 FP8 反量化
+    fused_rmsnorm_rope,
+    fused_gated_mlp,
+    fp8_gemm,
+    quantize_fp8,
+    dequantize_fp8,
+    FusedRMSNormRoPE,
+    FusedGatedMLP,
+    FP8Linear,
+    TritonAutoTuner,
+    ConfigCache,
+    BenchmarkSuite,
 )
 ```
 
-### Module API
+## 知识分区
 
-```python
-from triton_ops import (
-    # PyTorch 模块
-    FusedRMSNormRoPE,        # RMSNorm + RoPE 模块
-    FusedGatedMLP,           # Gated MLP 模块
-    FP8Linear,               # FP8 量化线性层
-    
-    # 自动调优
-    TritonAutoTuner,         # 自动调优框架
-    ConfigCache,             # 配置缓存
-)
-```
-
----
-
-## 🔗 导航
-
-### 核心算子
-- [`fused_rmsnorm_rope`](kernels.md#fused_rmsnorm_rope) — 融合 RMSNorm + RoPE
-- [`fused_gated_mlp`](kernels.md#fused_gated_mlp) — 融合 Gated MLP
-- [`fp8_gemm`](kernels.md#fp8_gemm) — FP8 量化 GEMM
-- [`FusedRMSNormRoPE`](kernels.md#fusedrmsnormrope) — 模块封装
-- [`FusedGatedMLP`](kernels.md#fusedgatedmlp) — 模块封装
-- [`FP8Linear`](kernels.md#fp8linear) — 量化线性层
-
-### 量化
-- [`quantize_fp8`](quantization.md#quantize_fp8) — 量化为 FP8
-- [`dequantize_fp8`](quantization.md#dequantize_fp8) — 从 FP8 反量化
-- [`FP8Format`](quantization.md#fp8format) — FP8 格式工具
-
-### 自动调优
-- [`TritonAutoTuner`](autotuner.md#tritonautotuner) — 配置搜索
-- [`ConfigCache`](autotuner.md#configcache) — 持久化缓存
-- [`TuningResult`](autotuner.md#tuningresult) — 调优结果
-
----
-
-## 🌐 其他语言
-
-- [🇺🇸 English API Docs](../../en/api/)
-
----
-
-<div align="center">
-
-**[⬆ 返回顶部](#-api-参考)** | **[← 返回文档](../)**
-
+<div class="link-grid link-grid-3">
+  <a class="info-card" href="{{ '/docs/zh/api/kernels/' | relative_url }}">
+    <span class="card-kicker">Kernels</span>
+    <strong>核心计算路径</strong>
+    <span>融合 RMSNorm + RoPE、融合 Gated MLP、FP8 GEMM 与模块封装。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/quantization/' | relative_url }}">
+    <span class="card-kicker">Quantization</span>
+    <strong>FP8 存储与 scale 语义</strong>
+    <span>说明量化/反量化、scale 规则，以及溢出处理 helper 的真实导入路径。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/autotuner/' | relative_url }}">
+    <span class="card-kicker">Autotuning</span>
+    <strong>搜索、缓存与指标</strong>
+    <span>涵盖 `TritonAutoTuner`、`ConfigCache`、配置空间与性能指标。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/benchmark/' | relative_url }}">
+    <span class="card-kicker">Benchmark</span>
+    <strong>正确性验证与报告</strong>
+    <span>涵盖 `BenchmarkSuite`、`CorrectnessVerifier` 以及报告对象。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/models/' | relative_url }}">
+    <span class="card-kicker">Models</span>
+    <strong>数据模型与结果容器</strong>
+    <span>介绍 `TensorSpec`、输入规格、`KernelMetrics`、`TuningResult` 与 `FP8Format`。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/validation/' | relative_url }}">
+    <span class="card-kicker">Validation</span>
+    <strong>输入校验与运行契约</strong>
+    <span>说明 shape、dtype、连续内存、device 和标量参数检查。</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/zh/api/errors/' | relative_url }}">
+    <span class="card-kicker">Errors</span>
+    <strong>异常层级</strong>
+    <span>说明设备、dtype、形状、调优与数值溢出错误模型。</span>
+  </a>
 </div>
+
+## 范围提醒
+
+有些 helper 位于子模块里，但没有从根包重新导出。相关 API 页会明确给出真实导入路径，避免误导。

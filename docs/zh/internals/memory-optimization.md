@@ -1,194 +1,55 @@
 ---
 layout: default
-title: "内存优化 — Triton Fused Ops"
-description: "Triton Fused Ops 融合策略和内存优化技术"
+title: 内存优化
+parent: 内部实现
+grand_parent: 中文文档
+nav_order: 3
+description: "融合与 FP8 如何降低仓库 kernel 的内存压力"
 ---
 
 # 内存优化
 
-融合策略和内存优化技术。
+本仓库很多价值都来自于减少不必要的内存搬运。
 
----
+## 为什么融合有效
 
-## 融合策略
+很多 Transformer 子图的瓶颈并不只是算力，还来自中间张量频繁写回再读回 HBM。
 
-### 为什么要融合？
+融合的核心价值，就是让中间值尽量留在更靠近计算的位置，而不是先写回全局显存再被下一个算子读走。
 
-| 操作 | 未融合 | 融合 | 改进 |
-|:----------|:--------|:------|:------------|
-| **RMSNorm + RoPE** | 5 次 HBM 访问 | 2 次 HBM 访问 | **减少 2.5 倍** |
-| **Gated MLP** | 4 次 HBM 访问 | 2 次 HBM 访问 | **减少 2 倍** |
-| **FP8 量化 + GEMM** | 分离操作 | 单 kernel | **加速 1.5 倍** |
+## `fused_rmsnorm_rope`
 
-### 内存带宽瓶颈
+最大的收益是：归一化结果不需要先落成单独的全局张量，再去做 RoPE。
 
-```
-标准实现：
-┌─────────┐        ┌─────────┐        ┌─────────┐
-│  Input  │──HBM──►│ Kernel1 │──HBM──►│ Kernel2 │──HBM──► Output
-│  (HBM)  │  read  │  (HBM)  │ write  │  (HBM)  │ write │  (HBM)
-└─────────┘        └─────────┘  read  └─────────┘       └─────────┘
-                                                              
-总计：每个元素 3 次读，2 次写
-峰值带宽：~30-40% 利用率
+实际效果：
 
-融合实现：
-┌─────────┐                             ┌─────────┐
-│  Input  │─────────►┌─────────┐────────►│ Output  │
-│  (HBM)  │    HBM   │  Fused  │   HBM   │  (HBM)  │
-└─────────┘   read   │  Kernel │  write  └─────────┘
-                     │ (SRAM)  │
-                     └─────────┘
-                          │
-                     寄存器/SRAM
-                     (无 HBM 流量)
+- 更少的 HBM 读写，
+- 比拆成两个操作更少的 launch 开销，
+- 整体更偏向带宽优化问题。
 
-总计：每个元素 1 次读，1 次写
-峰值带宽：90%+ 利用率
-```
+## `fused_gated_mlp`
 
----
+输入 tile 会在一次 kernel 路径里复用到两条投影中，随后完成激活与相乘，再写出最终结果。
 
-## SRAM 使用
+这减少了如果拆成多个 operator 时会出现的中间张量搬运。
 
-### 寄存器压力
+## FP8 路径
 
-| 算子 | 每线程寄存器 | 每块线程数 | 总寄存器数 |
-|:-------|:--------------------|:------------------|:----------------|
-| **RMSNorm** | 64-128 | 128-256 | 8K-32K |
-| **GEMM** | 128-256 | 128-256 | 16K-64K |
-| **归约** | 32-64 | 256-512 | 8K-32K |
+`fp8_gemm` 还通过使用单字节量化矩阵来降低内存压力。
 
-### 共享内存布局
+它同时影响：
 
-```python
-@triton.jit
-def optimized_kernel(...):
-    # 分配共享内存
-    smem = tl.static_alloc_shared(4 * 1024)  # 每块 4KB
-    
-    # 加载到 SMEM
-    smem_ptr = smem + tl.arange(0, BLOCK_SIZE)
-    tl.store(smem_ptr, values)
-    tl.debug_barrier()  # 确保所有线程已存储
-    
-    # 从 SMEM 读取
-    values = tl.load(smem_ptr)
-```
+- 存储占用，
+- 每次矩阵读取所需搬运的字节数。
 
----
+代价是会引入受控的量化误差，这也是为什么 FP8 指南强调一定要和 baseline 对比。
 
-## 量化影响
+## 实践中需要关注的点
 
-### FP8 内存节省
+- tensor 是否 contiguous，
+- 形状是否适合当前 kernel 的分块策略，
+- 真实 workload 的瓶颈是否确实位于这些融合片段，而不是位于外围模型代码。
 
-| 组件 | FP16 | FP8 | 节省 |
-|:----------|:----:|:---:|:--------|
-| **权重** | 100% | 50% | **50%** |
-| **激活** | 100% | 50% | **50%** |
-| **KV 缓存** | 100% | 50% | **50%** |
+## 结论
 
-### FP8 内存带宽
-
-```
-FP16 GEMM：
-┌─────────┐     2 字节     ┌─────────┐
-│   A     │───────────────►│  ALU    │
-│ (FP16)  │     per elem   │         │
-└─────────┘                └─────────┘
-读取带宽: 2 * M * K 字节
-
-FP8 GEMM：
-┌─────────┐     1 字节     ┌─────────┐
-│   A     │──────────────►│  ALU    │
-│  (FP8)  │    per elem   │         │
-└─────────┘               └─────────┘
-读取带宽: 1 * M * K 字节
-等效带宽: 2 倍
-```
-
----
-
-## 缓存优化
-
-### L2 缓存使用
-
-```python
-@triton.jit
-def cache_optimized_kernel(
-    input_ptr, output_ptr,
-    stride_m, stride_n,
-    BLOCK_M: tl.constexpr,
-    BLOCK_N: tl.constexpr,
-):
-    pid = tl.program_id(0)
-    
-    # 分组块以获得更好的 L2 局部性
-    num_pid_m = tl.cdiv(M, BLOCK_M)
-    num_pid_n = tl.cdiv(N, BLOCK_N)
-    
-    # 混淆 program IDs
-    pid_m = pid // num_pid_n
-    pid_n = pid % num_pid_n
-    
-    # 计算内存偏移
-    offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
-    offs_n = pid_n * BLOCK_N + tl.arange(0, BLOCK_N)
-    
-    # 访问模式
-    ptrs = input_ptr + offs_m[:, None] * stride_m + offs_n[None, :] * stride_n
-```
-
-### 内存合并模式
-
-```
-良好（合并）：
-Thread 0: addr + 0
-Thread 1: addr + 1
-Thread 2: addr + 2
-Thread 3: addr + 3
-...
-→ 单次内存事务
-
-不好（未合并）：
-Thread 0: addr + 0
-Thread 1: addr + 64
-Thread 2: addr + 128
-Thread 3: addr + 192
-...
-→ 多次内存事务
-```
-
----
-
-## 优化检查清单
-
-### 算子设计
-
-- [ ] 最小化 HBM 访问
-- [ ] 最大化寄存器/SRAM 使用
-- [ ] 使用合并内存访问
-- [ ] 避免共享内存中的 bank 冲突
-- [ ] 平衡并行性与资源使用
-
-### 融合机会
-
-- [ ] Matmul 前后的逐元素操作
-- [ ] 归一化 + 激活函数
-- [ ] 量化 + 反量化对
-- [ ] 多个小的归约操作
-
-### 自动调优
-
-- [ ] 尝试不同的块大小
-- [ ] 调整 warp 数量
-- [ ] 内存操作的流水线级数
-- [ ] 缓存配置
-
----
-
-<div align="center">
-
-**[⬆ 返回顶部](#内存优化)** | **[← 返回内部文档](../)**
-
-</div>
+当被减少的内存往返本来就占了显著成本时，本仓库的收益最大。也就是说，它最适合放在那些原本会频繁把中间结果写回 HBM 的热点路径上。

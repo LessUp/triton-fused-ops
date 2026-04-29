@@ -1,142 +1,80 @@
 ---
 layout: default
-title: "基准测试 API — Triton Fused Ops"
-description: "Triton Fused Ops 基准测试工具 API 参考 - 性能测量和正确性验证"
+title: 基准测试
+parent: API 参考
+grand_parent: 中文文档
+nav_order: 4
+description: "基准测试编排、正确性验证与报告生成"
 ---
 
-# 基准测试 API 参考
+# 基准测试
 
-本文档提供基准测试套件的 API 参考。
+本仓库的 benchmark 层主要由类与 helper 组成，而不是一组根包级独立 benchmark 函数。
 
----
-
-## 概述
-
-基准测试套件提供以下工具：
-- 带同步的性能测量
-- 与 PyTorch 参考的正确性验证
-- 报告生成
-- 基准测试编排
-
----
-
-## 基准测试函数
-
-### benchmark_kernel
-
-使用适当的预热和同步对算子函数进行基准测试。
+## `BenchmarkSuite`
 
 ```python
-from triton_ops.benchmark.suite import benchmark_kernel
-
-results = benchmark_kernel(
-    kernel_fn=my_kernel,
-    args=(input_tensor, weight),
-    warmup=10,
-    iterations=100,
-    device='cuda',
+BenchmarkSuite(
+    warmup_runs: int = 10,
+    benchmark_runs: int = 100,
+    rtol: float = 1e-3,
+    atol: float = 1e-5,
 )
-
-print(f"平均延迟: {results['mean_ms']:.3f} ms")
-print(f"标准差: {results['std_ms']:.3f} ms")
 ```
 
-### compare_correctness
+主要方法：
 
-将算子输出与 PyTorch 参考进行比较。
+- `benchmark_kernel(...)`
+- `compare_with_pytorch(...)`
+- `benchmark_rmsnorm_rope(...)`
+- `benchmark_gated_mlp(...)`
+- `benchmark_fp8_gemm(...)`
+- `generate_report(format="text" | "json")`
+- `save_report(filepath, format="text" | "json")`
+
+## `CorrectnessVerifier`
 
 ```python
-from triton_ops.benchmark.correctness import compare_correctness
-
-is_correct, max_error = compare_correctness(
-    kernel_fn=fused_rmsnorm_rope,
-    reference_fn=pytorch_rmsnorm_rope,
-    args=(x, weight, cos, sin),
-    rtol=1e-3,
-    atol=1e-5,
-)
-
-if is_correct:
-    print(f"✅ 正确! 最大误差: {max_error:.6f}")
-else:
-    print(f"❌ 不正确! 最大误差: {max_error:.6f}")
+CorrectnessVerifier(rtol: float = 1e-3, atol: float = 1e-5)
 ```
 
----
+常用方法：
 
-## 基准测试报告
+- `verify(actual, expected) -> tuple[bool, dict]`
+- `verify_allclose(actual, expected) -> bool`
+- `compute_relative_error(actual, expected) -> float`
 
-生成格式化的基准测试报告。
+其中 `verify` 会返回更详细的统计信息，比如最大绝对误差、平均相对误差和违规元素数量。
 
-```python
-from triton_ops.benchmark.report import BenchmarkReport
+## 独立正确性 helper
 
-report = BenchmarkReport()
+位于 `triton_ops.benchmark.correctness`：
 
-# 添加结果
-report.add_result(
-    name="RMSNorm+RoPE",
-    config={"batch": 8, "seq_len": 2048},
-    metrics={"latency_ms": 0.89, "speedup": 3.2},
-)
+- `verify_fp8_accuracy(fp8_result, fp16_baseline, max_relative_error=0.01)`
+- `verify_nan_inf_propagation(output, input_has_nan, input_has_inf)`
 
-# 生成报告
-print(report.to_markdown())
-print(report.to_json())
-```
+如果你不想走 `BenchmarkSuite`，这些函数也适合单独做数值验证。
 
----
+## 报告对象
 
-## 性能指标
+`triton_ops.benchmark.report` 定义了：
 
-### 延迟测量
+- `BenchmarkResult`
+- `ComparisonResult`
+- `PerformanceReport`
 
-```python
-import torch
-import time
+`PerformanceReport` 支持：
 
-def measure_latency(fn, *args, warmup=10, iterations=100):
-    """使用适当同步测量算子延迟。"""
-    
-    # 预热
-    for _ in range(warmup):
-        _ = fn(*args)
-    torch.cuda.synchronize()
-    
-    # 基准测试
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    
-    times = []
-    for _ in range(iterations):
-        start.record()
-        output = fn(*args)
-        end.record()
-        torch.cuda.synchronize()
-        times.append(start.elapsed_time(end))
-    
-    return {
-        'mean_ms': sum(times) / len(times),
-        'min_ms': min(times),
-        'max_ms': max(times),
-        'std_ms': (sum((t - sum(times)/len(times))**2 for t in times) / len(times))**0.5,
-    }
-```
+- `generate_text_report()` 生成人类可读文本
+- `generate_json_report()` 生成 JSON
 
-### 内存带宽计算
+## 重要提醒
 
-```python
-def compute_bandwidth(tensor_size_bytes, latency_ms):
-    """计算内存带宽（GB/s）。"""
-    seconds = latency_ms / 1000
-    gigabytes = tensor_size_bytes / (1024**3)
-    return gigabytes / seconds
-```
+基准测试模块中的专用 benchmark 方法是 GPU 导向的，因为它们会直接在 CUDA 上分配测试张量。若只是做仓库健康检查，应优先使用测试、lint、类型检查与构建命令，而不是 GPU benchmark。
 
----
+## 相关指标 helper
 
-<div align="center">
+吞吐量和带宽的计算 helper 见自动调优页：
 
-**[⬆ 返回顶部](#基准测试-api-参考)** | **[← 返回 API 索引](./)**
-
-</div>
+- `compute_gemm_metrics`
+- `compute_elementwise_metrics`

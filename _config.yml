@@ -5,6 +5,7 @@ url: https://lessup.github.io
 baseurl: /triton-fused-ops
 repository: LessUp/triton-fused-ops
 lang: en
+logo: "/assets/images/logo.svg"
 
 remote_theme: just-the-docs/just-the-docs@v0.8.2
 plugins:
@@ -17,17 +18,14 @@ search_enabled: true
 heading_anchors: true
 back_to_top: true
 back_to_top_text: "Back to top"
+footer_content: ""
 
 aux_links:
-  "Quick Start":
-    - "/docs/en/getting-started/quickstart/"
   "English Docs":
     - "/docs/en/"
   "中文文档":
     - "/docs/zh/"
-  "GitHub":
-    - "https://github.com/LessUp/triton-fused-ops"
-aux_links_new_tab: true
+aux_links_new_tab: false
 
 collections:
   docs:
@@ -63,4 +61,12 @@ exclude:
   - .vscode
   - .githooks
   - openspec
+  - changelog
+  - README.md
+  - README.zh-CN.md
+  - CHANGELOG.md
+  - CHANGELOG.zh-CN.md
+  - CONTRIBUTING.md
+  - AGENTS.md
+  - CLAUDE.md
   - CLAUDE.local.md

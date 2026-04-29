@@ -1,248 +1,108 @@
 ---
 layout: default
-title: "集成指南 — Triton Fused Ops"
-description: "与 HuggingFace、PyTorch 和 vLLM 的集成指南"
+title: 集成指南
+parent: 工程指南
+grand_parent: 中文文档
+nav_order: 1
+description: "如何把仓库当前导出的 kernel 接入更大的模型代码"
 ---
 
 # 集成指南
 
-将 Triton Fused Ops 与流行框架集成。
+本页聚焦“当前仓库真实存在的代码”应该怎样接入，而不是把仓库描述成完整框架适配层。
 
----
+## 先选集成层级
 
-## 📑 目录
+### 函数式 API
 
-- [HuggingFace Transformers](#huggingface-transformers)
-- [PyTorch 模型](#pytorch-模型)
-- [vLLM](#vllm)
-- [自定义训练循环](#自定义训练循环)
+适合场景：
 
----
+- 你的模型自己持有权重和 cache，
+- 你只想替换少数热点路径，
+- 你希望控制更细粒度的调用边界。
 
-## HuggingFace Transformers
+典型函数：
 
-### 修补 LLaMA 模型
+- `fused_rmsnorm_rope`
+- `fused_gated_mlp`
+- `fp8_gemm`
+- `quantize_fp8` / `dequantize_fp8`
 
-```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from triton_ops import FusedRMSNormRoPE, FusedGatedMLP
+### 模块封装
 
-def patch_llama_for_fusion(model):
-    """用融合算子修补 HuggingFace LLaMA 模型。"""
-    
-    for layer in model.model.layers:
-        hidden_dim = layer.input_layernorm.weight.shape[0]
-        head_dim = layer.self_attn.head_dim
-        
-        # 用融合版本替换输入 layernorm
-        old_norm = layer.input_layernorm
-        layer.input_layernorm = FusedRMSNormRoPE(
-            hidden_dim=hidden_dim,
-            head_dim=head_dim,
-            eps=old_norm.variance_epsilon,
-        ).cuda()
-        layer.input_layernorm.weight.data = old_norm.weight.data.cuda()
-        
-        # 替换 post-attention norm
-        old_norm = layer.post_attention_layernorm
-        layer.post_attention_layernorm = FusedRMSNormRoPE(
-            hidden_dim=hidden_dim,
-            head_dim=head_dim,
-            eps=old_norm.variance_epsilon,
-        ).cuda()
-        layer.post_attention_layernorm.weight.data = old_norm.weight.data.cuda()
-    
-    return model
+适合场景：
 
+- 你希望用 `nn.Module` 方式组合，
+- 你希望权重由模块内部持有，
+- 你在搭建推理导向的 block 级结构。
 
-# 加载模型
-model_id = "meta-llama/Llama-2-7b-hf"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    torch_dtype=torch.float16,
-    device_map="auto",
-)
+典型模块：
 
-# 应用融合修补
-model = patch_llama_for_fusion(model)
+- `FusedRMSNormRoPE`
+- `FusedGatedMLP`
+- `FP8Linear`
 
-# 正常使用
-text = "人工智能的未来是"
-inputs = tokenizer(text, return_tensors="pt").to(model.device)
-outputs = model.generate(**inputs, max_new_tokens=50)
-print(tokenizer.decode(outputs[0]))
-```
+## 关键运行边界
 
-### 与训练集成
+### `FusedRMSNormRoPE` 不是普通 norm 层
+
+它的前向签名需要显式传入 RoPE 输入：
 
 ```python
-from transformers import Trainer, TrainingArguments
-
-# 修补后
-model = patch_llama_for_fusion(model)
-
-training_args = TrainingArguments(
-    output_dir="./results",
-    num_train_epochs=3,
-    per_device_train_batch_size=4,
-)
-
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-)
-
-# 训练时将使用融合算子
-trainer.train()
+out = module(x, cos, sin)
 ```
 
----
+所以它更适合放在你已经持有位置 cache 的模型边界里。
 
-## PyTorch 模型
+### `FusedGatedMLP` 只覆盖 gated expansion
 
-### 原生 PyTorch 集成
+仓库里的模块返回的是 gated 中间输出。完整 decoder FFN 还需要在外部补上 down projection 和 residual 路径。
+
+### `FP8Linear` 更适合推理型场景
+
+该模块第一次前向时会量化并缓存权重。如果之后浮点权重继续更新，缓存的 FP8 权重并不会自动刷新。
+
+## Decoder block 草图
 
 ```python
 import torch
-import torch.nn as nn
 from triton_ops import FusedRMSNormRoPE, FusedGatedMLP, FP8Linear
 
-class MyTransformerLayer(nn.Module):
-    def __init__(self, hidden_dim, num_heads, intermediate_dim):
+class DecoderSlice(torch.nn.Module):
+    def __init__(self, hidden_dim=4096, num_heads=32, intermediate_dim=11008):
         super().__init__()
         head_dim = hidden_dim // num_heads
-        
-        # 使用融合模块
         self.norm = FusedRMSNormRoPE(hidden_dim, head_dim)
-        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim)
-        
-        # 可选：FP8 量化投影
-        self.proj = FP8Linear(hidden_dim, hidden_dim)
-    
+        self.q_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.k_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.v_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim, activation="silu")
+
     def forward(self, x, cos, sin):
-        x = self.norm(x, cos, sin)
-        x = self.mlp(x)
-        return x
-
-# 在模型中使用
-layer = MyTransformerLayer(4096, 32, 11008).cuda().half()
-x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-
-output = layer(x, cos, sin)
+        normed = self.norm(x, cos, sin)
+        q = self.q_proj(normed)
+        k = self.k_proj(normed)
+        v = self.v_proj(normed)
+        mlp_out = self.mlp(normed)
+        return q, k, v, mlp_out
 ```
 
-### torch.compile 兼容性
+## HuggingFace / 自定义模型 patch 的现实做法
 
-```python
-import torch
+仓库本身没有提供官方的 HuggingFace 或 vLLM 适配器。更实际的接入模式是：
 
-# 融合算子与 torch.compile 兼容
-model = MyTransformerLayer(4096, 32, 11008).cuda()
-compiled_model = torch.compile(model)
+1. 找到模型里真正持有这些张量的子模块。
+2. 只替换 norm / projection / MLP 这些热点片段。
+3. 保留模型原有的 attention 实现，除非你同时掌控那部分路径。
+4. 用代表性输入把 patch 前后数值对齐验证一遍。
 
-# 使用编译后的模型
-output = compiled_model(x, cos, sin)
-```
+换句话说，应把本仓库当作“优化原语集合”，而不是“现成框架插件”。
 
----
+## 接入前检查清单
 
-## vLLM
-
-### 使用融合算子的自定义模型
-
-```python
-# 在 vLLM 模型定义中
-from vllm.model_executor.layers.linear import LinearMethodBase
-from triton_ops import FP8Linear
-
-class FusedvLLMModel:
-    """使用融合算子的 vLLM 模型示例。"""
-    
-    def __init__(self, config):
-        # 使用 FP8 线性层进行量化
-        self.qkv_proj = FP8Linear(
-            config.hidden_size,
-            3 * config.hidden_size,
-            bias=False,
-        )
-        self.o_proj = FP8Linear(
-            config.hidden_size,
-            config.hidden_size,
-            bias=False,
-        )
-```
-
-### 推理配置
-
-```python
-# vLLM 推理，使用优化算子
-from vllm import LLM, SamplingParams
-
-llm = LLM(
-    model="meta-llama/Llama-2-7b",
-    dtype="float16",
-    # 启用优化注意力（如果支持）
-    attention_impl="flash_attn",
-)
-
-sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
-outputs = llm.generate(["你好，世界！"], sampling_params)
-```
-
----
-
-## 自定义训练循环
-
-### 混合精度训练
-
-```python
-import torch
-from torch.cuda.amp import autocast, GradScaler
-from triton_ops import fused_gated_mlp, fp8_gemm
-
-# 设置
-model = MyModel().cuda()
-optimizer = torch.optim.AdamW(model.parameters())
-scaler = GradScaler()
-
-# 训练循环
-for batch in dataloader:
-    optimizer.zero_grad()
-    
-    with autocast(dtype=torch.float16):
-        # 融合算子自动与 autocast 兼容
-        output = model(batch)
-        loss = compute_loss(output)
-    
-    scaler.scale(loss).backward()
-    scaler.step(optimizer)
-    scaler.update()
-```
-
-### 梯度检查点
-
-```python
-from torch.utils.checkpoint import checkpoint
-
-class CheckpointedTransformerLayer(nn.Module):
-    def __init__(self, hidden_dim, num_heads, intermediate_dim):
-        super().__init__()
-        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim)
-    
-    def forward(self, x):
-        # 使用检查点节省内存
-        return checkpoint(self.mlp, x)
-```
-
----
-
-<div align="center">
-
-**[⬆ 返回顶部](#集成指南)** | **[← 返回指南](../)**
-
-</div>
+- 输入必须在 CUDA 上，
+- 输入必须 contiguous，
+- RoPE cache 形状要确认清楚，
+- `hidden_dim` 必须与 `head_dim` 能正确整除，
+- benchmark 时要加 warmup 和同步，
+- rollout 前必须和未融合 baseline 对齐输出。

@@ -1,248 +1,108 @@
 ---
 layout: default
-title: "Integration Guide — Triton Fused Ops"
-description: "Integration guide for HuggingFace, PyTorch, and vLLM"
+title: Integration Guide
+parent: Guides
+grand_parent: Documentation
+nav_order: 1
+description: "How to integrate the shipped kernels into larger model code"
 ---
 
 # Integration Guide
 
-Integrate Triton Fused Ops with popular frameworks.
+This page focuses on realistic integration boundaries for the code that exists in the repository today.
 
----
+## Choose the right integration level
 
-## 📑 Table of Contents
+### Functional API
 
-- [HuggingFace Transformers](#huggingface-transformers)
-- [PyTorch Models](#pytorch-models)
-- [vLLM](#vllm)
-- [Custom Training Loops](#custom-training-loops)
+Use the functional entry points when:
 
----
+- your model already owns the weights and caches,
+- you want minimal wrapper overhead,
+- you are patching only a few hot-path calls.
 
-## HuggingFace Transformers
+Relevant functions:
 
-### Patching LLaMA Models
+- `fused_rmsnorm_rope`
+- `fused_gated_mlp`
+- `fp8_gemm`
+- `quantize_fp8` / `dequantize_fp8`
 
-```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from triton_ops import FusedRMSNormRoPE, FusedGatedMLP
+### Module wrappers
 
-def patch_llama_for_fusion(model):
-    """Patch a HuggingFace LLaMA model with fused kernels."""
-    
-    for layer in model.model.layers:
-        hidden_dim = layer.input_layernorm.weight.shape[0]
-        head_dim = layer.self_attn.head_dim
-        
-        # Replace input layernorm with fused version
-        old_norm = layer.input_layernorm
-        layer.input_layernorm = FusedRMSNormRoPE(
-            hidden_dim=hidden_dim,
-            head_dim=head_dim,
-            eps=old_norm.variance_epsilon,
-        ).cuda()
-        layer.input_layernorm.weight.data = old_norm.weight.data.cuda()
-        
-        # Replace post-attention norm
-        old_norm = layer.post_attention_layernorm
-        layer.post_attention_layernorm = FusedRMSNormRoPE(
-            hidden_dim=hidden_dim,
-            head_dim=head_dim,
-            eps=old_norm.variance_epsilon,
-        ).cuda()
-        layer.post_attention_layernorm.weight.data = old_norm.weight.data.cuda()
-    
-    return model
+Use the module wrappers when:
 
+- you want `nn.Module`-style composition,
+- you prefer weights to live inside the module,
+- you are building inference-oriented blocks from the repository primitives.
 
-# Load model
-model_id = "meta-llama/Llama-2-7b-hf"
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    torch_dtype=torch.float16,
-    device_map="auto",
-)
+Relevant modules:
 
-# Apply fusion patches
-model = patch_llama_for_fusion(model)
+- `FusedRMSNormRoPE`
+- `FusedGatedMLP`
+- `FP8Linear`
 
-# Use as normal
-text = "The future of AI is"
-inputs = tokenizer(text, return_tensors="pt").to(model.device)
-outputs = model.generate(**inputs, max_new_tokens=50)
-print(tokenizer.decode(outputs[0]))
-```
+## Important runtime boundaries
 
-### Integration with Training
+### `FusedRMSNormRoPE` is not a plain norm layer
+
+Its forward signature requires RoPE inputs:
 
 ```python
-from transformers import Trainer, TrainingArguments
-
-# After patching
-model = patch_llama_for_fusion(model)
-
-training_args = TrainingArguments(
-    output_dir="./results",
-    num_train_epochs=3,
-    per_device_train_batch_size=4,
-)
-
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-)
-
-# Fused kernels will be used during training
-trainer.train()
+out = module(x, cos, sin)
 ```
 
----
+That means it fits best where your model already has access to position-cache tensors.
 
-## PyTorch Models
+### `FusedGatedMLP` covers only the gated expansion stage
 
-### Native PyTorch Integration
+The repository module returns the intermediate gated activation output. A full decoder FFN still needs the down projection and surrounding residual logic outside the module.
+
+### `FP8Linear` is best treated as an inference-oriented building block
+
+The module quantizes and caches its weights on first forward. If the floating weight parameter changes later, the cached FP8 buffers are not automatically refreshed.
+
+## Decoder-block sketch
 
 ```python
 import torch
-import torch.nn as nn
 from triton_ops import FusedRMSNormRoPE, FusedGatedMLP, FP8Linear
 
-class MyTransformerLayer(nn.Module):
-    def __init__(self, hidden_dim, num_heads, intermediate_dim):
+class DecoderSlice(torch.nn.Module):
+    def __init__(self, hidden_dim=4096, num_heads=32, intermediate_dim=11008):
         super().__init__()
         head_dim = hidden_dim // num_heads
-        
-        # Use fused modules
         self.norm = FusedRMSNormRoPE(hidden_dim, head_dim)
-        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim)
-        
-        # Optional: FP8 quantized projections
-        self.proj = FP8Linear(hidden_dim, hidden_dim)
-    
+        self.q_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.k_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.v_proj = FP8Linear(hidden_dim, hidden_dim, bias=False)
+        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim, activation="silu")
+
     def forward(self, x, cos, sin):
-        x = self.norm(x, cos, sin)
-        x = self.mlp(x)
-        return x
-
-# Use in your model
-layer = MyTransformerLayer(4096, 32, 11008).cuda().half()
-x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-
-output = layer(x, cos, sin)
+        normed = self.norm(x, cos, sin)
+        q = self.q_proj(normed)
+        k = self.k_proj(normed)
+        v = self.v_proj(normed)
+        mlp_out = self.mlp(normed)
+        return q, k, v, mlp_out
 ```
 
-### torch.compile Compatibility
+## HuggingFace or custom-model patching
 
-```python
-import torch
+The repository does not ship an official HuggingFace or vLLM adapter. The practical pattern is:
 
-# Fused ops work with torch.compile
-model = MyTransformerLayer(4096, 32, 11008).cuda()
-compiled_model = torch.compile(model)
+1. identify the exact model submodule that owns the tensors you need,
+2. replace only the hot-path norm / projection / MLP pieces,
+3. keep the model's original attention implementation unless you also own that path,
+4. validate numerics against the pre-patch model on representative inputs.
 
-# Use compiled model
-output = compiled_model(x, cos, sin)
-```
+In other words, use this repository as a set of optimized primitives, not as a framework-level drop-in integration package.
 
----
+## Validation checklist before wiring into a model
 
-## vLLM
-
-### Custom Model with Fused Kernels
-
-```python
-# In your vLLM model definition
-from vllm.model_executor.layers.linear import LinearMethodBase
-from triton_ops import FP8Linear
-
-class FusedvLLMModel:
-    """Example vLLM model with fused kernels."""
-    
-    def __init__(self, config):
-        # Use FP8 linear layers for quantization
-        self.qkv_proj = FP8Linear(
-            config.hidden_size,
-            3 * config.hidden_size,
-            bias=False,
-        )
-        self.o_proj = FP8Linear(
-            config.hidden_size,
-            config.hidden_size,
-            bias=False,
-        )
-```
-
-### Serving Configuration
-
-```python
-# vLLM serving with optimized kernels
-from vllm import LLM, SamplingParams
-
-llm = LLM(
-    model="meta-llama/Llama-2-7b",
-    dtype="float16",
-    # Enable optimized attention (if supported)
-    attention_impl="flash_attn",
-)
-
-sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
-outputs = llm.generate(["Hello, world!"], sampling_params)
-```
-
----
-
-## Custom Training Loops
-
-### Mixed Precision Training
-
-```python
-import torch
-from torch.cuda.amp import autocast, GradScaler
-from triton_ops import fused_gated_mlp, fp8_gemm
-
-# Setup
-model = MyModel().cuda()
-optimizer = torch.optim.AdamW(model.parameters())
-scaler = GradScaler()
-
-# Training loop
-for batch in dataloader:
-    optimizer.zero_grad()
-    
-    with autocast(dtype=torch.float16):
-        # Fused ops automatically work with autocast
-        output = model(batch)
-        loss = compute_loss(output)
-    
-    scaler.scale(loss).backward()
-    scaler.step(optimizer)
-    scaler.update()
-```
-
-### Gradient Checkpointing
-
-```python
-from torch.utils.checkpoint import checkpoint
-
-class CheckpointedTransformerLayer(nn.Module):
-    def __init__(self, hidden_dim, num_heads, intermediate_dim):
-        super().__init__()
-        self.mlp = FusedGatedMLP(hidden_dim, intermediate_dim)
-    
-    def forward(self, x):
-        # Use checkpointing to save memory
-        return checkpoint(self.mlp, x)
-```
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#integration-guide)** | **[← Back to Guides](../)**
-
-</div>
+- keep tensors on CUDA,
+- keep inputs contiguous,
+- check RoPE cache shape carefully,
+- verify hidden dimension divisibility by `head_dim`,
+- benchmark with warmup and synchronization,
+- compare outputs against the unfused baseline before rollout.

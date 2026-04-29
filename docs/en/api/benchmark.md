@@ -1,142 +1,106 @@
 ---
 layout: default
-title: "Benchmark API — Triton Fused Ops"
-description: "API reference for benchmark tools - performance measurement and correctness verification"
+title: Benchmarking
+parent: API Reference
+grand_parent: Documentation
+nav_order: 4
+description: "Benchmark orchestration, correctness verification, and report generation"
 ---
 
-# Benchmark API Reference
+# Benchmarking
 
-This document provides API reference for the benchmark suite.
+The benchmark layer is organized around classes and helper functions, not standalone root-level benchmark functions.
 
----
-
-## Overview
-
-The benchmark suite provides tools for:
-- Performance measurement with synchronization
-- Correctness verification against PyTorch reference
-- Report generation
-- Benchmark orchestration
-
----
-
-## Benchmark Functions
-
-### benchmark_kernel
-
-Benchmark a kernel function with proper warmup and synchronization.
+## `BenchmarkSuite`
 
 ```python
-from triton_ops.benchmark.suite import benchmark_kernel
-
-results = benchmark_kernel(
-    kernel_fn=my_kernel,
-    args=(input_tensor, weight),
-    warmup=10,
-    iterations=100,
-    device='cuda',
+BenchmarkSuite(
+    warmup_runs: int = 10,
+    benchmark_runs: int = 100,
+    rtol: float = 1e-3,
+    atol: float = 1e-5,
 )
-
-print(f"Mean latency: {results['mean_ms']:.3f} ms")
-print(f"Std dev: {results['std_ms']:.3f} ms")
 ```
 
-### compare_correctness
+Main methods:
 
-Compare kernel output against PyTorch reference.
+- `benchmark_kernel(...)`
+- `compare_with_pytorch(...)`
+- `benchmark_rmsnorm_rope(...)`
+- `benchmark_gated_mlp(...)`
+- `benchmark_fp8_gemm(...)`
+- `generate_report(format="text" | "json")`
+- `save_report(filepath, format="text" | "json")`
 
-```python
-from triton_ops.benchmark.correctness import compare_correctness
-
-is_correct, max_error = compare_correctness(
-    kernel_fn=fused_rmsnorm_rope,
-    reference_fn=pytorch_rmsnorm_rope,
-    args=(x, weight, cos, sin),
-    rtol=1e-3,
-    atol=1e-5,
-)
-
-if is_correct:
-    print(f"✅ Correct! Max error: {max_error:.6f}")
-else:
-    print(f"❌ Incorrect! Max error: {max_error:.6f}")
-```
-
----
-
-## Benchmark Report
-
-Generate formatted benchmark reports.
-
-```python
-from triton_ops.benchmark.report import BenchmarkReport
-
-report = BenchmarkReport()
-
-# Add results
-report.add_result(
-    name="RMSNorm+RoPE",
-    config={"batch": 8, "seq_len": 2048},
-    metrics={"latency_ms": 0.89, "speedup": 3.2},
-)
-
-# Generate report
-print(report.to_markdown())
-print(report.to_json())
-```
-
----
-
-## Performance Metrics
-
-### Latency Measurement
+Example:
 
 ```python
 import torch
-import time
+from triton_ops import BenchmarkSuite, fused_rmsnorm_rope
+from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope_reference
 
-def measure_latency(fn, *args, warmup=10, iterations=100):
-    """Measure kernel latency with proper synchronization."""
-    
-    # Warmup
-    for _ in range(warmup):
-        _ = fn(*args)
-    torch.cuda.synchronize()
-    
-    # Benchmark
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    
-    times = []
-    for _ in range(iterations):
-        start.record()
-        output = fn(*args)
-        end.record()
-        torch.cuda.synchronize()
-        times.append(start.elapsed_time(end))
-    
-    return {
-        'mean_ms': sum(times) / len(times),
-        'min_ms': min(times),
-        'max_ms': max(times),
-        'std_ms': (sum((t - sum(times)/len(times))**2 for t in times) / len(times))**0.5,
-    }
+suite = BenchmarkSuite(warmup_runs=5, benchmark_runs=20)
+
+x = torch.randn(2, 128, 4096, device="cuda", dtype=torch.float16)
+weight = torch.ones(4096, device="cuda", dtype=torch.float16)
+cos = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+sin = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+
+result = suite.benchmark_kernel(
+    fused_rmsnorm_rope,
+    fused_rmsnorm_rope_reference,
+    "fused_rmsnorm_rope",
+    (2, 128, 4096),
+    x,
+    weight,
+    cos,
+    sin,
+)
 ```
 
-### Memory Bandwidth Calculation
+## `CorrectnessVerifier`
 
 ```python
-def compute_bandwidth(tensor_size_bytes, latency_ms):
-    """Compute memory bandwidth in GB/s."""
-    seconds = latency_ms / 1000
-    gigabytes = tensor_size_bytes / (1024**3)
-    return gigabytes / seconds
+CorrectnessVerifier(rtol: float = 1e-3, atol: float = 1e-5)
 ```
 
----
+Useful methods:
 
-<div align="center">
+- `verify(actual, expected) -> tuple[bool, dict]`
+- `verify_allclose(actual, expected) -> bool`
+- `compute_relative_error(actual, expected) -> float`
 
-**[⬆ Back to Top](#benchmark-api-reference)** | **[← Back to API Index](./)**
+The detailed `verify` method returns aggregate statistics such as maximum absolute difference, mean relative difference, and element-count violations.
 
-</div>
+## Standalone correctness helpers
+
+Available from `triton_ops.benchmark.correctness`:
+
+- `verify_fp8_accuracy(fp8_result, fp16_baseline, max_relative_error=0.01)`
+- `verify_nan_inf_propagation(output, input_has_nan, input_has_inf)`
+
+These are useful when you want direct numerical checks outside `BenchmarkSuite`.
+
+## Report objects
+
+`triton_ops.benchmark.report` defines:
+
+- `BenchmarkResult`
+- `ComparisonResult`
+- `PerformanceReport`
+
+`PerformanceReport` can emit:
+
+- human-readable text via `generate_text_report()`
+- JSON via `generate_json_report()`
+
+## Important accuracy note
+
+This repository's benchmark utilities are GPU-oriented in the specialized benchmark methods because they allocate tensors on CUDA. For CPU-safe validation of repository health, use the test and build commands rather than the GPU benchmark suite.
+
+## Related metric helpers
+
+For throughput and bandwidth interpretation, see the metric helpers documented in the autotuner page:
+
+- `compute_gemm_metrics`
+- `compute_elementwise_metrics`

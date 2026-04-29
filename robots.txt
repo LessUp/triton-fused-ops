@@ -1,23 +1,4 @@
-# robots.txt for Triton Fused Ops
-# https://lessup.github.io/triton-fused-ops/
-
 User-agent: *
 Allow: /
 
-# Sitemap
 Sitemap: https://lessup.github.io/triton-fused-ops/sitemap.xml
-
-# Crawl-delay for respectful crawling
-Crawl-delay: 1
-
-# Disallow specific paths
-Disallow: /assets/images/
-Disallow: /.github/
-Disallow: /vendor/
-
-# Allow specific file types
-Allow: /*.html$
-Allow: /*.md$
-Allow: /docs/
-Allow: /assets/css/
-Allow: /assets/js/

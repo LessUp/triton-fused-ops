@@ -1,52 +1,43 @@
 ---
 layout: default
-title: "Documentation — Triton Fused Ops"
-description: "Triton Fused Ops documentation - High-performance GPU kernels for Transformer models"
+title: "Documentation Hub — Triton Fused Ops"
+description: "Bilingual documentation hub for Triton Fused Ops"
+nav_exclude: true
 ---
 
-# 📚 Triton Fused Ops Documentation
+# Documentation Hub
 
-Welcome to the Triton Fused Ops documentation. Choose your preferred language:
+Use this page as the bilingual entry point into the knowledge base.
 
-## 🌐 Language Selection / 语言选择
+<div class="link-grid link-grid-2">
+  <a class="info-card lang-card" href="{{ '/docs/en/' | relative_url }}">
+    <span class="card-kicker">English</span>
+    <strong>English docs</strong>
+    <span>Read the technical content in English.</span>
+  </a>
+  <a class="info-card lang-card" href="{{ '/docs/zh/' | relative_url }}">
+    <span class="card-kicker">中文</span>
+    <strong>中文文档</strong>
+    <span>阅读中文技术文档。</span>
+  </a>
+</div>
 
-| Language | Description | Link |
-|:--------:|:------------|:----:|
-| 🇺🇸 **English** | Complete documentation in English | [English Docs →](./en/) |
-| 🇨🇳 **中文** | 完整中文文档 | [中文文档 →](./zh/) |
+## Main topics
 
----
-
-## Quick Navigation / 快速导航
-
-### Getting Started / 开始使用
-- [Installation Guide (EN)](./en/getting-started/installation.md) / [安装指南 (中文)](./zh/getting-started/installation.md)
-- [Quick Start (EN)](./en/getting-started/quickstart.md) / [快速开始 (中文)](./zh/getting-started/quickstart.md)
-- [Examples (EN)](./en/getting-started/examples.md) / [示例教程 (中文)](./zh/getting-started/examples.md)
-
-### API Reference / API 参考
-- [Core Kernels (EN)](./en/api/kernels.md) / [核心算子 (中文)](./zh/api/kernels.md)
-- [Quantization (EN)](./en/api/quantization.md) / [量化 (中文)](./zh/api/quantization.md)
-- [Auto-Tuning (EN)](./en/api/autotuner.md) / [自动调优 (中文)](./zh/api/autotuner.md)
-
-### Guides / 指南
-- [Integration Guide (EN)](./en/guides/integration.md) / [集成指南 (中文)](./zh/guides/integration.md)
-- [Performance Tuning (EN)](./en/guides/performance.md) / [性能优化 (中文)](./zh/guides/performance.md)
-- [FP8 Best Practices (EN)](./en/guides/fp8-best-practices.md) / [FP8 最佳实践 (中文)](./zh/guides/fp8-best-practices.md)
-
----
-
-## Project Links / 项目链接
-
-- [🏠 Homepage](https://lessup.github.io/triton-fused-ops/)
-- [💻 GitHub Repository](https://github.com/LessUp/triton-fused-ops)
-- [📋 Changelog](../CHANGELOG.md) / [更新日志](../CHANGELOG.zh-CN.md)
-- [🤝 Contributing](../CONTRIBUTING.md)
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#-triton-fused-ops-documentation)**
-
+<div class="link-grid link-grid-3">
+  <a class="info-card" href="{{ '/docs/en/getting-started/' | relative_url }}">
+    <span class="card-kicker">Getting Started</span>
+    <strong>Installation and first run</strong>
+    <span>Install the package, validate the environment, and run the first kernels.</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/en/api/' | relative_url }}">
+    <span class="card-kicker">API</span>
+    <strong>Public interfaces</strong>
+    <span>Functional API, modules, quantization helpers, autotuning, and benchmark classes.</span>
+  </a>
+  <a class="info-card" href="{{ '/docs/en/guides/' | relative_url }}">
+    <span class="card-kicker">Guides</span>
+    <strong>Usage patterns</strong>
+    <span>Integration boundaries, runtime constraints, FP8 trade-offs, and measurement strategy.</span>
+  </a>
 </div>

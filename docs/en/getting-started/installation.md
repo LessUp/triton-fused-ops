@@ -1,169 +1,122 @@
 ---
 layout: default
-title: "Installation — Triton Fused Ops"
-description: "Installation guide for Triton Fused Ops - system requirements and setup instructions"
+title: Installation
+parent: Getting Started
+grand_parent: Documentation
+nav_order: 1
+description: "Environment requirements and installation workflow for Triton Fused Ops"
 ---
 
-# 📦 Installation Guide
+# Installation
 
-This guide covers the installation of Triton Fused Ops and its dependencies.
+Use this page to prepare a working environment and run the first validation steps.
 
----
+## Requirements
 
-## ✅ System Requirements
+| Area | Baseline | Notes |
+|:--|:--|:--|
+| Python | `>=3.9` | The package metadata targets Python 3.9+ |
+| PyTorch | `>=2.0.0` | CUDA build required for actual Triton kernel execution |
+| Triton | `>=2.1.0` | OpenAI Triton |
+| GPU | CUDA-capable NVIDIA GPU | Needed for kernels and GPU benchmarks |
 
-### Hardware Requirements
-
-| Component | Minimum | Recommended |
-|:----------|:--------|:------------|
-| **GPU** | NVIDIA Ampere (SM80) | NVIDIA H100, A100, or RTX 4090 |
-| **VRAM** | 8 GB | 16 GB+ for large models |
-| **CUDA** | 11.8 | 12.1+ |
-
-### Software Requirements
-
-| Dependency | Version | Notes |
-|:-----------|:--------|:------|
-| **Python** | ≥ 3.9 | Python 3.10 or 3.11 recommended |
-| **PyTorch** | ≥ 2.0.0 | With CUDA support |
-| **Triton** | ≥ 2.1.0 | OpenAI Triton |
-| **NumPy** | ≥ 1.21.0 | Required for tensor operations |
-
----
-
-## 🚀 Installation Methods
-
-### Method 1: Development Installation (Recommended)
-
-For the latest features and development:
+## Install from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/LessUp/triton-fused-ops.git
 cd triton-fused-ops
-
-# Install in editable mode with dev dependencies
 pip install -e ".[dev]"
 ```
 
-### Method 2: Core Installation Only
-
-For production use with minimal dependencies:
+If you only need the package itself:
 
 ```bash
 pip install -e .
 ```
 
-### Method 3: Using uv (Fast)
-
-If you use `uv` for package management:
+If you use `uv`:
 
 ```bash
-# With dev dependencies
 uv pip install -e ".[dev]"
-
-# Core only
-uv pip install -e .
 ```
 
----
+## CPU-safe baseline checks
 
-## 🔧 Verifying Installation
+These checks do not require running Triton kernels and are suitable for CI or CPU-only validation paths:
 
-### Check CUDA Availability
-
-```python
-import torch
-print(f"CUDA available: {torch.cuda.is_available()}")
-print(f"CUDA version: {torch.version.cuda}")
-print(f"GPU: {torch.cuda.get_device_name(0)}")
+```bash
+python -c "import triton_ops; print(triton_ops.__version__)"
+ruff format --check .
+ruff check .
+mypy triton_ops/
+pytest tests/ -v -k "not cuda and not gpu" --ignore=tests/benchmarks/
+python3 -m build
 ```
 
-### Test Triton Fused Ops
+## GPU smoke test
 
 ```python
 import torch
 from triton_ops import fused_rmsnorm_rope
 
-# Test basic functionality
-x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
-weight = torch.ones(4096, device='cuda', dtype=torch.float16)
-cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
-sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+assert torch.cuda.is_available()
 
-output = fused_rmsnorm_rope(x, weight, cos, sin)
-print(f"✅ Output shape: {output.shape}")
-print(f"✅ Output dtype: {output.dtype}")
+batch, seq_len, hidden_dim, head_dim = 2, 128, 4096, 64
+x = torch.randn(batch, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
+weight = torch.ones(hidden_dim, device="cuda", dtype=torch.float16)
+cos = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+sin = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+
+y = fused_rmsnorm_rope(x, weight, cos, sin)
+print(y.shape, y.dtype)
 ```
 
-### Run Tests
+Notes:
 
-```bash
-# Run all tests
-pytest tests/ -v
+- The current implementation accepts `cos` and `sin` in shape `[seq_len, head_dim]`.
+- Validation also accepts cached 4D RoPE tensors in shape `[1, seq_len, 1, head_dim]`.
+- Runtime validation expects CUDA tensors, supported floating dtypes, and contiguous inputs.
 
-# Run with coverage
-pytest tests/ -v --cov=triton_ops
+## Environment sanity check
 
-# Run specific test file
-pytest tests/test_fp8_gemm.py -v
+```python
+import torch
+
+print("CUDA available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("CUDA version:", torch.version.cuda)
+    print("GPU:", torch.cuda.get_device_name())
 ```
 
----
+## Common problems
 
-## 🐛 Troubleshooting
+### `CUDA is not available`
 
-### Issue: "CUDA is not available"
+Typical causes:
 
-**Cause:** PyTorch installed without CUDA support or CUDA not properly configured.
+- PyTorch was installed without CUDA support.
+- The active Python environment cannot see the expected NVIDIA driver/runtime.
 
-**Solution:**
+Typical recovery:
+
 ```bash
-# Reinstall PyTorch with CUDA support
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### Issue: "Triton not found"
+### `DeviceError` on kernel calls
 
-**Cause:** Triton package not installed.
+The exported kernels check that tensors are on CUDA before launching. Move all inputs to the same CUDA device and keep them contiguous.
 
-**Solution:**
-```bash
-pip install triton>=2.1.0
-```
+### `UnsupportedDtypeError` or shape validation failures
 
-### Issue: Import errors with compiled extensions
+Use the API pages for the exact constraints:
 
-**Cause:** Version mismatch between PyTorch and Triton.
+- `fused_rmsnorm_rope`: 3D `x`, 1D `weight`, 2D or 4D RoPE cache.
+- `fused_gated_mlp`: 3D `x`, 2D weights, activation in `{"silu", "gelu"}`.
+- `fp8_gemm`: 2D matrices; pre-quantized `uint8` inputs require matching scale tensors.
 
-**Solution:**
-```bash
-# Upgrade both to latest compatible versions
-pip install --upgrade torch triton
-```
+## Next
 
----
-
-## 📋 GPU Architecture Support
-
-| Architecture | FP16 | FP8 | Notes |
-|:-------------|:----:|:---:|:------|
-| Ampere (A100) | ✅ | ⚠️ Emulated | Production ready |
-| Ada (RTX 4090) | ✅ | ✅ | Edge deployment |
-| Hopper (H100) | ✅ | ✅ | Best for FP8 |
-
----
-
-## 🎯 Next Steps
-
-- [Quick Start Guide](./quickstart.md) — Run your first fused kernel
-- [Examples](./examples.md) — Learn from practical examples
-- [API Reference](../api/kernels.md) — Explore the API
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#-installation-guide)** | **[← Back to Documentation](../)**
-
-</div>
+- [Quick Start]({{ '/docs/en/getting-started/quickstart/' | relative_url }})
+- [Examples]({{ '/docs/en/getting-started/examples/' | relative_url }})
+- [Core Kernels API]({{ '/docs/en/api/kernels/' | relative_url }})
