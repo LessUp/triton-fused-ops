@@ -18,6 +18,8 @@ env/
 .coverage
 htmlcov/
 .hypothesis/
+.ruff_cache/
+.mypy_cache/
 
 # Triton cache
 .triton/
