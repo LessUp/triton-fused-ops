@@ -143,6 +143,7 @@ from triton_ops.models import (
     TensorSpec,
     TuningResult,
 )
+from triton_ops.performance import PerformanceProfile
 
 __all__ = [
     # Fused kernels
@@ -154,6 +155,8 @@ __all__ = [
     "FP8Linear",
     "quantize_fp8",
     "dequantize_fp8",
+    # Performance metrics
+    "PerformanceProfile",
     # Data models
     "TensorSpec",
     "RMSNormRoPEInput",

@@ -5,10 +5,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 
-from triton_ops.autotuner.tuner import compute_elementwise_metrics, compute_gemm_metrics
+from triton_ops import performance as perf_module
 from triton_ops.benchmark.correctness import CorrectnessVerifier
 from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
 from triton_ops.models import KernelMetrics
+from triton_ops.performance import PerformanceProfile
 from triton_ops.utils import sync_cuda
 
 
@@ -86,7 +87,7 @@ class BenchmarkSuite:
         problem_size: Tuple[int, ...],
         *args,
         config: Dict[str, Any] = None,
-        compute_metrics_fn: Callable = None,
+        performance: Optional[PerformanceProfile] = None,
         **kwargs,
     ) -> BenchmarkResult:
         """Benchmark a kernel and verify correctness.
@@ -98,7 +99,7 @@ class BenchmarkSuite:
             problem_size: Problem dimensions
             *args: Arguments for both functions
             config: Kernel configuration
-            compute_metrics_fn: Function to compute detailed metrics
+            performance: Optional PerformanceProfile for derived metrics
             **kwargs: Keyword arguments for both functions
 
         Returns:
@@ -115,8 +116,8 @@ class BenchmarkSuite:
         latency_ms = self._time_kernel(kernel_fn, *args, **kwargs)
 
         # Compute metrics
-        if compute_metrics_fn:
-            metrics = compute_metrics_fn(problem_size, latency_ms)
+        if performance is not None:
+            metrics = performance.metrics(latency_ms)
         else:
             metrics = KernelMetrics(
                 latency_ms=latency_ms,
@@ -143,7 +144,7 @@ class BenchmarkSuite:
         kernel_name: str,
         problem_size: Tuple[int, ...],
         *args,
-        compute_metrics_fn: Callable = None,
+        performance: Optional[PerformanceProfile] = None,
         **kwargs,
     ) -> ComparisonResult:
         """Compare Triton kernel with PyTorch native operation.
@@ -154,7 +155,7 @@ class BenchmarkSuite:
             kernel_name: Name for reporting
             problem_size: Problem dimensions
             *args: Arguments for both functions
-            compute_metrics_fn: Function to compute detailed metrics
+            performance: Optional PerformanceProfile for derived metrics
             **kwargs: Keyword arguments
 
         Returns:
@@ -172,9 +173,9 @@ class BenchmarkSuite:
         pytorch_latency = self._time_kernel(pytorch_fn, *args, **kwargs)
 
         # Compute metrics
-        if compute_metrics_fn:
-            triton_metrics = compute_metrics_fn(problem_size, triton_latency)
-            pytorch_metrics = compute_metrics_fn(problem_size, pytorch_latency)
+        if performance is not None:
+            triton_metrics = performance.metrics(triton_latency)
+            pytorch_metrics = performance.metrics(pytorch_latency)
         else:
             triton_metrics = KernelMetrics(
                 latency_ms=triton_latency,
@@ -244,11 +245,7 @@ class BenchmarkSuite:
                     sin = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
 
                     problem_size = (batch, seq_len, hidden_dim)
-
-                    def compute_metrics(size, latency):
-                        numel = size[0] * size[1] * size[2]
-                        return compute_elementwise_metrics(numel, latency)
-
+                    numel = batch * seq_len * hidden_dim
                     result = self.benchmark_kernel(
                         fused_rmsnorm_rope,
                         fused_rmsnorm_rope_reference,
@@ -258,7 +255,7 @@ class BenchmarkSuite:
                         weight,
                         cos,
                         sin,
-                        compute_metrics_fn=compute_metrics,
+                        performance=perf_module.elementwise(numel=numel),
                     )
                     results.append(result)
 
@@ -311,12 +308,6 @@ class BenchmarkSuite:
 
                             problem_size = (batch, seq_len, hidden_dim, inter_dim)
 
-                            def compute_metrics(size, latency):
-                                M = size[0] * size[1]
-                                N = size[3]
-                                K = size[2]
-                                return compute_gemm_metrics(M, N, K, latency)
-
                             # Create wrapper functions to avoid activation parameter conflict
                             def triton_fn(x, gate_w, up_w):
                                 return fused_gated_mlp(x, gate_w, up_w, activation=activation)
@@ -332,7 +323,11 @@ class BenchmarkSuite:
                                 x,
                                 gate_w,
                                 up_w,
-                                compute_metrics_fn=compute_metrics,
+                                performance=perf_module.gemm(
+                                    M=batch * seq_len,
+                                    N=inter_dim,
+                                    K=hidden_dim,
+                                ),
                             )
                             results.append(result)
 
@@ -367,9 +362,6 @@ class BenchmarkSuite:
 
                     problem_size = (M, N, K)
 
-                    def compute_metrics(size, latency):
-                        return compute_gemm_metrics(size[0], size[1], size[2], latency)
-
                     result = self.benchmark_kernel(
                         fp8_gemm,
                         fp8_gemm_reference,
@@ -377,7 +369,7 @@ class BenchmarkSuite:
                         problem_size,
                         a,
                         b,
-                        compute_metrics_fn=compute_metrics,
+                        performance=perf_module.gemm(M=M, N=N, K=K),
                     )
                     results.append(result)
 

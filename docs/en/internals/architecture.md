@@ -16,6 +16,7 @@ The repository is organized around a small public API layer backed by validation
 ```text
 triton_ops/
 ├── __init__.py          # root public exports
+├── performance.py       # PerformanceProfile — derived metrics seam
 ├── models.py            # dataclasses and metric/result containers
 ├── exceptions.py        # custom exception types
 ├── validation.py        # runtime input checks
@@ -44,7 +45,13 @@ triton_ops/
 
 ### Public API layer
 
-`triton_ops.__init__` is the primary public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, and exception types. The root package is the only user-facing entry point.
+`triton_ops.__init__` is the primary public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, exception types, and `PerformanceProfile`. The root package is the only user-facing entry point.
+
+### Performance metrics seam
+
+`triton_ops.performance` provides `PerformanceProfile` objects that encapsulate problem-shape context for computing derived metrics (throughput TFLOPS, bandwidth GB/s, utilization). Used by both `BenchmarkSuite` and as an optional enrichment layer for autotuner results.
+
+Three constructors: `latency_only()`, `elementwise(numel, ...)`, `gemm(M, N, K, ...)`.
 
 ### Compute reference layer
 

@@ -16,6 +16,7 @@ description: "仓库的模块结构与各层职责关系"
 ```text
 triton_ops/
 ├── __init__.py          # 根包公开导出
+├── performance.py       # PerformanceProfile — 派生指标统一接口
 ├── models.py            # dataclass 与指标/结果容器
 ├── exceptions.py        # 自定义异常类型
 ├── validation.py        # 运行时输入校验
@@ -25,7 +26,7 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
-├── compute/             # CPU 可测试的 NumPy 参考实现
+├── compute/             # 纯 NumPy CPU 参考实现
 │   ├── rmsnorm.py
 │   ├── rope.py
 │   ├── gated_mlp.py
@@ -44,7 +45,13 @@ triton_ops/
 
 ### 公开 API 层
 
-`triton_ops.__init__` 是唯一的用户入口，导出 kernel、模块封装、量化 helper、benchmark 类、自动调优工具、dataclass 和异常类型。
+`triton_ops.__init__` 是唯一的用户入口，导出 kernel、模块封装、量化 helper、benchmark 类、自动调优工具、dataclass、异常类型，以及 `PerformanceProfile`。
+
+### 性能指标接口层
+
+`triton_ops.performance` 提供 `PerformanceProfile` 对象，封装问题形状上下文，用于计算派生指标（吞吐量 TFLOPS、带宽 GB/s、利用率）。供 `BenchmarkSuite` 和自动调优器使用。
+
+三种构造器：`latency_only()`、`elementwise(numel, ...)`、`gemm(M, N, K, ...)`。
 
 ### 计算参考层
 
