@@ -1,10 +1,11 @@
-"""Performance metric helpers for Triton fused operators.
+"""
+Performance metric helpers for Triton fused operators.
 
-This module provides small helpers for expressing kernel performance
-profiles (latency-only, elementwise, and GEMM) and computing derived
-metrics (throughput, bandwidth, utilization). It deliberately keeps
-calculations simple and uses MIN_LATENCY_MS as a zero-latency sentinel
-to avoid division-by-zero.
+This module provides helpers for expressing kernel performance profiles
+(latency-only, elementwise, and GEMM) and for computing derived metrics
+(throughput, bandwidth, utilization). Calculations are intentionally
+simple. MIN_LATENCY_MS is used as a zero-latency sentinel to avoid
+zero-division. See repo docstring style for details.
 """
 
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ def _normalize_latency(latency_ms: float) -> float:
     """Validate and normalize latency.
 
     Enforce that latency is a finite, non-negative number. A zero
-    latency is mapped to MIN_LATENCY_MS sentinel.
+    latency is mapped to MIN_LATENCY_MS sentinel. +inf and -inf are rejected.
     """
     if not isinstance(latency_ms, (int, float)):
         raise ValueError("latency_ms must be a numeric type")
@@ -104,6 +105,8 @@ def elementwise(
     # Reject non-int-like inputs explicitly
     if not (isinstance(numel, int) and type(numel) is int):
         raise ValueError("numel must be an int")
+    if not isinstance(numel, int) or type(numel) is not int:
+        raise ValueError("numel must be a pure int, not float or bool")
     if numel <= 0 or bytes_per_element <= 0 or peak_bandwidth_gbps <= 0:
         raise ValueError("elementwise profile inputs must be positive")
     return PerformanceProfile(
