@@ -43,6 +43,14 @@ class PerformanceProfile:
         if self.kind not in valid_kinds:
             raise ValueError(f"Unsupported performance profile kind: {self.kind!r}")
 
+        # Invariant: bytes_per_element and peak_bandwidth_gbps must be positive
+        if not (isinstance(self.bytes_per_element, int) and type(self.bytes_per_element) is int):
+            raise ValueError("bytes_per_element must be a pure int, not float or bool")
+        if self.bytes_per_element <= 0:
+            raise ValueError("bytes_per_element must be positive")
+        if not (isinstance(self.peak_bandwidth_gbps, (int, float)) and self.peak_bandwidth_gbps > 0):
+            raise ValueError("peak_bandwidth_gbps must be a positive number")
+
         # Basic shape checks to catch typos early
         if self.kind == "latency":
             if self.dims != ():
@@ -109,7 +117,7 @@ def elementwise(
         raise ValueError("numel must be a pure int, not float or bool")
     if not (isinstance(bytes_per_element, int) and type(bytes_per_element) is int):
         raise ValueError("bytes_per_element must be a pure int, not float or bool")
-    if numel <= 0 or bytes_per_element <= 0 or peak_bandwidth_gbps <= 0:
+    if numel <= 0:
         raise ValueError("elementwise profile inputs must be positive")
     return PerformanceProfile(
         kind="elementwise",
@@ -134,7 +142,7 @@ def gemm(
             raise ValueError(f"{name} must be an int")
     if not (isinstance(bytes_per_element, int) and type(bytes_per_element) is int):
         raise ValueError("bytes_per_element must be a pure int, not float or bool")
-    if min(M, N, K, bytes_per_element, peak_tflops, peak_bandwidth_gbps) <= 0:
+    if min(M, N, K) <= 0:
         raise ValueError("gemm profile inputs must be positive")
     return PerformanceProfile(
         kind="gemm",
