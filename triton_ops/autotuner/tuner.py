@@ -7,7 +7,7 @@ from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
-from triton_ops.utils import MIN_LATENCY_MS, sync_cuda
+from triton_ops.utils import sync_cuda
 
 
 class TritonAutoTuner:
@@ -76,8 +76,7 @@ class TritonAutoTuner:
             total_time = end_time - start_time
             latency_ms = (total_time / self.benchmark_runs) * 1000
 
-            # Default placeholder metrics - should be computed post-tuning
-            # using compute_gemm_metrics or compute_elementwise_metrics
+            # Placeholder metrics; callers can enrich via triton_ops.performance
             throughput_tflops = 0.0
             bandwidth_gbps = 0.0
             bandwidth_utilization = 0.0
@@ -191,78 +190,3 @@ class TritonAutoTuner:
     def clear_cache(self) -> None:
         """Clear all cached configurations."""
         self.cache.clear()
-
-
-def compute_gemm_metrics(
-    M: int,
-    N: int,
-    K: int,
-    latency_ms: float,
-    peak_tflops: float = 312.0,  # A100 FP16 peak
-    peak_bandwidth_gbps: float = 2039.0,  # A100 HBM bandwidth
-) -> KernelMetrics:
-    """Compute performance metrics for GEMM operation.
-
-    Args:
-        M, N, K: Matrix dimensions
-        latency_ms: Measured latency in milliseconds
-        peak_tflops: Peak TFLOPS of the device
-        peak_bandwidth_gbps: Peak memory bandwidth in GB/s
-
-    Returns:
-        KernelMetrics with computed values
-    """
-    # FLOPS for GEMM: 2 * M * N * K
-    flops = 2 * M * N * K
-    if latency_ms <= 0:
-        latency_ms = MIN_LATENCY_MS
-    tflops = flops / (latency_ms * 1e9)  # Convert to TFLOPS
-
-    # Memory bytes: read A (M*K) + read B (K*N) + write C (M*N)
-    # Assuming FP16 (2 bytes per element)
-    bytes_accessed = (M * K + K * N + M * N) * 2
-    bandwidth_gbps = bytes_accessed / (latency_ms * 1e6)  # Convert to GB/s
-
-    # Utilization percentages
-    throughput_utilization = (tflops / peak_tflops) * 100
-    bandwidth_utilization = (bandwidth_gbps / peak_bandwidth_gbps) * 100
-
-    return KernelMetrics(
-        latency_ms=latency_ms,
-        throughput_tflops=tflops,
-        bandwidth_gbps=bandwidth_gbps,
-        bandwidth_utilization=bandwidth_utilization,
-    )
-
-
-def compute_elementwise_metrics(
-    numel: int,
-    latency_ms: float,
-    bytes_per_element: int = 2,
-    peak_bandwidth_gbps: float = 2039.0,
-) -> KernelMetrics:
-    """Compute performance metrics for elementwise operations.
-
-    Args:
-        numel: Number of elements
-        latency_ms: Measured latency in milliseconds
-        bytes_per_element: Bytes per element (2 for FP16)
-        peak_bandwidth_gbps: Peak memory bandwidth in GB/s
-
-    Returns:
-        KernelMetrics with computed values
-    """
-    # Memory bytes: read + write
-    bytes_accessed = numel * bytes_per_element * 2
-    if latency_ms <= 0:
-        latency_ms = MIN_LATENCY_MS
-    bandwidth_gbps = bytes_accessed / (latency_ms * 1e6)
-
-    bandwidth_utilization = (bandwidth_gbps / peak_bandwidth_gbps) * 100
-
-    return KernelMetrics(
-        latency_ms=latency_ms,
-        throughput_tflops=0.0,  # Not applicable for elementwise
-        bandwidth_gbps=bandwidth_gbps,
-        bandwidth_utilization=bandwidth_utilization,
-    )

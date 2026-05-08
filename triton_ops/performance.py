@@ -8,8 +8,8 @@ simple. MIN_LATENCY_MS is used as a zero-latency sentinel to avoid
 zero-division. See repo docstring style for details.
 """
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from triton_ops.models import KernelMetrics
 from triton_ops.utils import MIN_LATENCY_MS
@@ -35,7 +35,9 @@ class PerformanceProfile:
     kind: str
     dims: tuple[int, ...]
     bytes_per_element: int = 2
-    peak_tflops: float = 312.0  # Reserved for future throughput-utilization support; not used by KernelMetrics yet
+    peak_tflops: float = (
+        312.0  # Reserved for future throughput-utilization support; not used by KernelMetrics yet
+    )
     peak_bandwidth_gbps: float = 2039.0
 
     def __post_init__(self) -> None:
@@ -48,7 +50,9 @@ class PerformanceProfile:
             raise ValueError("bytes_per_element must be a pure int, not float or bool")
         if self.bytes_per_element <= 0:
             raise ValueError("bytes_per_element must be positive")
-        if not (isinstance(self.peak_bandwidth_gbps, (int, float)) and self.peak_bandwidth_gbps > 0):
+        if not (
+            isinstance(self.peak_bandwidth_gbps, (int, float)) and self.peak_bandwidth_gbps > 0
+        ):
             raise ValueError("peak_bandwidth_gbps must be a positive number")
 
         # Basic shape checks to catch typos early
