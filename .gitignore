@@ -46,3 +46,6 @@ _site/
 CLAUDE.local.md
 .claude/settings.local.json
 .omc/
+
+# Local git worktrees
+.worktrees/
