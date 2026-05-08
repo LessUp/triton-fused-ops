@@ -49,6 +49,12 @@ def test_invalid_latency_raises_value_error(latency):
     with pytest.raises(ValueError):
         performance.elementwise(numel=256).metrics(latency)
 
+def test_latency_rejects_bool():
+    # Should reject True and False as latency values
+    for val in [True, False]:
+        with pytest.raises(ValueError):
+            performance.elementwise(numel=256).metrics(val)
+
 
 def test_elementwise_rejects_non_int_numel():
     with pytest.raises(ValueError):

@@ -21,6 +21,8 @@ def _normalize_latency(latency_ms: float) -> float:
     Enforce that latency is a finite, non-negative number. A zero
     latency is mapped to MIN_LATENCY_MS sentinel. +inf and -inf are rejected.
     """
+    if isinstance(latency_ms, bool):
+        raise ValueError("latency_ms must not be a bool")
     if not isinstance(latency_ms, (int, float)):
         raise ValueError("latency_ms must be a numeric type")
     if not math.isfinite(latency_ms) or latency_ms < 0:
