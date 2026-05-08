@@ -107,6 +107,8 @@ def elementwise(
     # Reject non-int-like inputs explicitly
     if not (isinstance(numel, int) and type(numel) is int):
         raise ValueError("numel must be a pure int, not float or bool")
+    if not (isinstance(bytes_per_element, int) and type(bytes_per_element) is int):
+        raise ValueError("bytes_per_element must be a pure int, not float or bool")
     if numel <= 0 or bytes_per_element <= 0 or peak_bandwidth_gbps <= 0:
         raise ValueError("elementwise profile inputs must be positive")
     return PerformanceProfile(
@@ -130,6 +132,8 @@ def gemm(
     for name, val in ("M", M), ("N", N), ("K", K):
         if not (isinstance(val, int) and type(val) is int):
             raise ValueError(f"{name} must be an int")
+    if not (isinstance(bytes_per_element, int) and type(bytes_per_element) is int):
+        raise ValueError("bytes_per_element must be a pure int, not float or bool")
     if min(M, N, K, bytes_per_element, peak_tflops, peak_bandwidth_gbps) <= 0:
         raise ValueError("gemm profile inputs must be positive")
     return PerformanceProfile(

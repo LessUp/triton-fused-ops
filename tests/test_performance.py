@@ -20,7 +20,7 @@ def test_elementwise_profile_normalizes_zero_latency_and_computes_bandwidth():
     assert metrics.latency_ms == MIN_LATENCY_MS
     assert metrics.throughput_tflops == 0.0
     assert metrics.bandwidth_gbps == pytest.approx(expected_bandwidth)
-    assert metrics.bandwidth_utilization > 0.0
+    assert metrics.bandwidth_utilization == pytest.approx((expected_bandwidth / performance.elementwise(numel=256).peak_bandwidth_gbps) * 100)
 
 
 def test_gemm_profile_computes_throughput_and_bandwidth_and_utilization():
@@ -49,11 +49,11 @@ def test_invalid_latency_raises_value_error(latency):
     with pytest.raises(ValueError):
         performance.elementwise(numel=256).metrics(latency)
 
-def test_latency_rejects_bool():
+@pytest.mark.parametrize("val", [True, False])
+def test_latency_rejects_bool(val):
     # Should reject True and False as latency values
-    for val in [True, False]:
-        with pytest.raises(ValueError):
-            performance.elementwise(numel=256).metrics(val)
+    with pytest.raises(ValueError):
+        performance.elementwise(numel=256).metrics(val)
 
 
 def test_elementwise_rejects_non_int_numel():
@@ -61,6 +61,20 @@ def test_elementwise_rejects_non_int_numel():
         performance.elementwise(numel=256.0)
 
 
-def test_gemm_rejects_non_int_dims():
+@pytest.mark.parametrize("M,N,K", [
+    (8.0, 16, 32),
+    (8, 16.0, 32),
+    (8, 16, 32.0),
+])
+def test_gemm_rejects_non_int_dims(M, N, K):
     with pytest.raises(ValueError):
-        performance.gemm(M=8.0, N=16, K=32)
+        performance.gemm(M=M, N=N, K=K)
+
+
+@pytest.mark.parametrize("profile_fn,kwargs", [
+    (performance.elementwise, {"numel": 256, "bytes_per_element": 2.0}),
+    (performance.gemm, {"M": 8, "N": 16, "K": 32, "bytes_per_element": 2.0}),
+])
+def test_bytes_per_element_rejects_non_int(profile_fn, kwargs):
+    with pytest.raises(ValueError):
+        profile_fn(**kwargs)
