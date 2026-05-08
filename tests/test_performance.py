@@ -44,9 +44,10 @@ def test_invalid_profile_inputs_raise_value_error():
         performance.gemm(M=8, N=0, K=16)
 
 
-def test_negative_latency_raises_value_error():
+@pytest.mark.parametrize("latency", [-1.0, float('nan'), float('inf'), float('-inf')])
+def test_invalid_latency_raises_value_error(latency):
     with pytest.raises(ValueError):
-        performance.elementwise(numel=256).metrics(-1.0)
+        performance.elementwise(numel=256).metrics(latency)
 
 
 def test_elementwise_rejects_non_int_numel():

@@ -33,7 +33,7 @@ class PerformanceProfile:
     kind: str
     dims: tuple[int, ...]
     bytes_per_element: int = 2
-    peak_tflops: float = 312.0
+    peak_tflops: float = 312.0  # Reserved for future throughput-utilization support; not used by KernelMetrics yet
     peak_bandwidth_gbps: float = 2039.0
 
     def __post_init__(self) -> None:
@@ -104,8 +104,6 @@ def elementwise(
 ) -> PerformanceProfile:
     # Reject non-int-like inputs explicitly
     if not (isinstance(numel, int) and type(numel) is int):
-        raise ValueError("numel must be an int")
-    if not isinstance(numel, int) or type(numel) is not int:
         raise ValueError("numel must be a pure int, not float or bool")
     if numel <= 0 or bytes_per_element <= 0 or peak_bandwidth_gbps <= 0:
         raise ValueError("elementwise profile inputs must be positive")
@@ -123,7 +121,7 @@ def gemm(
     N: int,
     K: int,
     bytes_per_element: int = 2,
-    peak_tflops: float = 312.0,
+    peak_tflops: float = 312.0,  # Reserved for future throughput-utilization support; not used by KernelMetrics yet
     peak_bandwidth_gbps: float = 2039.0,
 ) -> PerformanceProfile:
     # Reject non-int-like inputs explicitly
