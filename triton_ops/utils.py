@@ -2,6 +2,9 @@
 
 import torch
 
+# Minimum latency sentinel — avoids zero-division in derived metric calculations
+MIN_LATENCY_MS: float = 1e-9
+
 
 def sync_cuda() -> None:
     """Synchronize CUDA if available.
