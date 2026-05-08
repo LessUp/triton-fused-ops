@@ -251,21 +251,38 @@ def fused_rmsnorm_rope(
     """Apply fused RMSNorm + RoPE transformation.
 
     This function combines RMSNorm and Rotary Position Embedding into a single
-    kernel launch, reducing memory bandwidth requirements.
+    kernel launch, reducing memory bandwidth requirements by eliminating
+    intermediate HBM writes.
+
+    Mathematical operations:
+        1. RMSNorm: y = x * rsqrt(mean(x^2) + eps) * weight
+        2. RoPE: y_rope = y * cos + rotate_half(y) * sin
 
     Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        weight: RMSNorm weight [hidden_dim]
-        cos: Cosine position embeddings [seq_len, head_dim]
-        sin: Sine position embeddings [seq_len, head_dim]
-        eps: Small constant for numerical stability
-        num_heads: Number of attention heads (inferred if not provided)
+        x: Input tensor of shape [batch, seq_len, hidden_dim]
+        weight: RMSNorm weight of shape [hidden_dim]
+        cos: Cosine position embeddings of shape [seq_len, head_dim]
+        sin: Sine position embeddings of shape [seq_len, head_dim]
+        eps: Small constant for numerical stability (default: 1e-6)
+        num_heads: Number of attention heads (inferred from hidden_dim/head_dim if not provided)
 
     Returns:
-        Output tensor [batch, seq_len, hidden_dim] with RMSNorm + RoPE applied
+        Output tensor of shape [batch, seq_len, hidden_dim] with RMSNorm + RoPE applied
 
     Raises:
         DeviceError: If CUDA is not available
+        ShapeMismatchError: If tensor shapes are incompatible
+        UnsupportedDtypeError: If tensor dtypes are unsupported
+
+    Example:
+        >>> x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
+        >>> weight = torch.ones(4096, device='cuda', dtype=torch.float16)
+        >>> cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+        >>> sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+        >>> output = fused_rmsnorm_rope(x, weight, cos, sin)
+
+    Note:
+        All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
     if not torch.cuda.is_available():

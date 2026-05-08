@@ -14,8 +14,12 @@ import triton
 import triton.language as tl
 
 from triton_ops.exceptions import DeviceError
-from triton_ops.utils import ACTIVATION_GELU, ACTIVATION_SILU, VALID_ACTIVATIONS
-from triton_ops.validation import validate_gated_mlp_inputs
+from triton_ops.validation import (
+    ACTIVATION_GELU,
+    ACTIVATION_SILU,
+    VALID_ACTIVATIONS,
+    validate_gated_mlp_inputs,
+)
 
 
 @triton.jit
@@ -164,16 +168,28 @@ def fused_gated_mlp(
     projections and the activation in a single kernel.
 
     Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        gate_weight: Gate projection weight [intermediate_dim, hidden_dim]
-        up_weight: Up projection weight [intermediate_dim, hidden_dim]
-        activation: Activation function ("silu" or "gelu")
+        x: Input tensor of shape [batch, seq_len, hidden_dim]
+        gate_weight: Gate projection weight of shape [intermediate_dim, hidden_dim]
+        up_weight: Up projection weight of shape [intermediate_dim, hidden_dim]
+        activation: Activation function - "silu" (default) or "gelu"
 
     Returns:
-        Output tensor [batch, seq_len, intermediate_dim]
+        Output tensor of shape [batch, seq_len, intermediate_dim]
 
     Raises:
         DeviceError: If CUDA is not available
+        ShapeMismatchError: If tensor shapes are incompatible
+        UnsupportedDtypeError: If tensor dtypes are unsupported
+        ValueError: If activation is not supported
+
+    Example:
+        >>> x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
+        >>> gate_w = torch.randn(11264, 4096, device='cuda', dtype=torch.float16)
+        >>> up_w = torch.randn(11264, 4096, device='cuda', dtype=torch.float16)
+        >>> output = fused_gated_mlp(x, gate_w, up_w, activation="silu")
+
+    Note:
+        All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
     if not torch.cuda.is_available():

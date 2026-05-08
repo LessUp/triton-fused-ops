@@ -144,6 +144,9 @@ def quantize_fp8(
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Quantize tensor to FP8 E4M3 format.
 
+    FP8 E4M3 format: 1 sign bit, 4 exponent bits, 3 mantissa bits.
+    Max representable value: 448.0
+
     Args:
         tensor: Input tensor in FP16/BF16/FP32
         scale: Optional pre-computed scale factor. If None, computed automatically.
@@ -155,6 +158,14 @@ def quantize_fp8(
 
     Raises:
         DeviceError: If CUDA is not available
+        NumericalOverflowError: If scale is invalid
+
+    Example:
+        >>> tensor = torch.randn(1024, 1024, device='cuda', dtype=torch.float16)
+        >>> quantized, scale = quantize_fp8(tensor)
+
+    Note:
+        All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
     if not torch.cuda.is_available():
@@ -220,10 +231,17 @@ def dequantize_fp8(
     Args:
         tensor: FP8 tensor stored as uint8
         scale: Scale factor used during quantization
-        output_dtype: Output data type (float16 or bfloat16)
+        output_dtype: Output data type - float16 (default) or bfloat16
 
     Returns:
         Dequantized tensor in specified dtype
+
+    Example:
+        >>> quantized, scale = quantize_fp8(original_tensor)
+        >>> recovered = dequantize_fp8(quantized, scale)
+
+    Note:
+        All tensors must be on CUDA device and contiguous.
     """
     # Allocate output
     output = torch.empty(tensor.shape, dtype=output_dtype, device=tensor.device)

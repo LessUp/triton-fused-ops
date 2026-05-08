@@ -139,19 +139,30 @@ def fp8_gemm(
     """Perform FP8 matrix multiplication.
 
     If inputs are not already in FP8 format, they will be quantized automatically.
+    Uses FP32 accumulation for numerical stability.
 
     Args:
-        a: First matrix [M, K] - can be FP8 (uint8) or float
-        b: Second matrix [K, N] - can be FP8 (uint8) or float
-        a_scale: Scale factor for A (required if A is FP8)
-        b_scale: Scale factor for B (required if B is FP8)
-        output_dtype: Output data type (float16 or bfloat16)
+        a: First matrix of shape [M, K] - can be FP8 (uint8) or float
+        b: Second matrix of shape [K, N] - can be FP8 (uint8) or float
+        a_scale: Scale factor for A (required if A is FP8, computed if float)
+        b_scale: Scale factor for B (required if B is FP8, computed if float)
+        output_dtype: Output data type - float16 (default) or bfloat16
 
     Returns:
-        Result matrix [M, N] in output_dtype
+        Result matrix of shape [M, N] in output_dtype
 
     Raises:
         DeviceError: If CUDA is not available
+        ShapeMismatchError: If tensor shapes are incompatible
+        UnsupportedDtypeError: If tensor dtypes are unsupported
+
+    Example:
+        >>> a = torch.randn(512, 1024, device='cuda', dtype=torch.float16)
+        >>> b = torch.randn(1024, 2048, device='cuda', dtype=torch.float16)
+        >>> c = fp8_gemm(a, b)  # Auto-quantizes to FP8
+
+    Note:
+        All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
     if not torch.cuda.is_available():

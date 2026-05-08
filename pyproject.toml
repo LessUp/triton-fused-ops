@@ -122,3 +122,8 @@ ignore_missing_imports = true
 follow_imports = "skip"
 no_implicit_optional = false
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# numpy pure-compute reference implementations return untyped ndarray operations
+module = "triton_ops.compute.*"
+warn_return_any = false

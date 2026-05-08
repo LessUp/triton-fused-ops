@@ -7,7 +7,10 @@ from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
-from triton_ops.utils import MIN_LATENCY_MS, sync_cuda
+from triton_ops.utils import sync_cuda
+
+# Minimum latency for metric calculations (avoids division by zero)
+MIN_LATENCY_MS = 1e-9
 
 
 class TritonAutoTuner:

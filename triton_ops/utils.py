@@ -10,13 +10,3 @@ def sync_cuda() -> None:
     """
     if torch.cuda.is_available():
         torch.cuda.synchronize()
-
-
-# Activation type constants
-ACTIVATION_SILU = "silu"
-ACTIVATION_GELU = "gelu"
-VALID_ACTIVATIONS = (ACTIVATION_SILU, ACTIVATION_GELU)
-
-
-# Minimum latency for metric calculations (avoids division by zero)
-MIN_LATENCY_MS = 1e-9

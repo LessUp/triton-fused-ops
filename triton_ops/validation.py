@@ -9,7 +9,11 @@ from triton_ops.exceptions import (
     ShapeMismatchError,
     UnsupportedDtypeError,
 )
-from triton_ops.utils import VALID_ACTIVATIONS
+
+# Activation type constants (moved from utils.py)
+ACTIVATION_SILU = "silu"
+ACTIVATION_GELU = "gelu"
+VALID_ACTIVATIONS = (ACTIVATION_SILU, ACTIVATION_GELU)
 
 # Supported dtypes for different operations
 SUPPORTED_DTYPES_FLOAT = [torch.float16, torch.bfloat16, torch.float32]
