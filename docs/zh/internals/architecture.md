@@ -15,8 +15,7 @@ description: "仓库的模块结构与各层职责关系"
 
 ```text
 triton_ops/
-├── __init__.py          # 根包导出
-├── api.py               # 便捷 API 包装
+├── __init__.py          # 根包公开导出
 ├── models.py            # dataclass 与指标/结果容器
 ├── exceptions.py        # 自定义异常类型
 ├── validation.py        # 运行时输入校验
@@ -26,6 +25,11 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
+├── compute/             # CPU 可测试的 NumPy 参考实现
+│   ├── rmsnorm.py
+│   ├── rope.py
+│   ├── gated_mlp.py
+│   └── fp8.py
 ├── autotuner/
 │   ├── configs.py
 │   ├── tuner.py
@@ -40,9 +44,15 @@ triton_ops/
 
 ### 公开 API 层
 
-`triton_ops.__init__` 是主要用户入口，导出 kernel、模块封装、量化 helper、benchmark 类、自动调优工具、dataclass 和异常类型。
+`triton_ops.__init__` 是唯一的用户入口，导出 kernel、模块封装、量化 helper、benchmark 类、自动调优工具、dataclass 和异常类型。
 
-`triton_ops.api` 也提供了一层便捷封装，但根包仍然是主要公开接口。
+### 计算参考层
+
+`triton_ops.compute` 提供与 Triton kernel 数学等价的纯 NumPy 实现，无需 GPU 即可运行：
+
+- 作为 kernel 正确性验证的参考实现，
+- 作为无 GPU 环境下的单元测试目标，
+- 作为精确数学公式的文档说明。
 
 ### 校验层
 

@@ -15,8 +15,7 @@ The repository is organized around a small public API layer backed by validation
 
 ```text
 triton_ops/
-├── __init__.py          # root exports
-├── api.py               # convenience API wrappers
+├── __init__.py          # root public exports
 ├── models.py            # dataclasses and metric/result containers
 ├── exceptions.py        # custom exception types
 ├── validation.py        # runtime input checks
@@ -26,6 +25,11 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
+├── compute/             # CPU-testable NumPy reference implementations
+│   ├── rmsnorm.py
+│   ├── rope.py
+│   ├── gated_mlp.py
+│   └── fp8.py
 ├── autotuner/
 │   ├── configs.py
 │   ├── tuner.py
@@ -40,9 +44,15 @@ triton_ops/
 
 ### Public API layer
 
-`triton_ops.__init__` is the main public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, and exception types.
+`triton_ops.__init__` is the primary public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, and exception types. The root package is the only user-facing entry point.
 
-`triton_ops.api` mirrors the same high-level concepts with convenience wrappers, but the root package is the primary user-facing entry point.
+### Compute reference layer
+
+`triton_ops.compute` provides pure NumPy implementations of the same mathematical operations as the Triton kernels. These are CPU-testable, importable without GPU hardware, and serve as:
+
+- correctness references for kernel verification,
+- test targets for unit testing without GPU,
+- documentation of the exact mathematical formulas.
 
 ### Validation layer
 
