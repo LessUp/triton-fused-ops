@@ -15,8 +15,8 @@ The repository is organized around a small public API layer backed by validation
 
 ```text
 triton_ops/
-├── __init__.py          # root exports
-├── api.py               # convenience API wrappers
+├── __init__.py          # root public exports
+├── performance.py       # PerformanceProfile — derived metrics seam
 ├── models.py            # dataclasses and metric/result containers
 ├── exceptions.py        # custom exception types
 ├── validation.py        # runtime input checks
@@ -26,6 +26,11 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
+├── compute/             # CPU-testable NumPy reference implementations
+│   ├── rmsnorm.py
+│   ├── rope.py
+│   ├── gated_mlp.py
+│   └── fp8.py
 ├── autotuner/
 │   ├── configs.py
 │   ├── tuner.py
@@ -40,9 +45,17 @@ triton_ops/
 
 ### Public API layer
 
-`triton_ops.__init__` is the main public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, and exception types.
+`triton_ops.__init__` is the primary public surface. It exports kernels, module wrappers, quantization helpers, benchmark classes, autotuning tools, dataclasses, exception types, and `PerformanceProfile`.
 
-`triton_ops.api` mirrors the same high-level concepts with convenience wrappers, but the root package is the primary user-facing entry point.
+### Performance metrics seam
+
+`triton_ops.performance` provides `PerformanceProfile` objects that encapsulate problem-shape context for computing derived metrics (throughput TFLOPS, bandwidth GB/s, utilization). Used by both `BenchmarkSuite` and as an optional enrichment layer for autotuner results.
+
+Three constructors: `latency_only()`, `elementwise(numel, ...)`, `gemm(M, N, K, ...)`.
+
+### Compute reference layer
+
+`triton_ops.compute` provides pure NumPy implementations of the same mathematical operations as the Triton kernels. CPU-testable without GPU hardware — serve as correctness references and test targets.
 
 ### Validation layer
 
