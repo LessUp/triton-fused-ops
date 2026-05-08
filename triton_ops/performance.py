@@ -1,11 +1,28 @@
+"""Performance metric helpers for Triton fused operators.
+
+This module provides small helpers for expressing kernel performance
+profiles (latency-only, elementwise, and GEMM) and computing derived
+metrics (throughput, bandwidth, utilization). It deliberately keeps
+calculations simple and uses MIN_LATENCY_MS as a zero-latency sentinel
+to avoid division-by-zero.
+"""
+
 from dataclasses import dataclass
+import math
 
 from triton_ops.models import KernelMetrics
 from triton_ops.utils import MIN_LATENCY_MS
 
 
 def _normalize_latency(latency_ms: float) -> float:
-    if latency_ms < 0 or latency_ms != latency_ms:
+    """Validate and normalize latency.
+
+    Enforce that latency is a finite, non-negative number. A zero
+    latency is mapped to MIN_LATENCY_MS sentinel.
+    """
+    if not isinstance(latency_ms, (int, float)):
+        raise ValueError("latency_ms must be a numeric type")
+    if not math.isfinite(latency_ms) or latency_ms < 0:
         raise ValueError("latency_ms must be a finite non-negative float")
     return latency_ms if latency_ms > 0 else MIN_LATENCY_MS
 
@@ -17,6 +34,29 @@ class PerformanceProfile:
     bytes_per_element: int = 2
     peak_tflops: float = 312.0
     peak_bandwidth_gbps: float = 2039.0
+
+    def __post_init__(self) -> None:
+        valid_kinds = {"latency", "elementwise", "gemm"}
+        if self.kind not in valid_kinds:
+            raise ValueError(f"Unsupported performance profile kind: {self.kind!r}")
+
+        # Basic shape checks to catch typos early
+        if self.kind == "latency":
+            if self.dims != ():
+                raise ValueError("latency profile must have empty dims")
+        elif self.kind == "elementwise":
+            if len(self.dims) != 1:
+                raise ValueError("elementwise profile dims must be a single integer")
+            numel = self.dims[0]
+            if not (isinstance(numel, int) and type(numel) is int) or numel <= 0:
+                raise ValueError("elementwise numel must be a positive int")
+        elif self.kind == "gemm":
+            if len(self.dims) != 3:
+                raise ValueError("gemm profile dims must be a 3-tuple (M, N, K)")
+            M, N, K = self.dims
+            for name, val in ("M", M), ("N", N), ("K", K):
+                if not (isinstance(val, int) and type(val) is int) or val <= 0:
+                    raise ValueError(f"{name} must be a positive int for gemm profiles")
 
     def metrics(self, latency_ms: float) -> KernelMetrics:
         latency_ms = _normalize_latency(latency_ms)
@@ -61,6 +101,9 @@ def elementwise(
     bytes_per_element: int = 2,
     peak_bandwidth_gbps: float = 2039.0,
 ) -> PerformanceProfile:
+    # Reject non-int-like inputs explicitly
+    if not (isinstance(numel, int) and type(numel) is int):
+        raise ValueError("numel must be an int")
     if numel <= 0 or bytes_per_element <= 0 or peak_bandwidth_gbps <= 0:
         raise ValueError("elementwise profile inputs must be positive")
     return PerformanceProfile(
@@ -80,6 +123,10 @@ def gemm(
     peak_tflops: float = 312.0,
     peak_bandwidth_gbps: float = 2039.0,
 ) -> PerformanceProfile:
+    # Reject non-int-like inputs explicitly
+    for name, val in ("M", M), ("N", N), ("K", K):
+        if not (isinstance(val, int) and type(val) is int):
+            raise ValueError(f"{name} must be an int")
     if min(M, N, K, bytes_per_element, peak_tflops, peak_bandwidth_gbps) <= 0:
         raise ValueError("gemm profile inputs must be positive")
     return PerformanceProfile(
