@@ -8,9 +8,8 @@ import torch
 from triton_ops import performance as perf_module
 from triton_ops.benchmark.correctness import CorrectnessVerifier
 from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
-from triton_ops.models import KernelMetrics
-from triton_ops.performance import PerformanceProfile
-from triton_ops.utils import sync_cuda
+from triton_ops.performance import PerformanceProfile, latency_only
+from triton_ops.utils import get_device_name, sync_cuda
 
 
 class BenchmarkSuite:
@@ -43,8 +42,8 @@ class BenchmarkSuite:
         self.report = PerformanceReport()
 
         # Set device metadata
+        self.report.set_metadata("device", get_device_name())
         if torch.cuda.is_available():
-            self.report.set_metadata("device", torch.cuda.get_device_name())
             self.report.set_metadata("cuda_version", torch.version.cuda)
         self.report.set_metadata("pytorch_version", torch.__version__)
 
@@ -119,12 +118,7 @@ class BenchmarkSuite:
         if performance is not None:
             metrics = performance.metrics(latency_ms)
         else:
-            metrics = KernelMetrics(
-                latency_ms=latency_ms,
-                throughput_tflops=0.0,
-                bandwidth_gbps=0.0,
-                bandwidth_utilization=0.0,
-            )
+            metrics = latency_only().metrics(latency_ms)
 
         result = BenchmarkResult(
             kernel_name=kernel_name,
@@ -177,18 +171,9 @@ class BenchmarkSuite:
             triton_metrics = performance.metrics(triton_latency)
             pytorch_metrics = performance.metrics(pytorch_latency)
         else:
-            triton_metrics = KernelMetrics(
-                latency_ms=triton_latency,
-                throughput_tflops=0.0,
-                bandwidth_gbps=0.0,
-                bandwidth_utilization=0.0,
-            )
-            pytorch_metrics = KernelMetrics(
-                latency_ms=pytorch_latency,
-                throughput_tflops=0.0,
-                bandwidth_gbps=0.0,
-                bandwidth_utilization=0.0,
-            )
+            latency_profile = latency_only()
+            triton_metrics = latency_profile.metrics(triton_latency)
+            pytorch_metrics = latency_profile.metrics(pytorch_latency)
 
         speedup = (
             pytorch_latency / triton_latency

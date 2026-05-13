@@ -11,13 +11,20 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import DeviceError, NumericalOverflowError
+from triton_ops.exceptions import NumericalOverflowError
 from triton_ops.models import FP8Format
+from triton_ops.utils import require_cuda
 from triton_ops.validation import validate_fp8_quantize_inputs
 
-# FP8 E4M3 constants
+# FP8 E4M3 constants (must match triton_ops.models.FP8Format)
+# These are kept as module-level constants for use in Triton kernels (constexpr)
 FP8_MAX = 448.0
 FP8_MIN_NORMAL = 2**-6
+
+# Runtime assertion to catch drift from FP8Format
+assert FP8_MAX == FP8Format.max_value, (
+    f"FP8_MAX ({FP8_MAX}) must match FP8Format.max_value ({FP8Format.max_value})"
+)
 
 
 @triton.jit
@@ -168,12 +175,7 @@ def quantize_fp8(
         All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
-    if not torch.cuda.is_available():
-        raise DeviceError(
-            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
-            expected_device="cuda",
-            actual_device="cpu",
-        )
+    require_cuda("tensor")
 
     validate_fp8_quantize_inputs(tensor, scale)
 
@@ -312,60 +314,3 @@ def quantize_fp8_with_overflow_handling(
         scale=scale.item() if scale.numel() == 1 else None,
         attempts=max_attempts,
     )
-
-
-def fp8_quantize_reference(
-    tensor: torch.Tensor,
-    scale: torch.Tensor = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Reference implementation of FP8 quantization for testing.
-
-    Args:
-        tensor: Input tensor
-        scale: Optional scale factor
-
-    Returns:
-        Tuple of (quantized_tensor, scale)
-    """
-    if scale is None:
-        max_abs = tensor.abs().max()
-        if max_abs == 0:
-            scale = torch.tensor(1.0, device=tensor.device, dtype=torch.float32)
-        else:
-            scale = torch.tensor(
-                FP8_MAX / max_abs.item(), device=tensor.device, dtype=torch.float32
-            )
-
-    # Scale and clamp
-    scaled = tensor.float() * scale
-    clamped = torch.clamp(scaled, -FP8_MAX, FP8_MAX)
-
-    # Quantize to 8-bit
-    quantized = torch.round(clamped / FP8_MAX * 127.0).to(torch.int8) + 128
-
-    return quantized.to(torch.uint8), scale
-
-
-def fp8_dequantize_reference(
-    tensor: torch.Tensor,
-    scale: torch.Tensor,
-    output_dtype: torch.dtype = torch.float16,
-) -> torch.Tensor:
-    """Reference implementation of FP8 dequantization for testing.
-
-    Args:
-        tensor: FP8 tensor as uint8
-        scale: Scale factor
-        output_dtype: Output dtype
-
-    Returns:
-        Dequantized tensor
-    """
-    # Convert back to float
-    x_int8 = tensor.to(torch.int32) - 128
-    x_float = x_int8.float() / 127.0 * FP8_MAX
-
-    # Apply inverse scale
-    dequant = x_float / scale
-
-    return dequant.to(output_dtype)

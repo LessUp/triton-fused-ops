@@ -7,6 +7,7 @@ from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
+from triton_ops.performance import PerformanceProfile, latency_only
 from triton_ops.utils import sync_cuda
 
 
@@ -45,12 +46,14 @@ class TritonAutoTuner:
         self,
         config: Dict[str, Any],
         *args,
+        performance: Optional[PerformanceProfile] = None,
         **kwargs,
     ) -> Optional[KernelMetrics]:
         """Benchmark a single configuration.
 
         Args:
             config: Configuration to benchmark
+            performance: Optional PerformanceProfile for derived metrics
             *args: Arguments to pass to kernel
             **kwargs: Keyword arguments to pass to kernel
 
@@ -72,21 +75,15 @@ class TritonAutoTuner:
             sync_cuda()
             end_time = time.perf_counter()
 
-            # Calculate metrics
+            # Calculate latency
             total_time = end_time - start_time
             latency_ms = (total_time / self.benchmark_runs) * 1000
 
-            # Placeholder metrics; callers can enrich via triton_ops.performance
-            throughput_tflops = 0.0
-            bandwidth_gbps = 0.0
-            bandwidth_utilization = 0.0
-
-            return KernelMetrics(
-                latency_ms=latency_ms,
-                throughput_tflops=throughput_tflops,
-                bandwidth_gbps=bandwidth_gbps,
-                bandwidth_utilization=bandwidth_utilization,
-            )
+            # Compute metrics using PerformanceProfile
+            if performance is not None:
+                return performance.metrics(latency_ms)
+            else:
+                return latency_only().metrics(latency_ms)
 
         except (RuntimeError, OSError) as e:
             # Catch CUDA runtime errors and OS-level errors during kernel execution
@@ -101,6 +98,7 @@ class TritonAutoTuner:
         problem_size: Tuple[int, ...] = None,
         device: str = None,
         kernel_type: str = "unknown",
+        performance: Optional[PerformanceProfile] = None,
         **kwargs,
     ) -> TuningResult:
         """Search configuration space and return optimal config.
@@ -110,6 +108,7 @@ class TritonAutoTuner:
             problem_size: Problem dimensions for caching
             device: Device name for caching
             kernel_type: Kernel type identifier for caching
+            performance: Optional PerformanceProfile for derived metrics
             **kwargs: Additional keyword arguments
 
         Returns:
@@ -123,7 +122,7 @@ class TritonAutoTuner:
             cached = self.cache.get(kernel_type, problem_size, device)
             if cached:
                 # Re-benchmark cached config to get metrics
-                metrics = self._benchmark_config(cached, *args, **kwargs)
+                metrics = self._benchmark_config(cached, *args, performance=performance, **kwargs)
                 if metrics:
                     return TuningResult(
                         best_config=cached,
@@ -138,7 +137,7 @@ class TritonAutoTuner:
         best_metrics = None
 
         for config in self.all_configs:
-            metrics = self._benchmark_config(config, *args, **kwargs)
+            metrics = self._benchmark_config(config, *args, performance=performance, **kwargs)
 
             if metrics is not None:
                 all_results.append((config.copy(), metrics))

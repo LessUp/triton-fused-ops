@@ -37,7 +37,8 @@ class TestGatedMLPCorrectness:
         the fused Gated MLP kernel output should be numerically equivalent to:
         output = gate_proj(x) * activation(up_proj(x))
         """
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp, gated_mlp_reference
+        from triton_ops import reference_gated_mlp
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
 
         # Create inputs
         x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
@@ -50,7 +51,9 @@ class TestGatedMLPCorrectness:
 
         # Compute outputs
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, activation)
-        reference_output = gated_mlp_reference(x, gate_weight, up_weight, activation)
+        reference_output = reference_gated_mlp(
+            x, gate_weight, up_weight, activation, backend="cuda"
+        )
 
         # Verify correctness
         assert torch.allclose(
@@ -75,7 +78,8 @@ class TestGatedMLPCorrectness:
         For any valid batch size (1-64) and supported intermediate dimensions,
         the kernel should produce correct outputs.
         """
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp, gated_mlp_reference
+        from triton_ops import reference_gated_mlp
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
 
         seq_len = 16
         hidden_dim = 4096
@@ -91,7 +95,7 @@ class TestGatedMLPCorrectness:
 
         # Should not raise any errors
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, "silu")
-        reference_output = gated_mlp_reference(x, gate_weight, up_weight, "silu")
+        reference_output = reference_gated_mlp(x, gate_weight, up_weight, "silu", backend="cuda")
 
         # Verify shape
         assert triton_output.shape == (batch_size, seq_len, intermediate_dim)
@@ -114,7 +118,8 @@ class TestGatedMLPActivations:
 
         THE Fused_Operator SHALL support SiLU (Swish) activation function.
         """
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp, gated_mlp_reference
+        from triton_ops import reference_gated_mlp
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
 
         batch_size, seq_len, hidden_dim, intermediate_dim = 2, 32, 512, 1024
 
@@ -127,7 +132,7 @@ class TestGatedMLPActivations:
         )
 
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, "silu")
-        reference_output = gated_mlp_reference(x, gate_weight, up_weight, "silu")
+        reference_output = reference_gated_mlp(x, gate_weight, up_weight, "silu", backend="cuda")
 
         assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-4)
 
@@ -137,7 +142,8 @@ class TestGatedMLPActivations:
 
         THE Fused_Operator SHALL support GELU activation function.
         """
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp, gated_mlp_reference
+        from triton_ops import reference_gated_mlp
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
 
         batch_size, seq_len, hidden_dim, intermediate_dim = 2, 32, 512, 1024
 
@@ -150,6 +156,6 @@ class TestGatedMLPActivations:
         )
 
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, "gelu")
-        reference_output = gated_mlp_reference(x, gate_weight, up_weight, "gelu")
+        reference_output = reference_gated_mlp(x, gate_weight, up_weight, "gelu", backend="cuda")
 
         assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-4)

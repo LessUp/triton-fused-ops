@@ -13,12 +13,19 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import DeviceError
 from triton_ops.kernels.fp8_quantize import quantize_fp8
+from triton_ops.models import FP8Format
+from triton_ops.utils import require_cuda
 from triton_ops.validation import validate_fp8_gemm_inputs
 
-# FP8 constants
+# FP8 constants (must match triton_ops.models.FP8Format)
+# Kept as module-level constant for use in Triton kernels (constexpr)
 FP8_MAX = 448.0
+
+# Runtime assertion to catch drift from FP8Format
+assert FP8_MAX == FP8Format.max_value, (
+    f"FP8_MAX ({FP8_MAX}) must match FP8Format.max_value ({FP8Format.max_value})"
+)
 
 
 @triton.jit
@@ -165,12 +172,8 @@ def fp8_gemm(
         All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
-    if not torch.cuda.is_available():
-        raise DeviceError(
-            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
-            expected_device="cuda",
-            actual_device="cpu",
-        )
+    require_cuda("a")
+
     # Handle float inputs by quantizing to FP8
     if a.dtype in [torch.float16, torch.bfloat16, torch.float32]:
         a, a_scale = quantize_fp8(a)
@@ -232,44 +235,6 @@ def fp8_gemm(
     )
 
     return c
-
-
-def fp8_gemm_reference(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    a_scale: torch.Tensor = None,
-    b_scale: torch.Tensor = None,
-    output_dtype: torch.dtype = torch.float16,
-) -> torch.Tensor:
-    """Reference implementation of FP8 GEMM for testing.
-
-    Args:
-        a: First matrix (FP8 as uint8 or float)
-        b: Second matrix (FP8 as uint8 or float)
-        a_scale: Scale factor for A
-        b_scale: Scale factor for B
-        output_dtype: Output dtype
-
-    Returns:
-        Result matrix
-    """
-    # Handle FP8 inputs
-    if a.dtype == torch.uint8:
-        a_int = a.to(torch.int32) - 128
-        a_float = a_int.float() / 127.0 * FP8_MAX / a_scale
-    else:
-        a_float = a.float()
-
-    if b.dtype == torch.uint8:
-        b_int = b.to(torch.int32) - 128
-        b_float = b_int.float() / 127.0 * FP8_MAX / b_scale
-    else:
-        b_float = b.float()
-
-    # Compute matrix multiplication in FP32
-    c = torch.matmul(a_float, b_float)
-
-    return c.to(output_dtype)
 
 
 class FP8Linear(torch.nn.Module):

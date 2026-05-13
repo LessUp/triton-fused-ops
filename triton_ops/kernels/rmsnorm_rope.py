@@ -12,7 +12,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import DeviceError
+from triton_ops.utils import require_cuda, require_tensor_on_cuda
 from triton_ops.validation import (
     validate_eps,
     validate_head_dim,
@@ -285,21 +285,11 @@ def fused_rmsnorm_rope(
         All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
-    if not torch.cuda.is_available():
-        raise DeviceError(
-            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
-            expected_device="cuda",
-            actual_device="cpu",
-        )
+    require_cuda("x")
 
     # Check that tensors are on CUDA
-    if not x.is_cuda:
-        raise DeviceError(
-            f"Input tensor 'x' must be on CUDA, but got {x.device}",
-            expected_device="cuda",
-            actual_device=str(x.device),
-            tensor_name="x",
-        )
+    require_tensor_on_cuda(x, "x")
+
     # Validate inputs
     batch_size, seq_len, hidden_dim, head_dim, num_heads = validate_rmsnorm_rope_inputs(
         x, weight, cos, sin, num_heads
@@ -350,87 +340,6 @@ def fused_rmsnorm_rope(
     )
 
     return output
-
-
-def rmsnorm_reference(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    """Reference implementation of RMSNorm for testing.
-
-    Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        weight: Weight tensor [hidden_dim]
-        eps: Small constant for numerical stability
-
-    Returns:
-        Normalized tensor
-    """
-    # Compute RMS
-    rms = torch.sqrt(torch.mean(x.float() ** 2, dim=-1, keepdim=True) + eps)
-    # Normalize and apply weight
-    return (x.float() / rms * weight.float()).to(x.dtype)
-
-
-def rope_reference(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
-    """Reference implementation of RoPE for testing.
-
-    Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        cos: Cosine embeddings [seq_len, head_dim]
-        sin: Sine embeddings [seq_len, head_dim]
-
-    Returns:
-        Tensor with RoPE applied
-    """
-    batch, seq_len, hidden_dim = x.shape
-    head_dim = cos.shape[-1]
-    num_heads = hidden_dim // head_dim
-
-    # Reshape for head-wise processing
-    x = x.view(batch, seq_len, num_heads, head_dim)
-
-    # Split into two halves
-    x1, x2 = x[..., : head_dim // 2], x[..., head_dim // 2 :]
-
-    # Expand cos/sin for broadcasting
-    cos = cos[:seq_len, : head_dim // 2].unsqueeze(0).unsqueeze(2)  # [1, seq, 1, head_dim//2]
-    sin = sin[:seq_len, : head_dim // 2].unsqueeze(0).unsqueeze(2)
-
-    # Apply rotation
-    out1 = x1.float() * cos.float() - x2.float() * sin.float()
-    out2 = x1.float() * sin.float() + x2.float() * cos.float()
-
-    # Concatenate and reshape back
-    out = torch.cat([out1, out2], dim=-1).to(x.dtype)
-    return out.view(batch, seq_len, hidden_dim)
-
-
-def fused_rmsnorm_rope_reference(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    cos: torch.Tensor,
-    sin: torch.Tensor,
-    eps: float = 1e-6,
-) -> torch.Tensor:
-    """Reference implementation of fused RMSNorm + RoPE for testing.
-
-    Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        weight: RMSNorm weight [hidden_dim]
-        cos: Cosine embeddings [seq_len, head_dim]
-        sin: Sine embeddings [seq_len, head_dim]
-        eps: Small constant for numerical stability
-
-    Returns:
-        Output tensor with RMSNorm + RoPE applied
-    """
-    # Handle 4D cos/sin format
-    if cos.dim() == 4:
-        cos = cos.squeeze(0).squeeze(1)
-        sin = sin.squeeze(0).squeeze(1)
-
-    # Apply RMSNorm first
-    x_norm = rmsnorm_reference(x, weight, eps)
-    # Then apply RoPE
-    return rope_reference(x_norm, cos, sin)
 
 
 class FusedRMSNormRoPE(torch.nn.Module):

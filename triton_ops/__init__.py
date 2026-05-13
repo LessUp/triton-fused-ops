@@ -144,6 +144,28 @@ from triton_ops.models import (
     TuningResult,
 )
 from triton_ops.performance import PerformanceProfile
+from triton_ops.reference import (
+    dequantize_fp8 as reference_dequantize_fp8,
+)
+from triton_ops.reference import (
+    fp8_gemm as reference_fp8_gemm,
+)
+from triton_ops.reference import (
+    fused_rmsnorm_rope as reference_fused_rmsnorm_rope,
+)
+from triton_ops.reference import (
+    gated_mlp as reference_gated_mlp,
+)
+from triton_ops.reference import (
+    quantize_fp8 as reference_quantize_fp8,
+)
+from triton_ops.reference import (
+    rmsnorm as reference_rmsnorm,
+)
+from triton_ops.reference import (
+    rope as reference_rope,
+)
+from triton_ops.utils import require_cuda, require_tensor_on_cuda
 
 __all__ = [
     # Fused kernels
@@ -182,4 +204,15 @@ __all__ = [
     "BenchmarkSuite",
     "CorrectnessVerifier",
     "PerformanceReport",
+    # Reference implementations
+    "reference_rmsnorm",
+    "reference_rope",
+    "reference_fused_rmsnorm_rope",
+    "reference_gated_mlp",
+    "reference_quantize_fp8",
+    "reference_dequantize_fp8",
+    "reference_fp8_gemm",
+    # Utilities
+    "require_cuda",
+    "require_tensor_on_cuda",
 ]

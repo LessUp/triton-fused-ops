@@ -13,7 +13,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import DeviceError
+from triton_ops.utils import require_cuda, require_tensor_on_cuda
 from triton_ops.validation import (
     ACTIVATION_GELU,
     ACTIVATION_SILU,
@@ -192,21 +192,11 @@ def fused_gated_mlp(
         All tensors must be on CUDA device and contiguous.
     """
     # Check CUDA availability
-    if not torch.cuda.is_available():
-        raise DeviceError(
-            "CUDA is not available. This kernel requires a CUDA-capable GPU.",
-            expected_device="cuda",
-            actual_device="cpu",
-        )
+    require_cuda("x")
 
     # Check that tensors are on CUDA
-    if not x.is_cuda:
-        raise DeviceError(
-            f"Input tensor 'x' must be on CUDA, but got {x.device}",
-            expected_device="cuda",
-            actual_device=str(x.device),
-            tensor_name="x",
-        )
+    require_tensor_on_cuda(x, "x")
+
     # Validate inputs
     batch_size, seq_len, hidden_dim, intermediate_dim = validate_gated_mlp_inputs(
         x, gate_weight, up_weight, activation
@@ -263,39 +253,6 @@ def fused_gated_mlp(
     )
 
     return output
-
-
-def gated_mlp_reference(
-    x: torch.Tensor,
-    gate_weight: torch.Tensor,
-    up_weight: torch.Tensor,
-    activation: str = "silu",
-) -> torch.Tensor:
-    """Reference implementation of Gated MLP for testing.
-
-    Args:
-        x: Input tensor [batch, seq_len, hidden_dim]
-        gate_weight: Gate projection weight [intermediate_dim, hidden_dim]
-        up_weight: Up projection weight [intermediate_dim, hidden_dim]
-        activation: Activation function ("silu" or "gelu")
-
-    Returns:
-        Output tensor [batch, seq_len, intermediate_dim]
-    """
-    # Compute projections
-    gate = torch.nn.functional.linear(x.float(), gate_weight.float())
-    up = torch.nn.functional.linear(x.float(), up_weight.float())
-
-    # Apply activation to gate projection (standard SwiGLU)
-    if activation == ACTIVATION_SILU:
-        gate_activated = torch.nn.functional.silu(gate)
-    else:
-        gate_activated = torch.nn.functional.gelu(gate)
-
-    # Gated output: activation(gate_proj(x)) * up_proj(x)
-    output = gate_activated * up
-
-    return output.to(x.dtype)
 
 
 class FusedGatedMLP(torch.nn.Module):

@@ -1,23 +1,19 @@
-"""CPU-only tests for FP8 compute logic."""
+"""CPU-only tests for FP8 reference implementation."""
 
 import numpy as np
 
-from triton_ops.compute.fp8 import (
-    FP8_MAX,
-    compute_dequantize_fp8,
-    compute_fp8_quantization_error,
-    compute_fp8_scale,
-    compute_quantize_fp8,
-)
+from triton_ops.models import FP8Format
+from triton_ops.reference import dequantize_fp8, quantize_fp8
+from triton_ops.reference.fp8 import compute_fp8_scale
 
 
-class TestComputeFP8Quantize:
-    """Test FP8 quantization logic."""
+class TestReferenceFP8Quantize:
+    """Test FP8 quantization reference implementation."""
 
-    def test_basic_quantization(self):
-        """Test basic FP8 quantization."""
+    def test_basic_quantization_cpu(self):
+        """Test basic FP8 quantization on CPU."""
         tensor = np.random.randn(1024, 1024).astype(np.float32) * 10
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Check dtype
         assert quantized.dtype == np.uint8
@@ -26,184 +22,135 @@ class TestComputeFP8Quantize:
         # Check shape preserved
         assert quantized.shape == tensor.shape
 
-    def test_scale_computation(self):
-        """Test automatic scale computation."""
+    def test_scale_computation_cpu(self):
+        """Test automatic scale computation on CPU."""
         tensor = np.random.randn(1024, 1024).astype(np.float32) * 100
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Scale should map max value to FP8_MAX
         max_abs = np.abs(tensor).max()
-        expected_scale = FP8_MAX / max_abs
+        expected_scale = FP8Format.max_value / max_abs
 
         np.testing.assert_allclose(scale, expected_scale, rtol=1e-5)
 
-    def test_manual_scale(self):
-        """Test quantization with manual scale."""
+    def test_manual_scale_cpu(self):
+        """Test quantization with manual scale on CPU."""
         tensor = np.random.randn(1024, 1024).astype(np.float32) * 10
         manual_scale = 5.0
 
-        quantized, scale = compute_quantize_fp8(tensor, scale=manual_scale)
+        quantized, scale = quantize_fp8(tensor, scale=manual_scale, backend="cpu")
 
         # Should use provided scale
         assert scale == manual_scale
 
-    def test_zero_tensor(self):
-        """Test quantization of zero tensor."""
+    def test_zero_tensor_cpu(self):
+        """Test quantization of zero tensor on CPU."""
         tensor = np.zeros((1024, 1024), dtype=np.float32)
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Scale should be 1.0 for zero tensor
         assert scale == 1.0
         # Quantized should be centered around 128
         np.testing.assert_allclose(quantized, 128, atol=1)
 
-    def test_clipping(self):
-        """Test that values are clipped to FP8 range."""
+    def test_clipping_cpu(self):
+        """Test that values are clipped to FP8 range on CPU."""
         # Tensor with values outside FP8 range
         tensor = np.array([[1000.0, -1000.0, 500.0]], dtype=np.float32)
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Check quantized values are in valid uint8 range
         assert quantized.min() >= 0
         assert quantized.max() <= 255
 
-    def test_small_values(self):
-        """Test quantization of small values."""
+    def test_small_values_cpu(self):
+        """Test quantization of small values on CPU."""
         tensor = np.random.randn(1024, 1024).astype(np.float32) * 0.001
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Should still produce valid quantization
         assert quantized.dtype == np.uint8
         assert scale > 0
 
-    def test_large_values(self):
-        """Test quantization of large values."""
+    def test_large_values_cpu(self):
+        """Test quantization of large values on CPU."""
         tensor = np.random.randn(1024, 1024).astype(np.float32) * 10000
-        quantized, scale = compute_quantize_fp8(tensor)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
 
         # Should handle large values gracefully
         assert quantized.dtype == np.uint8
         assert scale > 0
 
 
-class TestComputeFP8Dequantize:
-    """Test FP8 dequantization logic."""
+class TestReferenceFP8Dequantize:
+    """Test FP8 dequantization reference implementation."""
 
-    def test_round_trip(self):
-        """Test quantize -> dequantize round trip."""
+    def test_round_trip_cpu(self):
+        """Test quantize -> dequantize round trip on CPU."""
         original = np.random.randn(1024, 1024).astype(np.float32) * 10
-        quantized, scale = compute_quantize_fp8(original)
-        recovered = compute_dequantize_fp8(quantized, scale)
+        quantized, scale = quantize_fp8(original, backend="cpu")
+        recovered = dequantize_fp8(quantized, scale, backend="cpu")
 
         # Should approximately recover original
         np.testing.assert_allclose(original, recovered, rtol=0.1, atol=1.0)
 
-    def test_dtype_conversion(self):
-        """Test output dtype conversion."""
+    def test_dtype_conversion_cpu(self):
+        """Test output dtype conversion on CPU."""
         quantized = np.random.randint(0, 256, (1024, 1024), dtype=np.uint8)
         scale = 10.0
 
-        output_fp32 = compute_dequantize_fp8(quantized, scale, dtype=np.float32)
-        output_fp16 = compute_dequantize_fp8(quantized, scale, dtype=np.float16)
+        output_fp32 = dequantize_fp8(quantized, scale, output_dtype=np.float32, backend="cpu")
+        output_fp16 = dequantize_fp8(quantized, scale, output_dtype=np.float16, backend="cpu")
 
         assert output_fp32.dtype == np.float32
         assert output_fp16.dtype == np.float16
 
-    def test_scale_effect(self):
-        """Test that scale properly affects dequantization."""
+    def test_scale_effect_cpu(self):
+        """Test that scale properly affects dequantization on CPU."""
         quantized = np.full((1024, 1024), 200, dtype=np.uint8)
 
-        output_small = compute_dequantize_fp8(quantized, scale=10.0)
-        output_large = compute_dequantize_fp8(quantized, scale=100.0)
+        output_small = dequantize_fp8(quantized, scale=10.0, backend="cpu")
+        output_large = dequantize_fp8(quantized, scale=100.0, backend="cpu")
 
         # Smaller scale should produce larger magnitude values (division by scale)
         assert np.abs(output_small).max() > np.abs(output_large).max()
 
 
-class TestComputeFP8Scale:
+class TestReferenceFP8Scale:
     """Test FP8 scale computation."""
 
-    def test_positive_values(self):
-        """Test scale computation for positive values."""
+    def test_positive_values_cpu(self):
+        """Test scale computation for positive values on CPU."""
         tensor = np.array([[100.0, 200.0, 300.0]], dtype=np.float32)
-        scale = compute_fp8_scale(tensor)
+        scale = compute_fp8_scale(tensor, backend="cpu")
 
-        expected_scale = FP8_MAX / 300.0
+        expected_scale = FP8Format.max_value / 300.0
         np.testing.assert_allclose(scale, expected_scale, rtol=1e-5)
 
-    def test_negative_values(self):
-        """Test scale computation for negative values."""
+    def test_negative_values_cpu(self):
+        """Test scale computation for negative values on CPU."""
         tensor = np.array([[-100.0, -200.0, -300.0]], dtype=np.float32)
-        scale = compute_fp8_scale(tensor)
+        scale = compute_fp8_scale(tensor, backend="cpu")
 
         # Should use absolute value
-        expected_scale = FP8_MAX / 300.0
+        expected_scale = FP8Format.max_value / 300.0
         np.testing.assert_allclose(scale, expected_scale, rtol=1e-5)
 
-    def test_mixed_values(self):
-        """Test scale computation for mixed values."""
+    def test_mixed_values_cpu(self):
+        """Test scale computation for mixed values on CPU."""
         tensor = np.array([[100.0, -200.0, 300.0]], dtype=np.float32)
-        scale = compute_fp8_scale(tensor)
+        scale = compute_fp8_scale(tensor, backend="cpu")
 
-        expected_scale = FP8_MAX / 300.0
+        expected_scale = FP8Format.max_value / 300.0
         np.testing.assert_allclose(scale, expected_scale, rtol=1e-5)
 
-    def test_zero_tensor(self):
-        """Test scale computation for zero tensor."""
+    def test_zero_tensor_cpu(self):
+        """Test scale computation for zero tensor on CPU."""
         tensor = np.zeros((1024, 1024), dtype=np.float32)
-        scale = compute_fp8_scale(tensor)
+        scale = compute_fp8_scale(tensor, backend="cpu")
 
         # Should return 1.0 for zero tensor
         assert scale == 1.0
-
-
-class TestComputeFP8Error:
-    """Test FP8 quantization error computation."""
-
-    def test_error_metrics(self):
-        """Test quantization error metrics."""
-        original = np.random.randn(1024, 1024).astype(np.float32) * 10
-        quantized, scale = compute_quantize_fp8(original)
-
-        error = compute_fp8_quantization_error(original, quantized, scale)
-
-        # Check all metrics are present
-        assert "max_error" in error
-        assert "mean_error" in error
-        assert "relative_error" in error
-
-        # Check values are reasonable
-        assert error["max_error"] >= 0
-        assert error["mean_error"] >= 0
-        assert error["relative_error"] >= 0
-
-    def test_error_proportional_to_scale(self):
-        """Test that error is related to quantization granularity."""
-        # Small scale = fine granularity = small error
-        tensor_small = np.random.randn(1024, 1024).astype(np.float32) * 1.0
-        quantized_small, scale_small = compute_quantize_fp8(tensor_small)
-        error_small = compute_fp8_quantization_error(tensor_small, quantized_small, scale_small)
-
-        # Large scale = coarse granularity = larger error (potentially)
-        tensor_large = np.random.randn(1024, 1024).astype(np.float32) * 1000.0
-        quantized_large, scale_large = compute_quantize_fp8(tensor_large)
-        error_large = compute_fp8_quantization_error(tensor_large, quantized_large, scale_large)
-
-        # Relative error should be similar for similar distributions
-        # (just scaled differently)
-        # This is a sanity check, not a strict requirement
-        assert error_small["relative_error"] < 1.0
-        assert error_large["relative_error"] < 1.0
-
-    def test_zero_error_for_zero(self):
-        """Test error metrics for zero tensor."""
-        original = np.zeros((100, 100), dtype=np.float32)
-        quantized, scale = compute_quantize_fp8(original)
-        error = compute_fp8_quantization_error(original, quantized, scale)
-
-        # Error should be very small for zero tensor
-        assert error["max_error"] < 1.0
-        assert error["mean_error"] < 1.0
 
 
 class TestFP8Constants:
@@ -211,16 +158,15 @@ class TestFP8Constants:
 
     def test_fp8_max(self):
         """Test FP8 maximum value."""
-        assert FP8_MAX == 448.0
+        assert FP8Format.max_value == 448.0
 
-    def test_fp8_range_coverage(self):
-        """Test that FP8 covers expected range."""
+    def test_fp8_range_coverage_cpu(self):
+        """Test that FP8 covers expected range on CPU."""
         # Create tensor with FP8-range values
         tensor = np.random.uniform(-400, 400, (1024, 1024)).astype(np.float32)
-        quantized, scale = compute_quantize_fp8(tensor)
-
-        # Should not clip too much
-        error = compute_fp8_quantization_error(tensor, quantized, scale)
+        quantized, scale = quantize_fp8(tensor, backend="cpu")
+        recovered = dequantize_fp8(quantized, scale, backend="cpu")
 
         # Relative error should be reasonable
-        assert error["relative_error"] < 0.1
+        relative_error = np.abs(tensor - recovered) / (np.abs(tensor) + 1e-6)
+        assert np.mean(relative_error) < 0.1

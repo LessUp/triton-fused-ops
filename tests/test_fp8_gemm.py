@@ -33,7 +33,8 @@ class TestFP8GEMMCorrectness:
         the FP8 GEMM kernel should produce a result that, when compared to
         FP32 reference computation, has bounded relative error.
         """
-        from triton_ops.kernels.fp8_gemm import fp8_gemm, fp8_gemm_reference
+        from triton_ops import reference_fp8_gemm
+        from triton_ops.kernels.fp8_gemm import fp8_gemm
         from triton_ops.kernels.fp8_quantize import quantize_fp8
 
         # Create input matrices
@@ -48,7 +49,7 @@ class TestFP8GEMMCorrectness:
         fp8_result = fp8_gemm(a_fp8, b_fp8, a_scale, b_scale)
 
         # Compute reference
-        reference_result = fp8_gemm_reference(a_fp8, b_fp8, a_scale, b_scale)
+        reference_result = reference_fp8_gemm(a_fp8, b_fp8, a_scale, b_scale, backend="cuda")
 
         # Verify correctness (FP8 has inherent quantization error)
         assert torch.allclose(

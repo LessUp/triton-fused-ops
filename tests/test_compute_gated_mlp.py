@@ -1,14 +1,10 @@
-"""CPU-only tests for Gated MLP compute logic."""
+"""CPU-only tests for Gated MLP reference implementation."""
 
 import numpy as np
 import pytest
 
-from triton_ops.compute.gated_mlp import (
-    compute_gated_mlp,
-    compute_gated_mlp_single,
-    gelu,
-    silu,
-)
+from triton_ops.reference import gated_mlp
+from triton_ops.reference.gated_mlp import _gelu_cpu, _silu_cpu
 
 
 class TestActivationFunctions:
@@ -17,7 +13,7 @@ class TestActivationFunctions:
     def test_silu_basic(self):
         """Test SiLU activation."""
         x = np.array([0.0, 1.0, -1.0, 2.0, -2.0], dtype=np.float32)
-        output = silu(x)
+        output = _silu_cpu(x)
 
         # SiLU(0) = 0
         assert output[0] == 0.0
@@ -31,7 +27,7 @@ class TestActivationFunctions:
     def test_gelu_basic(self):
         """Test GELU activation."""
         x = np.array([0.0, 1.0, -1.0, 2.0, -2.0], dtype=np.float32)
-        output = gelu(x)
+        output = _gelu_cpu(x)
 
         # GELU(0) ≈ 0
         assert abs(output[0]) < 1e-5
@@ -46,8 +42,8 @@ class TestActivationFunctions:
         """Test that activations are smooth (no discontinuities)."""
         x = np.linspace(-5, 5, 1000, dtype=np.float32)
 
-        silu_out = silu(x)
-        gelu_out = gelu(x)
+        silu_out = _silu_cpu(x)
+        gelu_out = _gelu_cpu(x)
 
         # Check for NaN/Inf
         assert np.all(np.isfinite(silu_out))
@@ -62,11 +58,11 @@ class TestActivationFunctions:
         assert np.abs(gelu_diff).max() < 2.0
 
 
-class TestComputeGatedMLP:
-    """Test Gated MLP computation logic."""
+class TestReferenceGatedMLP:
+    """Test Gated MLP reference implementation."""
 
-    def test_basic_computation(self):
-        """Test basic Gated MLP computation."""
+    def test_basic_computation_cpu(self):
+        """Test basic Gated MLP computation on CPU."""
         batch, seq_len, hidden_dim = 2, 128, 4096
         intermediate_dim = 11264
 
@@ -74,25 +70,25 @@ class TestComputeGatedMLP:
         gate_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
         up_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
 
-        output = compute_gated_mlp(x, gate_w, up_w, activation="silu")
+        output = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
 
         # Verify shape
         assert output.shape == (batch, seq_len, intermediate_dim)
 
-    def test_activation_variants(self):
-        """Test Gated MLP with different activations."""
+    def test_activation_variants_cpu(self):
+        """Test Gated MLP with different activations on CPU."""
         x = np.random.randn(2, 128, 4096).astype(np.float32) * 0.1
         gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
         up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
 
-        output_silu = compute_gated_mlp(x, gate_w, up_w, activation="silu")
-        output_gelu = compute_gated_mlp(x, gate_w, up_w, activation="gelu")
+        output_silu = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
+        output_gelu = gated_mlp(x, gate_w, up_w, activation="gelu", backend="cpu")
 
         # Different activations should produce different outputs
         assert not np.allclose(output_silu, output_gelu)
 
-    def test_dimension_flexibility(self):
-        """Test Gated MLP with different dimensions."""
+    def test_dimension_flexibility_cpu(self):
+        """Test Gated MLP with different dimensions on CPU."""
         test_cases = [
             (4096, 11264),  # LLaMA-style
             (5120, 13824),  # Larger model
@@ -104,64 +100,46 @@ class TestComputeGatedMLP:
             gate_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
             up_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
 
-            output = compute_gated_mlp(x, gate_w, up_w)
+            output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
             assert output.shape == (2, 128, intermediate_dim)
 
-    def test_weight_independence(self):
-        """Test that gate and up weights are independent."""
+    def test_weight_independence_cpu(self):
+        """Test that gate and up weights are independent on CPU."""
         x = np.random.randn(1, 1, 4096).astype(np.float32) * 0.1
         gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
 
         # Same weight for both
-        output_same = compute_gated_mlp(x, gate_w, gate_w, activation="silu")
+        output_same = gated_mlp(x, gate_w, gate_w, activation="silu", backend="cpu")
 
         # Different weights
         up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
-        output_diff = compute_gated_mlp(x, gate_w, up_w, activation="silu")
+        output_diff = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
 
         # Should produce different outputs
         assert not np.allclose(output_same, output_diff)
 
-    def test_batch_independence(self):
-        """Test that each batch element is processed independently."""
+    def test_batch_independence_cpu(self):
+        """Test that each batch element is processed independently on CPU."""
         x = np.random.randn(4, 128, 4096).astype(np.float32) * 0.1
         gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
         up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
 
-        output = compute_gated_mlp(x, gate_w, up_w)
+        output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
         # Compute for each batch independently
         for i in range(4):
-            expected = compute_gated_mlp(x[i : i + 1], gate_w, up_w)
+            expected = gated_mlp(x[i : i + 1], gate_w, up_w, backend="cpu")
             # Use larger tolerance for numerical precision
             np.testing.assert_allclose(output[i : i + 1], expected, rtol=1e-4, atol=1e-7)
 
-    def test_single_function(self):
-        """Test single-position Gated MLP function."""
-        hidden_dim = 4096
-        intermediate_dim = 11264
-
-        x = np.random.randn(hidden_dim).astype(np.float32) * 0.1
-        gate_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
-        up_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
-
-        output = compute_gated_mlp_single(x, gate_w, up_w, activation="silu")
-
-        assert output.shape == (intermediate_dim,)
-
-        # Verify consistency with batch version
-        x_batch = x[np.newaxis, np.newaxis, :]
-        output_batch = compute_gated_mlp(x_batch, gate_w, up_w)
-        np.testing.assert_allclose(output, output_batch[0, 0], rtol=1e-5)
-
-    def test_zero_input(self):
-        """Test Gated MLP with zero input."""
+    def test_zero_input_cpu(self):
+        """Test Gated MLP with zero input on CPU."""
         x = np.zeros((2, 128, 4096), dtype=np.float32)
         gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
         up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
 
-        output = compute_gated_mlp(x, gate_w, up_w)
+        output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
         # Zero input should produce zero output (both projections are zero)
         np.testing.assert_allclose(output, 0.0, atol=1e-7)
@@ -172,5 +150,5 @@ class TestComputeGatedMLP:
         gate_w = np.random.randn(11264, 4096).astype(np.float32)
         up_w = np.random.randn(11264, 4096).astype(np.float32)
 
-        with pytest.raises(ValueError, match="Unknown activation"):
-            compute_gated_mlp(x, gate_w, up_w, activation="invalid")
+        with pytest.raises(ValueError, match="activation must be"):
+            gated_mlp(x, gate_w, up_w, activation="invalid", backend="cpu")

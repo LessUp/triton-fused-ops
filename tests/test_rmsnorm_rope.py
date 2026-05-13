@@ -34,10 +34,8 @@ class TestRMSNormRoPECorrectness:
         the fused RMSNorm + RoPE kernel output should be numerically equivalent to the
         sequential application of RMSNorm then RoPE.
         """
-        from triton_ops.kernels.rmsnorm_rope import (
-            fused_rmsnorm_rope,
-            fused_rmsnorm_rope_reference,
-        )
+        from triton_ops import reference_fused_rmsnorm_rope
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         # Ensure hidden_dim is divisible by head_dim
         if hidden_dim % head_dim != 0:
@@ -51,7 +49,7 @@ class TestRMSNormRoPECorrectness:
 
         # Compute outputs
         triton_output = fused_rmsnorm_rope(x, weight, cos, sin)
-        reference_output = fused_rmsnorm_rope_reference(x, weight, cos, sin)
+        reference_output = reference_fused_rmsnorm_rope(x, weight, cos, sin, backend="cuda")
 
         # Verify correctness
         assert torch.allclose(
@@ -74,10 +72,8 @@ class TestRMSNormRoPECorrectness:
         For any valid combination of sequence length (1-8192) and supported hidden
         dimensions (2048, 4096, 8192), the kernel should produce correct outputs.
         """
-        from triton_ops.kernels.rmsnorm_rope import (
-            fused_rmsnorm_rope,
-            fused_rmsnorm_rope_reference,
-        )
+        from triton_ops import reference_fused_rmsnorm_rope
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size = 1
         head_dim = 64
@@ -90,7 +86,7 @@ class TestRMSNormRoPECorrectness:
 
         # Should not raise any errors
         triton_output = fused_rmsnorm_rope(x, weight, cos, sin)
-        reference_output = fused_rmsnorm_rope_reference(x, weight, cos, sin)
+        reference_output = reference_fused_rmsnorm_rope(x, weight, cos, sin, backend="cuda")
 
         # Verify shape
         assert triton_output.shape == x.shape
@@ -157,10 +153,8 @@ class TestRMSNormRoPEEdgeCases:
 
     def test_single_element(self):
         """Test with minimal dimensions."""
-        from triton_ops.kernels.rmsnorm_rope import (
-            fused_rmsnorm_rope,
-            fused_rmsnorm_rope_reference,
-        )
+        from triton_ops import reference_fused_rmsnorm_rope
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size, seq_len, hidden_dim, head_dim = 1, 1, 64, 64
 
@@ -170,6 +164,6 @@ class TestRMSNormRoPEEdgeCases:
         sin = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
 
         triton_output = fused_rmsnorm_rope(x, weight, cos, sin)
-        reference_output = fused_rmsnorm_rope_reference(x, weight, cos, sin)
+        reference_output = reference_fused_rmsnorm_rope(x, weight, cos, sin, backend="cuda")
 
         assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-3, atol=1e-5)

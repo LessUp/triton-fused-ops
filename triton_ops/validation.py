@@ -1,4 +1,21 @@
-"""Input validation utilities for Triton operators."""
+"""Input validation utilities for Triton operators.
+
+Design Philosophy
+-----------------
+This module uses a procedural style intentionally. Each `validate_*` function:
+1. Performs all necessary checks (device, dtype, contiguous, shape)
+2. Returns extracted dimensions for use by the caller
+
+This pattern provides:
+- **Clarity**: All validation logic is visible in one function
+- **Performance**: No class instantiation overhead
+- **Simplicity**: Easy to understand and modify per-kernel requirements
+
+The private `_check_*` helpers are intentionally kept simple and composable.
+They are not meant to be exposed as public API.
+
+For CPU testing without GPU, use `triton_ops.reference` module instead.
+"""
 
 from typing import List, Optional, Tuple
 
