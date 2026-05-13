@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 基准测试
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 4
 description: "基准测试编排、正确性验证与报告生成"
 ---
 

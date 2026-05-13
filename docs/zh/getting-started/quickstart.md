@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 快速开始
-parent: 开始使用
-grand_parent: 中文文档
-nav_order: 2
 description: "函数式 API 与模块封装的第一批可运行示例"
 ---
 
@@ -121,6 +117,6 @@ class DecoderBlock(torch.nn.Module):
 
 ## 下一步
 
-- [示例教程]({{ '/docs/zh/getting-started/examples/' | relative_url }})
-- [集成指南]({{ '/docs/zh/guides/integration/' | relative_url }})
-- [核心算子 API]({{ '/docs/zh/api/kernels/' | relative_url }})
+- [示例教程](/zh/getting-started/examples)
+- [集成指南](/zh/guides/integration)
+- [核心算子 API](/zh/api/kernels)

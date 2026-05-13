@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Installation
-parent: Getting Started
-grand_parent: Documentation
-nav_order: 1
 description: "Environment requirements and installation workflow for Triton Fused Ops"
 ---
 
@@ -117,6 +113,6 @@ Use the API pages for the exact constraints:
 
 ## Next
 
-- [Quick Start]({{ '/docs/en/getting-started/quickstart/' | relative_url }})
-- [Examples]({{ '/docs/en/getting-started/examples/' | relative_url }})
-- [Core Kernels API]({{ '/docs/en/api/kernels/' | relative_url }})
+- [Quick Start](/en/getting-started/quickstart)
+- [Examples](/en/getting-started/examples)
+- [Core Kernels API](/en/api/kernels)

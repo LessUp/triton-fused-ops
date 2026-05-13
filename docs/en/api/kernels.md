@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Core Kernels
-parent: API Reference
-grand_parent: Documentation
-nav_order: 1
 description: "Reference for the fused kernel entry points and module wrappers"
 ---
 

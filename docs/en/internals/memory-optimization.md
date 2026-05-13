@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Memory Optimization
-parent: Internals
-grand_parent: Documentation
-nav_order: 3
 description: "How fusion and FP8 reduce memory pressure in the repository kernels"
 ---
 

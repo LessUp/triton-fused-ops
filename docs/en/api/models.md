@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Models and Types
-parent: API Reference
-grand_parent: Documentation
-nav_order: 5
 description: "Dataclasses and result containers used across validation, benchmarking, and autotuning"
 ---
 

@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 输入校验
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 6
 description: "输入校验 helper 与运行契约说明"
 ---
 

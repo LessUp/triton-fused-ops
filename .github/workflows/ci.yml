@@ -84,6 +84,32 @@ jobs:
           pytest tests/ -v --cov=triton_ops --cov-report=term-missing \
             -k "not cuda and not gpu" --ignore=tests/benchmarks/
 
+  docs-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache docs node_modules
+        uses: actions/cache@v4
+        with:
+          path: docs/node_modules
+          key: ${{ runner.os }}-docs-node-modules-${{ hashFiles('docs/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-node-modules-
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: npm install --no-package-lock
+
+      - name: Build docs
+        working-directory: docs
+        run: npm run build
+
   build:
     runs-on: ubuntu-latest
     steps:

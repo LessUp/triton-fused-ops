@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Integration Guide
-parent: Guides
-grand_parent: Documentation
-nav_order: 1
 description: "How to integrate the shipped kernels into larger model code"
 ---
 

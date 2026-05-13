@@ -1,10 +1,5 @@
 ---
-layout: default
 title: API 参考
-parent: 中文文档
-nav_order: 2
-has_children: true
-permalink: /docs/zh/api/
 description: "核心算子、量化、自动调优、校验与支撑类型的公开 API 参考"
 ---
 
@@ -35,37 +30,37 @@ from triton_ops import (
 ## 知识分区
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="{{ '/docs/zh/api/kernels/' | relative_url }}">
+  <a class="info-card" href="/zh/api/kernels">
     <span class="card-kicker">Kernels</span>
     <strong>核心计算路径</strong>
     <span>融合 RMSNorm + RoPE、融合 Gated MLP、FP8 GEMM 与模块封装。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/quantization/' | relative_url }}">
+  <a class="info-card" href="/zh/api/quantization">
     <span class="card-kicker">Quantization</span>
     <strong>FP8 存储与 scale 语义</strong>
     <span>说明量化/反量化、scale 规则，以及溢出处理 helper 的真实导入路径。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/autotuner/' | relative_url }}">
+  <a class="info-card" href="/zh/api/autotuner">
     <span class="card-kicker">Autotuning</span>
     <strong>搜索、缓存与指标</strong>
     <span>涵盖 `TritonAutoTuner`、`ConfigCache`、配置空间与性能指标。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/benchmark/' | relative_url }}">
+  <a class="info-card" href="/zh/api/benchmark">
     <span class="card-kicker">Benchmark</span>
     <strong>正确性验证与报告</strong>
     <span>涵盖 `BenchmarkSuite`、`CorrectnessVerifier` 以及报告对象。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/models/' | relative_url }}">
+  <a class="info-card" href="/zh/api/models">
     <span class="card-kicker">Models</span>
     <strong>数据模型与结果容器</strong>
     <span>介绍 `TensorSpec`、输入规格、`KernelMetrics`、`TuningResult` 与 `FP8Format`。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/validation/' | relative_url }}">
+  <a class="info-card" href="/zh/api/validation">
     <span class="card-kicker">Validation</span>
     <strong>输入校验与运行契约</strong>
     <span>说明 shape、dtype、连续内存、device 和标量参数检查。</span>
   </a>
-  <a class="info-card" href="{{ '/docs/zh/api/errors/' | relative_url }}">
+  <a class="info-card" href="/zh/api/errors">
     <span class="card-kicker">Errors</span>
     <strong>异常层级</strong>
     <span>说明设备、dtype、形状、调优与数值溢出错误模型。</span>

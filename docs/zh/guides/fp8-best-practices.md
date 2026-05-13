@@ -1,15 +1,11 @@
 ---
-layout: default
 title: FP8 最佳实践
-parent: 工程指南
-grand_parent: 中文文档
-nav_order: 3
 description: "如何更稳妥地使用仓库中的 FP8 路径"
 ---
 
 # FP8 最佳实践
 
-本仓库的 FP8 路径很有价值，但它不是所有场景下都可以直接替代高精度计算。
+本仓库的 FP8 路径很有价值，但它不是所有场景下都可以直接替代高精度计算。它遵循 Micikevicius 等人 [1] 描述的 FP8 格式规范，并借鉴了 SmoothQuant [2] 的量化策略。
 
 ## 哪些位置更适合 FP8
 
@@ -86,3 +82,10 @@ from triton_ops.kernels.fp8_quantize import quantize_fp8_with_overflow_handling
 - 数值敏感边界继续保留高精度。
 - 只有在吞吐和显存收益真实存在的地方再上 FP8。
 - 一定要测 workload 级或模型级收益，而不是只看单个 kernel 的局部提速。
+
+## 参考文献
+
+1. Micikevicius, P., et al. (2022). FP8 Formats for Deep Learning. *arXiv preprint*. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433)
+2. Xiao, G., et al. (2023). SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. *ICML*. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438)
+
+详见 [NVIDIA FP8 开发者博客](/zh/references/blogs) 与完整 [论文](/zh/references/papers) 页面获取更多资源。

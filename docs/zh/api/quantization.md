@@ -1,9 +1,5 @@
 ---
-layout: default
 title: FP8 量化
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 2
 description: "FP8 存储、scale 规则与反量化 helper"
 ---
 

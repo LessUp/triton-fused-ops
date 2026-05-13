@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 异常模型
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 7
 description: "异常层级与附带元数据说明"
 ---
 

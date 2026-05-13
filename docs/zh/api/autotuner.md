@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 自动调优
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 3
 description: "通用配置搜索、缓存与性能指标 helper"
 ---
 

@@ -52,7 +52,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://lessup.github.io/triton-fused-ops/"
-Documentation = "https://lessup.github.io/triton-fused-ops/docs/en/"
+Documentation = "https://lessup.github.io/triton-fused-ops/en/"
 Repository = "https://github.com/LessUp/triton-fused-ops.git"
 Issues = "https://github.com/LessUp/triton-fused-ops/issues"
 Changelog = "https://github.com/LessUp/triton-fused-ops/blob/main/CHANGELOG.md"

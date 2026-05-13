@@ -4,13 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - "index.md"
       - "docs/**"
-      - "assets/**"
-      - "_sass/**"
-      - "_config.yml"
-      - "README.md"
-      - "README.zh-CN.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -30,19 +24,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Cache docs node_modules
+        uses: actions/cache@v4
+        with:
+          path: docs/node_modules
+          key: ${{ runner.os }}-docs-node-modules-${{ hashFiles('docs/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-node-modules-
+
+      - name: Configure GitHub Pages
+        id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: .
-          destination: ./_site
+      - name: Set VitePress base
+        shell: bash
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BASE_PATH}" ]]; then
+            base="/"
+          else
+            base="${BASE_PATH%/}/"
+          fi
+          echo "VITEPRESS_BASE=${base}" >> "$GITHUB_ENV"
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: npm install --no-package-lock
+
+      - name: Build docs
+        working-directory: docs
+        env:
+          VITEPRESS_BASE: ${{ env.VITEPRESS_BASE }}
+        run: npm run build
+
+      - name: Add .nojekyll
+        run: touch docs/.vitepress/dist/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./_site
+          path: docs/.vitepress/dist
 
   deploy:
     environment:

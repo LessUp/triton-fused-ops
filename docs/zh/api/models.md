@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 数据模型与类型
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 5
 description: "校验、benchmark 与自动调优中复用的 dataclass 与结果容器"
 ---
 

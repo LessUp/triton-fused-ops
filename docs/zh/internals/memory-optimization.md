@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 内存优化
-parent: 内部实现
-grand_parent: 中文文档
-nav_order: 3
 description: "融合与 FP8 如何降低仓库 kernel 的内存压力"
 ---
 

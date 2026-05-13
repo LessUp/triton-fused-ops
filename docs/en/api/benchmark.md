@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Benchmarking
-parent: API Reference
-grand_parent: Documentation
-nav_order: 4
 description: "Benchmark orchestration, correctness verification, and report generation"
 ---
 

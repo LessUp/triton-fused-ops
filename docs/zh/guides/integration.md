@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 集成指南
-parent: 工程指南
-grand_parent: 中文文档
-nav_order: 1
 description: "如何把仓库当前导出的 kernel 接入更大的模型代码"
 ---
 

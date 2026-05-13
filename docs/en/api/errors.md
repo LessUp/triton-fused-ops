@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Errors
-parent: API Reference
-grand_parent: Documentation
-nav_order: 7
 description: "Exception hierarchy and attached metadata"
 ---
 

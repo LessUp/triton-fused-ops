@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Auto-Tuning
-parent: API Reference
-grand_parent: Documentation
-nav_order: 3
 description: "Generic configuration search, caching, and metric helpers"
 ---
 

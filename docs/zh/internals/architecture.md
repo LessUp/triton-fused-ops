@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 架构设计
-parent: 内部实现
-grand_parent: 中文文档
-nav_order: 1
 description: "仓库的模块结构与各层职责关系"
 ---
 
@@ -40,6 +36,86 @@ triton_ops/
     ├── report.py
     └── suite.py
 ```
+
+## 模块依赖关系图
+
+```mermaid
+flowchart TB
+    subgraph GPU["GPU 层"]
+        K1[rmsnorm_rope]
+        K2[gated_mlp]
+        K3[fp8_gemm]
+        K4[fp8_quantize]
+    end
+
+    subgraph CPU["CPU 层"]
+        C1[rmsnorm]
+        C2[rope]
+        C3[gated_mlp]
+        C4[fp8]
+    end
+
+    subgraph TOOLS["工具层"]
+        T1[autotuner]
+        T2[benchmark]
+    end
+
+    INIT["triton_ops.__init__"]
+    VAL[validation]
+    MOD[models]
+    EXC[exceptions]
+    PERF[performance]
+    UTL[utils]
+
+    VAL --> INIT
+    MOD --> INIT
+    EXC --> INIT
+    UTL --> INIT
+    PERF --> INIT
+    PERF --> T2
+    PERF --> T1
+
+    INIT --> K1
+    INIT --> K2
+    INIT --> K3
+    INIT --> K4
+
+    K1 --> C1
+    K1 --> C2
+    K2 --> C3
+    K3 --> C4
+    K4 --> C4
+
+    INIT --> T1
+    INIT --> T2
+
+    style GPU fill:#143,stroke:#76B900,color:#fff
+    style CPU fill:#124,stroke:#3476f6,color:#fff
+    style TOOLS fill:#1a1a2e,stroke:#8b949e,color:#fff
+    style INIT fill:#0d2600,stroke:#76B900,color:#76B900
+```
+
+> **图 1.** 模块依赖关系图。GPU 层 kernel（绿色）依赖 CPU 层参考实现（蓝色）进行正确性验证。工具层（灰色）独立消费 `performance` 指标。
+
+## 调用链路
+
+```mermaid
+flowchart LR
+    USER["用户代码"] --> INIT["triton_ops.__init__"]
+    INIT --> VAL["validation"]
+    VAL --> LAUNCH["kernel launcher"]
+    LAUNCH --> TRITON["Triton kernel"]
+    TRITON --> HBM[(HBM)]
+
+    style USER fill:#21262d,stroke:#8b949e,color:#c9d1d9
+    style INIT fill:#0d2600,stroke:#76B900,color:#76B900
+    style VAL fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style LAUNCH fill:#0d2600,stroke:#76B900,color:#76B900
+    style TRITON fill:#143,stroke:#76B900,color:#fff
+    style HBM fill:#1a1a2e,stroke:#30363d,color:#8b949e
+```
+
+> **图 2.** 运行时调用链路。验证层（黄色）在任何 GPU 工作启动前充当 gate。Triton kernel 仅在边界处读写 HBM。
 
 ## 职责拆分
 

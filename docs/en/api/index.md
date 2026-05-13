@@ -1,10 +1,5 @@
 ---
-layout: default
 title: API Reference
-parent: Documentation
-nav_order: 2
-has_children: true
-permalink: /docs/en/api/
 description: "Public API reference for kernels, quantization, autotuning, validation, and support types"
 ---
 
@@ -35,37 +30,37 @@ from triton_ops import (
 ## Knowledge areas
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="{{ '/docs/en/api/kernels/' | relative_url }}">
+  <a class="info-card" href="/en/api/kernels">
     <span class="card-kicker">Kernels</span>
     <strong>Core compute paths</strong>
     <span>Fused RMSNorm + RoPE, fused Gated MLP, FP8 GEMM, and module wrappers.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/quantization/' | relative_url }}">
+  <a class="info-card" href="/en/api/quantization">
     <span class="card-kicker">Quantization</span>
     <strong>FP8 storage and scaling</strong>
     <span>Round-trip helpers, scale semantics, and the overflow-handling helper path.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/autotuner/' | relative_url }}">
+  <a class="info-card" href="/en/api/autotuner">
     <span class="card-kicker">Autotuning</span>
     <strong>Search, cache, and metrics</strong>
     <span>`TritonAutoTuner`, `ConfigCache`, config spaces, and performance metrics.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/benchmark/' | relative_url }}">
+  <a class="info-card" href="/en/api/benchmark">
     <span class="card-kicker">Benchmark</span>
     <strong>Verification and reports</strong>
     <span>`BenchmarkSuite`, `CorrectnessVerifier`, report objects, and benchmark helpers.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/models/' | relative_url }}">
+  <a class="info-card" href="/en/api/models">
     <span class="card-kicker">Models</span>
     <strong>Dataclasses and result containers</strong>
     <span>`TensorSpec`, input specs, `KernelMetrics`, `TuningResult`, and `FP8Format`.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/validation/' | relative_url }}">
+  <a class="info-card" href="/en/api/validation">
     <span class="card-kicker">Validation</span>
     <strong>Input checks and constraints</strong>
     <span>Shape, dtype, contiguity, device, and scalar-parameter validation helpers.</span>
   </a>
-  <a class="info-card" href="{{ '/docs/en/api/errors/' | relative_url }}">
+  <a class="info-card" href="/en/api/errors">
     <span class="card-kicker">Errors</span>
     <strong>Exception hierarchy</strong>
     <span>Device, dtype, shape, tuning, and overflow failure types with attached metadata.</span>

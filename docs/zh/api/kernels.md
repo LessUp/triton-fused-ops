@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 核心算子
-parent: API 参考
-grand_parent: 中文文档
-nav_order: 1
 description: "融合 kernel 入口函数与模块封装参考"
 ---
 

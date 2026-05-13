@@ -1,15 +1,11 @@
 ---
-layout: default
 title: Performance Tuning
-parent: Guides
-grand_parent: Documentation
-nav_order: 2
 description: "How to measure, interpret, and tune performance in this repository"
 ---
 
 # Performance Tuning
 
-This page explains how to measure the shipped kernels correctly and how to reason about tuning work around them.
+This page explains how to measure the shipped kernels correctly and how to reason about tuning work around them. The fusion optimization philosophy draws on IO-aware scheduling principles from FlashAttention [1].
 
 ## Start with the right question
 
@@ -51,6 +47,33 @@ Always include:
 - warmup runs,
 - explicit synchronization before and after timing,
 - representative shapes from your target model.
+
+### Timing pattern diagram
+
+```mermaid
+flowchart LR
+    WARM["Warmup<br/>(10 runs)"] --> SYNC1["torch.cuda.synchronize()"]
+    SYNC1 --> START["Start Timer"]
+    START --> LOOP["Run Loop<br/>(100 runs)"]
+    LOOP --> SYNC2["torch.cuda.synchronize()"]
+    SYNC2 --> END["End Timer"]
+
+    ERR1["&cross; Missing warmup"] -.-> WARM
+    ERR2["&cross; Missing synchronize"] -.-> SYNC1
+    ERR3["&cross; No sync after loop"] -.-> SYNC2
+
+    style WARM fill:#143,stroke:#76B900,color:#fff
+    style SYNC1 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style START fill:#0d2600,stroke:#76B900,color:#76B900
+    style LOOP fill:#143,stroke:#76B900,color:#fff
+    style SYNC2 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style END fill:#0d2600,stroke:#76B900,color:#76B900
+    style ERR1 fill:#260000,stroke:#ff5454,color:#ff5454
+    style ERR2 fill:#260000,stroke:#ff5454,color:#ff5454
+    style ERR3 fill:#260000,stroke:#ff5454,color:#ff5454
+```
+
+> **Figure 6.** Correct GPU timing pattern. Warmup (green) primes caches and kernels. Synchronization (yellow) is mandatory before and after the measured region. Common errors (red) invalidate timing results.
 
 ## Use the built-in benchmark layer when possible
 
@@ -105,3 +128,10 @@ The shipped kernel entry points do not automatically search config space during 
 - A single GPU architecture result does not generalize to every deployment target.
 - A benchmark without synchronization is not meaningful.
 - A latency improvement on isolated kernels does not automatically translate into identical end-to-end model speedup.
+
+## References
+
+1. Dao, T., et al. (2022). FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. *NeurIPS*. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)
+2. Williams, S., Waterman, A., & Patterson, D. (2009). Roofline: An Insightful Visual Performance Model for Floating-Point Programs and Multicore Architectures. *Communications of the ACM*.
+
+See the full [References](/en/references/papers) page for more papers and [Benchmark Visualization](/en/guides/benchmark-visualization) for visual performance comparisons.

@@ -1,15 +1,29 @@
 ---
-layout: default
 title: Quick Start
-parent: Getting Started
-grand_parent: Documentation
-nav_order: 2
 description: "First working examples for the fused kernels and module wrappers"
 ---
 
 # Quick Start
 
 This page shows the shortest working path through the current public API.
+
+### Quick-start flow
+
+```mermaid
+flowchart LR
+    INSTALL["Install"] --> IMPORT["Import triton_ops"]
+    IMPORT --> CHECK["Validate GPU"]
+    CHECK --> RUN["Run Kernel"]
+    RUN --> VERIFY["Verify Output"]
+
+    style INSTALL fill:#21262d,stroke:#8b949e,color:#c9d1d9
+    style IMPORT fill:#143,stroke:#76B900,color:#fff
+    style CHECK fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style RUN fill:#143,stroke:#76B900,color:#fff
+    style VERIFY fill:#0d2600,stroke:#76B900,color:#76B900
+```
+
+> **Figure 7.** Quick-start flow. Installation and import work on CPU-only environments. GPU validation is the first hardware-dependent step before running any kernel.
 
 ## Root imports
 
@@ -121,6 +135,6 @@ class DecoderBlock(torch.nn.Module):
 
 ## Next
 
-- [Examples]({{ '/docs/en/getting-started/examples/' | relative_url }})
-- [Integration Guide]({{ '/docs/en/guides/integration/' | relative_url }})
-- [Core Kernels API]({{ '/docs/en/api/kernels/' | relative_url }})
+- [Examples](/en/getting-started/examples)
+- [Integration Guide](/en/guides/integration)
+- [Core Kernels API](/en/api/kernels)

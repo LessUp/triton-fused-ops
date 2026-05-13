@@ -1,15 +1,11 @@
 ---
-layout: default
 title: 性能优化
-parent: 工程指南
-grand_parent: 中文文档
-nav_order: 2
 description: "如何在本仓库中正确测量、理解并调优性能"
 ---
 
 # 性能优化
 
-本页说明如何正确测量仓库中的 kernel，以及怎样理解这些性能结果。
+本页说明如何正确测量仓库中的 kernel，以及怎样理解这些性能结果。融合优化思想借鉴了 FlashAttention [1] 的 IO-aware 调度原则。
 
 ## 先明确你在测什么
 
@@ -51,6 +47,33 @@ print((end - start) / 100 * 1000)
 - warmup，
 - 计时前后的显式同步，
 - 来自真实模型的代表性形状。
+
+### 计时流程图
+
+```mermaid
+flowchart LR
+    WARM["Warmup<br/>(10 轮)"] --> SYNC1["torch.cuda.synchronize()"]
+    SYNC1 --> START["开始计时"]
+    START --> LOOP["循环执行<br/>(100 轮)"]
+    LOOP --> SYNC2["torch.cuda.synchronize()"]
+    SYNC2 --> END["结束计时"]
+
+    ERR1["&cross; 缺少 warmup"] -.-> WARM
+    ERR2["&cross; 缺少同步"] -.-> SYNC1
+    ERR3["&cross; 循环后未同步"] -.-> SYNC2
+
+    style WARM fill:#143,stroke:#76B900,color:#fff
+    style SYNC1 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style START fill:#0d2600,stroke:#76B900,color:#76B900
+    style LOOP fill:#143,stroke:#76B900,color:#fff
+    style SYNC2 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style END fill:#0d2600,stroke:#76B900,color:#76B900
+    style ERR1 fill:#260000,stroke:#ff5454,color:#ff5454
+    style ERR2 fill:#260000,stroke:#ff5454,color:#ff5454
+    style ERR3 fill:#260000,stroke:#ff5454,color:#ff5454
+```
+
+> **图 6.** 正确的 GPU 计时流程。Warmup（绿色）预热缓存和 kernel。同步（黄色）在测量区域前后都是必须的。常见错误（红色）会导致计时结果无效。
 
 ## 优先复用内置 benchmark 层
 
@@ -103,3 +126,10 @@ print((end - start) / 100 * 1000)
 - 单一 GPU 上的结果，不能直接外推到所有硬件。
 - 没有同步的 benchmark 结果基本没有意义。
 - 单 kernel 的提速，不等于端到端模型同样幅度的提速。
+
+## 参考文献
+
+1. Dao, T., et al. (2022). FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. *NeurIPS*. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)
+2. Williams, S., Waterman, A., & Patterson, D. (2009). Roofline: An Insightful Visual Performance Model for Floating-Point Programs and Multicore Architectures. *Communications of the ACM*.
+
+详见完整 [参考文献](/zh/references/papers) 页面与 [性能可视化](/zh/guides/benchmark-visualization) 图表。

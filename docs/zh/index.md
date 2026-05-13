@@ -1,62 +1,174 @@
 ---
-layout: default
-title: 中文文档
-nav_title: 中文
-nav_order: 3
-has_children: true
-permalink: /docs/zh/
+layout: home
 ---
 
-# 中文知识库
-
-这里聚合了与当前仓库实现一致的技术内容：公开 API、运行约束、性能工具链，以及 Triton kernel 的内部设计说明。
-
-<div class="link-grid link-grid-2">
-  <a class="info-card" href="{{ '/docs/zh/getting-started/' | relative_url }}">
-    <span class="card-kicker">开始使用</span>
-    <strong>安装、运行与最小示例</strong>
-    <span>从环境准备、第一段可运行代码，到模块封装示例。</span>
-  </a>
-  <a class="info-card" href="{{ '/docs/zh/api/' | relative_url }}">
-    <span class="card-kicker">API 参考</span>
-    <strong>公开接口与输入契约</strong>
-    <span>涵盖 kernel、量化、自动调优、基准工具、数据模型与异常说明。</span>
-  </a>
-  <a class="info-card" href="{{ '/docs/zh/guides/' | relative_url }}">
-    <span class="card-kicker">工程指南</span>
-    <strong>集成与性能知识</strong>
-    <span>说明如何接入融合算子、如何正确测量性能、如何使用 FP8。</span>
-  </a>
-  <a class="info-card" href="{{ '/docs/zh/internals/' | relative_url }}">
-    <span class="card-kicker">内部实现</span>
-    <strong>源码级实现背景</strong>
-    <span>查看架构分层、kernel 设计取舍与内存访问优化思路。</span>
-  </a>
-</div>
-
-## 推荐阅读路径
-
-<div class="callout-grid">
-  <div class="note-panel">
-    <strong>第一次阅读</strong>
-    <p>先看 <a href="{{ '/docs/zh/getting-started/installation/' | relative_url }}">安装指南</a> 与 <a href="{{ '/docs/zh/getting-started/quickstart/' | relative_url }}">快速开始</a>。</p>
+<div class="home-header">
+  <div class="home-header-left">
+    <div class="home-logo">TFO</div>
+    <div>
+      <span class="home-title">Triton Fused Ops</span>
+      <span class="home-subtitle">面向 Transformer 推理的高性能 GPU 融合算子库</span>
+    </div>
   </div>
-  <div class="note-panel">
-    <strong>准备接入项目</strong>
-    <p>先看 <a href="{{ '/docs/zh/api/kernels/' | relative_url }}">核心算子</a> 与 <a href="{{ '/docs/zh/guides/integration/' | relative_url }}">集成指南</a>。</p>
-  </div>
-  <div class="note-panel">
-    <strong>准备做性能工作</strong>
-    <p>先看 <a href="{{ '/docs/zh/api/benchmark/' | relative_url }}">基准测试</a>、<a href="{{ '/docs/zh/api/autotuner/' | relative_url }}">自动调优</a>、<a href="{{ '/docs/zh/guides/performance/' | relative_url }}">性能优化</a>。</p>
-  </div>
-  <div class="note-panel">
-    <strong>准备读源码</strong>
-    <p>先看 <a href="{{ '/docs/zh/internals/architecture/' | relative_url }}">架构设计</a> 与 <a href="{{ '/docs/zh/internals/kernel-design/' | relative_url }}">算子设计</a>。</p>
+  <div class="home-nav">
+    <a href="/zh/getting-started/">开始使用</a>
+    <a href="https://github.com/LessUp/triton-fused-ops">GitHub</a>
+    <a href="/en/">English</a>
   </div>
 </div>
 
-## 运行边界提醒
+<div class="home-intro-row">
+  <div class="home-intro">
+    面向 LLM 推理的融合 GPU 算子库。Memory-bound &rarr; Compute-bound。本库提供生产级 Triton 实现，包括 RMSNorm+RoPE 融合、Gated MLP 融合、FP8 GEMM，以及自动调优和基准测试基础设施。
+  </div>
+  <div class="home-stats">
+    <span><strong style="color: #76B900;">3&times;</strong> 加速</span>
+    <span><strong style="color: #76B900;">FP8</strong> GEMM</span>
+    <span><strong style="color: #76B900;">A100</strong> 优化</span>
+  </div>
+</div>
 
-- Triton kernel 的实际执行需要 CUDA。
-- CPU-only 环境仍适合导入检查、lint、类型检查、构建，以及 CPU-safe 测试。
-- 站点现在只保留技术知识页，不再把更新日志和仓库流程信息发布到 GitHub Pages。
+<div class="cta-row">
+  <a href="/zh/getting-started/" class="cta-btn primary">开始使用</a>
+  <a href="https://github.com/LessUp/triton-fused-ops" class="cta-btn ghost">GitHub 仓库</a>
+</div>
+
+## 功能特性
+
+<div class="feature-map">
+  <div class="feature-card">
+    <div class="feature-card-title">&#9889; 算子融合</div>
+    <div class="feature-card-desc">
+      单次 kernel 启动完成 RMSNorm + RoPE 融合，消除中间 HBM 往返。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/api/kernels" class="feature-tag">核心算子</a>
+      <a href="/zh/internals/kernel-design" class="feature-tag">设计思路</a>
+    </div>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card-title">&#128290; FP8 量化</div>
+    <div class="feature-card-desc">
+      兼容 E4M3/E5M2 的 FP8 GEMM 管线，支持显式 scale 管理与溢出处理。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/api/quantization" class="feature-tag">量化</a>
+      <a href="/zh/guides/fp8-best-practices" class="feature-tag">最佳实践</a>
+    </div>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card-title">&#127911; 自动调优</div>
+    <div class="feature-card-desc">
+      TritonAutoTuner 支持可配置搜索空间与持久化 ConfigCache，自动寻找最优启动参数。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/api/autotuner" class="feature-tag">自动调优</a>
+      <a href="/zh/api/models" class="feature-tag">数据模型</a>
+    </div>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card-title">&#128202; 基准测试</div>
+    <div class="feature-card-desc">
+      内置 BenchmarkSuite，一键完成正确性验证与结构化性能报告。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/api/benchmark" class="feature-tag">基准测试</a>
+      <a href="/zh/guides/performance" class="feature-tag">性能</a>
+    </div>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card-title">&#129514; CPU 可测参考</div>
+    <div class="feature-card-desc">
+      纯 NumPy 参考实现，无需 GPU 硬件即可完成正确性验证。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/internals/architecture" class="feature-tag">架构</a>
+      <a href="/zh/api/validation" class="feature-tag">校验</a>
+    </div>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-card-title">&#127959; 模块化架构</div>
+    <div class="feature-card-desc">
+      验证层、计算参考层、内核层、基准层严格分离，边界清晰。
+    </div>
+    <div class="feature-tags">
+      <a href="/zh/internals/architecture" class="feature-tag">架构</a>
+      <a href="/zh/api/validation" class="feature-tag">契约</a>
+    </div>
+  </div>
+</div>
+
+## 快速开始
+
+<div class="quick-start">
+  <div class="quick-start-title">安装</div>
+  <div class="command-block">
+    <code>pip install triton-fused-ops</code>
+  </div>
+
+  <div class="quick-start-title" style="margin-top: 16px;">运行第一个 kernel</div>
+
+```python
+import torch
+from triton_ops import fused_rmsnorm_rope
+
+# 准备输入（需 CUDA）
+x = torch.randn(2, 128, 4096, device="cuda", dtype=torch.float16)
+weight = torch.ones(4096, device="cuda", dtype=torch.float16)
+cos = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+sin = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+
+# 融合 RMSNorm + RoPE
+y = fused_rmsnorm_rope(x, weight, cos, sin)
+print(y.shape)  # torch.Size([2, 128, 4096])
+```
+</div>
+
+## 性能概览
+
+<table class="perf-table">
+  <thead>
+    <tr>
+      <th>算子</th>
+      <th>相比 PyTorch 加速</th>
+      <th>内存流量削减</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>fused_rmsnorm_rope</code></td>
+      <td class="highlight">~3.0&times;</td>
+      <td>~40%</td>
+    </tr>
+    <tr>
+      <td><code>fused_gated_mlp</code></td>
+      <td class="highlight">~1.5&times;</td>
+      <td>~25%</td>
+    </tr>
+    <tr>
+      <td><code>fp8_gemm</code></td>
+      <td class="highlight">~1.3&times;</td>
+      <td>~50% (weights)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size: 12px; color: var(--vp-c-text-3); margin-top: 8px;">
+测试环境：NVIDIA A100 SXM4 80GB, CUDA 12.1, PyTorch 2.1, Triton 2.1。
+测量方法详见 <a href="/zh/guides/performance">性能优化</a>。
+<a href="/zh/guides/benchmark-visualization">查看详细图表 &rarr;</a>
+</p>
+
+---
+
+<p style="font-size: 13px; color: var(--vp-c-text-3); text-align: center; margin-top: 40px;">
+基于 <a href="https://github.com/triton-lang/triton">Triton</a>、
+<a href="https://github.com/pytorch/pytorch">PyTorch</a> 和
+<a href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> 构建。
+详见 <a href="/zh/references/">参考文献</a> 了解相关论文与开源项目。
+</p>

@@ -1,9 +1,5 @@
 ---
-layout: default
 title: FP8 Quantization
-parent: API Reference
-grand_parent: Documentation
-nav_order: 2
 description: "FP8 storage, scaling, and dequantization helpers"
 ---
 

@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Architecture
-parent: Internals
-grand_parent: Documentation
-nav_order: 1
 description: "How the repository is structured and how the modules relate"
 ---
 
@@ -40,6 +36,86 @@ triton_ops/
     ├── report.py
     └── suite.py
 ```
+
+## Module dependency diagram
+
+```mermaid
+flowchart TB
+    subgraph GPU["GPU Layer"]
+        K1[rmsnorm_rope]
+        K2[gated_mlp]
+        K3[fp8_gemm]
+        K4[fp8_quantize]
+    end
+
+    subgraph CPU["CPU Layer"]
+        C1[rmsnorm]
+        C2[rope]
+        C3[gated_mlp]
+        C4[fp8]
+    end
+
+    subgraph TOOLS["Tooling Layer"]
+        T1[autotuner]
+        T2[benchmark]
+    end
+
+    INIT["triton_ops.__init__"]
+    VAL[validation]
+    MOD[models]
+    EXC[exceptions]
+    PERF[performance]
+    UTL[utils]
+
+    VAL --> INIT
+    MOD --> INIT
+    EXC --> INIT
+    UTL --> INIT
+    PERF --> INIT
+    PERF --> T2
+    PERF --> T1
+
+    INIT --> K1
+    INIT --> K2
+    INIT --> K3
+    INIT --> K4
+
+    K1 --> C1
+    K1 --> C2
+    K2 --> C3
+    K3 --> C4
+    K4 --> C4
+
+    INIT --> T1
+    INIT --> T2
+
+    style GPU fill:#143,stroke:#76B900,color:#fff
+    style CPU fill:#124,stroke:#3476f6,color:#fff
+    style TOOLS fill:#1a1a2e,stroke:#8b949e,color:#fff
+    style INIT fill:#0d2600,stroke:#76B900,color:#76B900
+```
+
+> **Figure 1.** Module dependency graph. GPU-layer kernels (green) depend on CPU-layer reference implementations (blue) for correctness verification. The tooling layer (gray) consumes `performance` metrics independently.
+
+## Call chain
+
+```mermaid
+flowchart LR
+    USER["User Code"] --> INIT["triton_ops.__init__"]
+    INIT --> VAL["validation"]
+    VAL --> LAUNCH["kernel launcher"]
+    LAUNCH --> TRITON["Triton kernel"]
+    TRITON --> HBM[(HBM)]
+
+    style USER fill:#21262d,stroke:#8b949e,color:#c9d1d9
+    style INIT fill:#0d2600,stroke:#76B900,color:#76B900
+    style VAL fill:#1a1a2e,stroke:#ffc517,color:#ffc517
+    style LAUNCH fill:#0d2600,stroke:#76B900,color:#76B900
+    style TRITON fill:#143,stroke:#76B900,color:#fff
+    style HBM fill:#1a1a2e,stroke:#30363d,color:#8b949e
+```
+
+> **Figure 2.** Runtime call chain. Validation (yellow) acts as a gate before any GPU work is launched. The Triton kernel reads from and writes to HBM only at the boundaries.
 
 ## Responsibility split
 

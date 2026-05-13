@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 安装指南
-parent: 开始使用
-grand_parent: 中文文档
-nav_order: 1
 description: "Triton Fused Ops 的环境要求与安装流程"
 ---
 
@@ -117,6 +113,6 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 ## 下一步
 
-- [快速开始]({{ '/docs/zh/getting-started/quickstart/' | relative_url }})
-- [示例教程]({{ '/docs/zh/getting-started/examples/' | relative_url }})
-- [核心算子 API]({{ '/docs/zh/api/kernels/' | relative_url }})
+- [快速开始](/zh/getting-started/quickstart)
+- [示例教程](/zh/getting-started/examples)
+- [核心算子 API](/zh/api/kernels)

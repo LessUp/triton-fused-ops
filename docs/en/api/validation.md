@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Validation
-parent: API Reference
-grand_parent: Documentation
-nav_order: 6
 description: "Validation helpers and the runtime contracts they enforce"
 ---
 

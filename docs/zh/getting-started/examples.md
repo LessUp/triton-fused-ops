@@ -1,9 +1,5 @@
 ---
-layout: default
 title: 示例教程
-parent: 开始使用
-grand_parent: 中文文档
-nav_order: 3
 description: "基于当前 Triton Fused Ops API 的可复用代码模式"
 ---
 
@@ -132,6 +128,6 @@ print(q.dtype, scale.item())
 
 ## 下一步
 
-- [集成指南]({{ '/docs/zh/guides/integration/' | relative_url }})
-- [基准测试 API]({{ '/docs/zh/api/benchmark/' | relative_url }})
-- [数据模型 API]({{ '/docs/zh/api/models/' | relative_url }})
+- [集成指南](/zh/guides/integration)
+- [基准测试 API](/zh/api/benchmark)
+- [数据模型 API](/zh/api/models)

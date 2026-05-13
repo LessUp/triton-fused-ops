@@ -1,15 +1,11 @@
 ---
-layout: default
 title: FP8 Best Practices
-parent: Guides
-grand_parent: Documentation
-nav_order: 3
 description: "Practical guidance for using the repository's FP8 path safely"
 ---
 
 # FP8 Best Practices
 
-This repository's FP8 path is useful, but it is not a universal replacement for higher-precision execution.
+This repository's FP8 path is useful, but it is not a universal replacement for higher-precision execution. It follows the FP8 format specification described by Micikevicius et al. [1] and draws on quantization strategies from SmoothQuant [2].
 
 ## Where FP8 fits well
 
@@ -90,3 +86,10 @@ Use it when you expect extreme ranges and want retry-based scale reduction befor
 - Keep the numerically sensitive boundaries in higher precision.
 - Use FP8 where the memory and throughput trade-off is actually paying off.
 - Always measure the model- or workload-level impact, not only the isolated kernel result.
+
+## References
+
+1. Micikevicius, P., et al. (2022). FP8 Formats for Deep Learning. *arXiv preprint*. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433)
+2. Xiao, G., et al. (2023). SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. *ICML*. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438)
+
+See the [NVIDIA FP8 developer blog](/en/references/blogs) and the full [Papers](/en/references/papers) page for more resources.

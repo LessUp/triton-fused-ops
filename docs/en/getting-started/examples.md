@@ -1,9 +1,5 @@
 ---
-layout: default
 title: Examples
-parent: Getting Started
-grand_parent: Documentation
-nav_order: 3
 description: "Reusable code patterns built on the current Triton Fused Ops API"
 ---
 
@@ -132,6 +128,6 @@ print(q.dtype, scale.item())
 
 ## Next
 
-- [Integration Guide]({{ '/docs/en/guides/integration/' | relative_url }})
-- [Benchmark API]({{ '/docs/en/api/benchmark/' | relative_url }})
-- [Models API]({{ '/docs/en/api/models/' | relative_url }})
+- [Integration Guide](/en/guides/integration)
+- [Benchmark API](/en/api/benchmark)
+- [Models API](/en/api/models)
