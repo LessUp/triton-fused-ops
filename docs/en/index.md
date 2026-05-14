@@ -1,63 +1,55 @@
 ---
-layout: home
-hero:
-  name: Triton Fused Ops
-  text: High-Performance GPU Kernels for Transformer Inference
-  tagline: Production-ready Triton implementations of RMSNorm+RoPE fusion, Gated MLP fusion, and FP8 GEMM with auto-tuning infrastructure.
-  actions:
-    - theme: brand
-      text: Getting Started
-      link: /en/getting-started/
-    - theme: alt
-      text: Architecture
-      link: /en/internals/architecture
-    - theme: alt
-      text: GitHub
-      link: https://github.com/LessUp/triton-fused-ops
-features:
-  - icon: ⚡
-    title: Kernel Fusion
-    details: RMSNorm + RoPE fused in a single kernel launch. Eliminates intermediate HBM round-trips, achieving ~3× speedup over naive PyTorch implementation.
-    link: /en/api/kernels
-  - icon: 📐
-    title: FP8 GEMM
-    details: E4M3/E5M2-compatible FP8 quantized GEMM pipeline with explicit scale management, overflow handling, and 50% memory reduction for weights.
-    link: /en/api/quantization
-  - icon: 🔧
-    title: Auto-Tuning
-    details: TritonAutoTuner with configurable search space and persistent ConfigCache. Automatically discovers optimal launch parameters per hardware.
-    link: /en/api/autotuner
-  - icon: 📊
-    title: Benchmarking
-    details: Built-in BenchmarkSuite with correctness verification, structured PerformanceReport, and visualization utilities.
-    link: /en/api/benchmark
-  - icon: 🧪
-    title: CPU References
-    details: Pure NumPy reference implementations in triton_ops.compute. Validate correctness without GPU hardware.
-    link: /en/internals/architecture
-  - icon: 🏗️
-    title: Modular Design
-    details: "Strict separation: validation → compute reference → kernel → benchmark. Clean contracts, testable layers."
-    link: /en/internals/architecture
+layout: page
+title: Triton Fused Ops
+description: High-performance Triton kernels for Transformer inference
 ---
 
-<style>
-/* Homepage-specific enhancements */
-.VPHero .name {
-  background: linear-gradient(120deg, #76B900 0%, #5a8a00 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.VPHero .text {
-  font-size: 18px !important;
-  font-weight: 500 !important;
-}
-.VPFeature {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.VPFeature:hover {
-  border-color: var(--vp-c-brand-1) !important;
-  box-shadow: 0 0 16px rgba(118, 185, 0, 0.15);
-}
-</style>
+<script setup>
+import HomeHero from '@theme/components/HomeHero.vue'
+import KernelShowcase from '@theme/components/KernelShowcase.vue'
+import ArchitecturePreview from '@theme/components/ArchitecturePreview.vue'
+</script>
+
+<HomeHero />
+
+## Core Kernels
+
+<KernelShowcase />
+
+## Architecture at a Glance
+
+<ArchitecturePreview />
+
+## Why Triton Fused Ops?
+
+| Feature | Benefit |
+|---------|---------|
+| **Kernel Fusion** | Single kernel launch for RMSNorm + RoPE eliminates intermediate HBM round-trips |
+| **CPU References** | Pure NumPy implementations enable correctness verification without GPU |
+| **Auto-Tuning** | TritonAutoTuner discovers optimal launch parameters per hardware automatically |
+| **FP8 Support** | E4M3/E5M2 quantized GEMM reduces weight memory by 50% |
+
+## Quick Start
+
+```bash
+pip install triton-fused-ops
+```
+
+```python
+import torch
+from triton_ops import fused_rmsnorm_rope
+
+x = torch.randn(2, 128, 4096, device="cuda", dtype=torch.float16)
+weight = torch.ones(4096, device="cuda", dtype=torch.float16)
+cos = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+sin = torch.randn(128, 64, device="cuda", dtype=torch.float16)
+
+y = fused_rmsnorm_rope(x, weight, cos, sin)
+```
+
+## Next Steps
+
+- [Installation Guide](/en/getting-started/installation) — Detailed setup instructions
+- [API Reference](/en/api/kernels) — Kernel documentation
+- [Architecture](/en/internals/architecture) — How it works internally
+- [Performance Guide](/en/guides/performance) — Optimization tips

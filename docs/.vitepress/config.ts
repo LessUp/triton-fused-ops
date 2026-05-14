@@ -17,6 +17,9 @@ export default withMermaid(defineConfig({
 
   vite: {
     plugins: [llmstxt()],
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
   },
 
   locales: {
@@ -205,7 +208,15 @@ export default withMermaid(defineConfig({
       lineColor: '#8b949e',
       secondaryColor: '#161b22',
       tertiaryColor: '#21262d',
-      fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace',
+      fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+    },
+    flowchart: {
+      curve: 'basis',
+      padding: 20,
+    },
+    sequence: {
+      actorMargin: 50,
+      boxMargin: 10,
     },
   },
 }))

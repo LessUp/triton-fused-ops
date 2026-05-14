@@ -1,14 +1,29 @@
 /**
  * Triton Fused Ops — Technical Whitepaper / Architecture Showcase
- * Minimal, precise VitePress overrides. Let the default theme do the heavy lifting.
+ * Premium design system with NVIDIA-inspired aesthetics
  */
 
-/* ── Brand Palette ─────────────────────────────────────── */
+/* ── Google Fonts ────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Brand Palette & Semantic Colors ────────────────────── */
 :root {
-  --vp-c-brand-1: #5a8a00;
-  --vp-c-brand-2: #76B900;
+  /* Brand — NVIDIA-inspired green */
+  --vp-c-brand-1: #76B900;
+  --vp-c-brand-2: #5a8a00;
   --vp-c-brand-3: #8bc34a;
   --vp-c-brand-soft: rgba(118, 185, 0, 0.12);
+
+  /* Semantic colors for technical content */
+  --c-gpu: #76B900;        /* GPU/fast path */
+  --c-cpu: #3476f6;        /* CPU/reference */
+  --c-validation: #ffc517; /* Validation gates */
+  --c-warning: #f0883e;    /* Warnings */
+  --c-danger: #f85149;     /* Errors */
+
+  /* Typography */
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 .dark {
@@ -16,6 +31,44 @@
   --vp-c-brand-2: #5a8a00;
   --vp-c-brand-3: #8bc34a;
   --vp-c-brand-soft: rgba(118, 185, 0, 0.14);
+}
+
+/* ── Font Feature Settings ───────────────────────────────── */
+html {
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
+.vp-doc code {
+  font-variant-ligatures: common-ligatures;
+}
+
+/* ── Typography Enhancements ─────────────────────────────── */
+.vp-doc {
+  line-height: 1.75;
+}
+
+.vp-doc h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.vp-doc h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vp-doc h3 {
+  font-weight: 600;
+}
+
+/* Code block enhancements */
+.vp-doc [class*='language-'] {
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vp-doc [class*='language-'] code {
+  font-size: 0.9em;
 }
 
 /* ── Heading Accent Line (h2) ──────────────────────────── */
@@ -112,34 +165,44 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 .layer-stack .layer span.mono {
   font-family: var(--vp-font-family-mono);
   font-size: 13px;
   opacity: 0.8;
 }
-.layer-stack .layer:nth-child(1) { background: rgba(118,185,0,0.20); color: var(--vp-c-brand-1); }
-.layer-stack .layer:nth-child(2) { background: rgba(118,185,0,0.15); }
-.layer-stack .layer:nth-child(3) { background: rgba(118,185,0,0.10); }
-.layer-stack .layer:nth-child(4) { background: rgba(118,185,0,0.06); }
+.layer-stack .layer.api { background: rgba(118, 185, 0, 0.20); color: var(--c-gpu); }
+.layer-stack .layer.validation { background: rgba(255, 197, 23, 0.15); color: var(--c-validation); }
+.layer-stack .layer.gpu { background: rgba(118, 185, 0, 0.15); }
+.layer-stack .layer.cpu { background: rgba(52, 118, 246, 0.12); }
+.layer-stack .layer.tooling { background: rgba(139, 148, 158, 0.10); }
+.layer-stack .layer:hover {
+  transform: translateX(4px);
+}
 
 /* ── Kernel Card Grid ───────────────────────────────────── */
 .kernel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-  margin: 20px 0;
+  gap: 16px;
+  margin: 24px 0;
 }
 .kernel-card {
   background: var(--vp-c-bg-soft);
   border: 1px solid var(--vp-c-border);
-  border-radius: 8px;
-  padding: 20px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
 }
 .kernel-card:hover {
   border-color: var(--vp-c-brand-1);
-  box-shadow: 0 0 12px rgba(118, 185, 0, 0.12);
+  box-shadow: 0 4px 20px rgba(118, 185, 0, 0.15);
+  transform: translateY(-2px);
 }
 .kernel-card .tag {
   display: inline-block;
@@ -148,23 +211,42 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--vp-c-brand-1);
-  padding: 2px 8px;
+  padding: 3px 10px;
   background: var(--vp-c-brand-soft);
   border-radius: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 .kernel-card h3 {
   margin: 0 0 8px !important;
-  font-size: 16px !important;
+  font-size: 18px !important;
   padding: 0 !important;
   border: none !important;
+  color: var(--vp-c-text-1);
 }
 .kernel-card h3::after { display: none; }
 .kernel-card p {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--vp-c-text-2);
-  margin: 0;
+  margin: 0 0 16px;
+}
+.kernel-card .metrics {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+.kernel-card .metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.kernel-card .metric .icon {
+  font-size: 16px;
+}
+.kernel-card .metric .value {
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Callout Block ──────────────────────────────────────── */
@@ -180,8 +262,223 @@
 .callout strong { color: var(--vp-c-text-1); }
 .callout p { margin: 4px 0 0; color: var(--vp-c-text-2); }
 
+/* Semantic callout variants */
+.callout.info { border-left-color: var(--vp-c-brand-1); }
+.callout.performance { border-left-color: var(--c-gpu); }
+.callout.warning { border-left-color: var(--c-warning); }
+.callout.danger { border-left-color: var(--c-danger); }
+
+/* ── Home Hero ──────────────────────────────────────────── */
+.home-hero {
+  padding: 80px 24px 60px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center top, rgba(118, 185, 0, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.home-hero .hero-content {
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.home-hero .hero-title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+  line-height: 1.1;
+}
+
+.home-hero .hero-title .gradient {
+  background: linear-gradient(135deg, #76B900 0%, #5a8a00 50%, #8bc34a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.home-hero .hero-tagline {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--vp-c-text-1);
+  margin: 0 0 16px;
+  letter-spacing: -0.01em;
+}
+
+.home-hero .hero-abstract {
+  font-size: 16px;
+  color: var(--vp-c-text-2);
+  max-width: 600px;
+  margin: 0 auto 32px;
+  line-height: 1.7;
+}
+
+/* Metrics Strip */
+.home-hero .metrics-strip {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  margin: 32px 0 40px;
+}
+
+.home-hero .metrics-strip .metric {
+  text-align: center;
+}
+
+.home-hero .metrics-strip .value {
+  display: block;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--vp-c-brand-1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.home-hero .metrics-strip .label {
+  display: block;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* CTAs */
+.home-hero .hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.home-hero .cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.home-hero .cta.primary {
+  background: var(--vp-c-brand-1);
+  color: #fff;
+}
+
+.home-hero .cta.primary:hover {
+  background: var(--vp-c-brand-2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(118, 185, 0, 0.3);
+}
+
+.home-hero .cta.secondary {
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-border);
+  color: var(--vp-c-text-1);
+}
+
+.home-hero .cta.secondary:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
+.home-hero .cta.outline {
+  background: transparent;
+  border: 1px solid var(--vp-c-border);
+  color: var(--vp-c-text-2);
+}
+
+.home-hero .cta.outline:hover {
+  border-color: var(--vp-c-text-2);
+  color: var(--vp-c-text-1);
+}
+
+/* ── Performance Chart Container ────────────────────────── */
+.perf-chart-container {
+  height: 300px;
+  margin: 24px 0;
+  position: relative;
+}
+
+/* ── Benchmark Table ─────────────────────────────────────── */
+.benchmark-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 20px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-border);
+  font-size: 14px;
+}
+
+.benchmark-table th {
+  background: var(--vp-c-bg-soft);
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vp-c-border);
+}
+
+.benchmark-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vp-c-border);
+}
+
+.benchmark-table tr:last-child td { border-bottom: none; }
+.benchmark-table tr:hover td { background: var(--vp-c-bg-soft); }
+
+.benchmark-table .speedup-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(118, 185, 0, 0.15);
+  color: var(--c-gpu);
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .home-hero {
+    padding: 60px 16px 40px;
+  }
+
+  .home-hero .hero-title {
+    font-size: 36px;
+  }
+
+  .home-hero .hero-tagline {
+    font-size: 18px;
+  }
+
+  .home-hero .metrics-strip {
+    gap: 24px;
+  }
+
+  .home-hero .metrics-strip .value {
+    font-size: 28px;
+  }
+}
+
 @media (max-width: 640px) {
   .kernel-grid { grid-template-columns: 1fr; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .home-hero .metrics-strip {
+    flex-direction: column;
+    gap: 16px;
+  }
 }
