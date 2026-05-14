@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import llmstxt from 'vitepress-plugin-llms'
 
 const rawBase = process.env.VITEPRESS_BASE
 const base = rawBase
@@ -13,6 +14,10 @@ export default withMermaid(defineConfig({
   cleanUrls: true,
   title: 'Triton Fused Ops',
   description: 'High-performance Triton kernels for Transformer inference (RMSNorm+RoPE, Gated MLP, FP8 GEMM)',
+
+  vite: {
+    plugins: [llmstxt()],
+  },
 
   locales: {
     en: {
@@ -28,6 +33,7 @@ export default withMermaid(defineConfig({
           { text: 'Guides', link: '/en/guides/', activeMatch: '/en/guides/' },
           { text: 'Internals', link: '/en/internals/', activeMatch: '/en/internals/' },
           { text: 'References', link: '/en/references/', activeMatch: '/en/references/' },
+          { text: 'Changelog', link: '/en/release-notes/changelog', activeMatch: '/en/release-notes/' },
         ],
         sidebar: {
           '/en/getting-started/': [
@@ -85,6 +91,14 @@ export default withMermaid(defineConfig({
               ],
             },
           ],
+          '/en/release-notes/': [
+            {
+              text: 'Release Notes',
+              items: [
+                { text: 'Changelog', link: '/en/release-notes/changelog' },
+              ],
+            },
+          ],
         },
       },
     },
@@ -101,6 +115,7 @@ export default withMermaid(defineConfig({
           { text: '工程指南', link: '/zh/guides/', activeMatch: '/zh/guides/' },
           { text: '内部实现', link: '/zh/internals/', activeMatch: '/zh/internals/' },
           { text: '参考文献', link: '/zh/references/', activeMatch: '/zh/references/' },
+          { text: '变更日志', link: '/zh/release-notes/changelog', activeMatch: '/zh/release-notes/' },
         ],
         sidebar: {
           '/zh/getting-started/': [
@@ -159,6 +174,14 @@ export default withMermaid(defineConfig({
               ],
             },
           ],
+          '/zh/release-notes/': [
+            {
+              text: '变更日志',
+              items: [
+                { text: 'Changelog', link: '/zh/release-notes/changelog' },
+              ],
+            },
+          ],
         },
       },
     },
@@ -176,17 +199,13 @@ export default withMermaid(defineConfig({
   mermaid: {
     theme: 'dark',
     themeVariables: {
-      primaryColor: '#143',
-      primaryTextColor: '#fff',
+      primaryColor: '#1a2e1a',
+      primaryTextColor: '#c9d1d9',
       primaryBorderColor: '#76B900',
       lineColor: '#8b949e',
-      secondaryColor: '#1a1a2e',
+      secondaryColor: '#161b22',
       tertiaryColor: '#21262d',
-      fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+      fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace',
     },
-  },
-
-  markdown: {
-    config: (md) => {},
   },
 }))

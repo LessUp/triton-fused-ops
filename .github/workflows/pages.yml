@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/pages.yml"
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 permissions:
@@ -19,6 +20,8 @@ concurrency:
 
 jobs:
   build:
+    # Only run on the original repository, not on forks
+    if: github.repository == 'LessUp/triton-fused-ops'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
