@@ -22,9 +22,8 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
-├── compute/             # 纯 NumPy CPU 参考实现
-│   ├── rmsnorm.py
-│   ├── rope.py
+├── reference/           # CPU/GPU 参考实现（用于正确性验证）
+│   ├── rmsnorm_rope.py
 │   ├── gated_mlp.py
 │   └── fp8.py
 ├── autotuner/
@@ -48,11 +47,10 @@ flowchart TB
         K4[fp8_quantize]
     end
 
-    subgraph CPU["CPU 层"]
-        C1[rmsnorm]
-        C2[rope]
-        C3[gated_mlp]
-        C4[fp8]
+    subgraph REF["参考实现层"]
+        R1[rmsnorm_rope]
+        R2[gated_mlp]
+        R3[fp8]
     end
 
     subgraph TOOLS["工具层"]
@@ -80,22 +78,20 @@ flowchart TB
     INIT --> K3
     INIT --> K4
 
-    K1 --> C1
-    K1 --> C2
-    K2 --> C3
-    K3 --> C4
-    K4 --> C4
+    INIT --> R1
+    INIT --> R2
+    INIT --> R3
 
     INIT --> T1
     INIT --> T2
 
     style GPU fill:#143,stroke:#76B900,color:#fff
-    style CPU fill:#124,stroke:#3476f6,color:#fff
+    style REF fill:#124,stroke:#3476f6,color:#fff
     style TOOLS fill:#1a1a2e,stroke:#8b949e,color:#fff
     style INIT fill:#0d2600,stroke:#76B900,color:#76B900
 ```
 
-> **图 1.** 模块依赖关系图。GPU 层 kernel（绿色）依赖 CPU 层参考实现（蓝色）进行正确性验证。工具层（灰色）独立消费 `performance` 指标。
+> **图 1.** 模块依赖关系图。GPU 层 kernel（绿色）与参考实现层（蓝色）均从根包独立导出。参考实现用于正确性验证和 CPU 测试，但不被 GPU kernel 运行时依赖。工具层（灰色）独立消费 `performance` 指标。
 
 ## 调用链路
 
@@ -129,13 +125,15 @@ flowchart LR
 
 三种构造器：`latency_only()`、`elementwise(numel, ...)`、`gemm(M, N, K, ...)`。
 
-### 计算参考层
+### 参考实现层
 
-`triton_ops.compute` 提供与 Triton kernel 数学等价的纯 NumPy 实现，无需 GPU 即可运行：
+`triton_ops.reference` 提供与 Triton kernel 数学等价的参考实现，支持 CPU（NumPy）和 GPU（PyTorch）两种后端：
 
 - 作为 kernel 正确性验证的参考实现，
-- 作为无 GPU 环境下的单元测试目标，
+- 作为无 GPU 环境下的单元测试目标（使用 `backend='cpu'`），
 - 作为精确数学公式的文档说明。
+
+参考实现从根包独立导出（如 `reference_rmsnorm`、`reference_rope` 等），但不被 GPU kernel 运行时导入。
 
 ### 校验层
 

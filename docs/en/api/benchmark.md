@@ -96,7 +96,18 @@ This repository's benchmark utilities are GPU-oriented in the specialized benchm
 
 ## Related metric helpers
 
-For throughput and bandwidth interpretation, see the metric helpers documented in the autotuner page:
+For throughput and bandwidth, use `PerformanceProfile`:
 
-- `compute_gemm_metrics`
-- `compute_elementwise_metrics`
+```python
+from triton_ops import PerformanceProfile
+
+# GEMM metrics
+profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = profile.metrics(latency_ms=0.5)
+
+# Elementwise metrics
+profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = profile.metrics(latency_ms=0.1)
+```
+
+See the [Auto-Tuning](/en/api/autotuner) page for derived metrics computation.

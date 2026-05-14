@@ -70,7 +70,18 @@ CorrectnessVerifier(rtol: float = 1e-3, atol: float = 1e-5)
 
 ## 相关指标 helper
 
-吞吐量和带宽的计算 helper 见自动调优页：
+吞吐量和带宽的计算使用 `PerformanceProfile`：
 
-- `compute_gemm_metrics`
-- `compute_elementwise_metrics`
+```python
+from triton_ops import PerformanceProfile
+
+# GEMM 指标
+profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = profile.metrics(latency_ms=0.5)
+
+# Elementwise 指标
+profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = profile.metrics(latency_ms=0.1)
+```
+
+详见 [自动调优](/zh/api/autotuner) 页面的派生指标计算部分。

@@ -36,14 +36,14 @@ const layerData = {
     { name: 'API', modules: 'triton_ops.__init__', type: 'api', link: '/en/api/' },
     { name: 'Validation', modules: 'validation.py', type: 'validation', link: '/en/api/validation' },
     { name: 'Kernels', modules: 'kernels/*', type: 'gpu', link: '/en/api/kernels' },
-    { name: 'Reference', modules: 'compute/*', type: 'cpu', link: '/en/internals/architecture' },
+    { name: 'Reference', modules: 'reference/*', type: 'cpu', link: '/en/internals/architecture' },
     { name: 'Tooling', modules: 'autotuner, benchmark', type: 'tooling', link: '/en/api/autotuner' },
   ],
   zh: [
     { name: 'API', modules: 'triton_ops.__init__', type: 'api', link: '/zh/api/' },
     { name: '校验层', modules: 'validation.py', type: 'validation', link: '/zh/api/validation' },
     { name: '算子层', modules: 'kernels/*', type: 'gpu', link: '/zh/api/kernels' },
-    { name: '参考实现', modules: 'compute/*', type: 'cpu', link: '/zh/internals/architecture' },
+    { name: '参考实现', modules: 'reference/*', type: 'cpu', link: '/zh/internals/architecture' },
     { name: '工具层', modules: 'autotuner, benchmark', type: 'tooling', link: '/zh/api/autotuner' },
   ],
 }

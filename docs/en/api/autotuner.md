@@ -101,10 +101,27 @@ The tuning API returns `TuningResult`, which contains:
 
 Metrics are represented by `KernelMetrics`.
 
-Metric helpers in `triton_ops.autotuner.tuner`:
+## Computing derived metrics
 
-- `compute_gemm_metrics(M, N, K, latency_ms, ...)`
-- `compute_elementwise_metrics(numel, latency_ms, ...)`
+Use `PerformanceProfile` to compute derived metrics (throughput, bandwidth, utilization):
+
+```python
+from triton_ops import PerformanceProfile
+
+# GEMM metrics
+profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = profile.metrics(latency_ms=0.5)  # Returns KernelMetrics
+
+# Elementwise metrics
+profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = profile.metrics(latency_ms=0.1)
+
+# Latency only
+profile = PerformanceProfile.latency_only()
+metrics = profile.metrics(latency_ms=0.5)
+```
+
+`TritonAutoTuner.tune()` accepts an optional `performance` parameter to automatically compute derived metrics.
 
 ## Failure mode
 

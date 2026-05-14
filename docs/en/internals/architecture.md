@@ -22,9 +22,8 @@ triton_ops/
 │   ├── gated_mlp.py
 │   ├── fp8_gemm.py
 │   └── fp8_quantize.py
-├── compute/             # CPU-testable NumPy reference implementations
-│   ├── rmsnorm.py
-│   ├── rope.py
+├── reference/           # CPU/GPU reference implementations
+│   ├── rmsnorm_rope.py
 │   ├── gated_mlp.py
 │   └── fp8.py
 ├── autotuner/
@@ -48,11 +47,10 @@ flowchart TB
         K4[fp8_quantize]
     end
 
-    subgraph CPU["CPU Layer"]
-        C1[rmsnorm]
-        C2[rope]
-        C3[gated_mlp]
-        C4[fp8]
+    subgraph REF["Reference Layer"]
+        R1[rmsnorm_rope]
+        R2[gated_mlp]
+        R3[fp8]
     end
 
     subgraph TOOLS["Tooling Layer"]
@@ -80,22 +78,20 @@ flowchart TB
     INIT --> K3
     INIT --> K4
 
-    K1 --> C1
-    K1 --> C2
-    K2 --> C3
-    K3 --> C4
-    K4 --> C4
+    INIT --> R1
+    INIT --> R2
+    INIT --> R3
 
     INIT --> T1
     INIT --> T2
 
     style GPU fill:#143,stroke:#76B900,color:#fff
-    style CPU fill:#124,stroke:#3476f6,color:#fff
+    style REF fill:#124,stroke:#3476f6,color:#fff
     style TOOLS fill:#1a1a2e,stroke:#8b949e,color:#fff
     style INIT fill:#0d2600,stroke:#76B900,color:#76B900
 ```
 
-> **Figure 1.** Module dependency graph. GPU-layer kernels (green) depend on CPU-layer reference implementations (blue) for correctness verification. The tooling layer (gray) consumes `performance` metrics independently.
+> **Figure 1.** Module dependency graph. GPU-layer kernels (green) and reference implementations (blue) are independently exported from the root package. References are used for correctness verification and CPU testing but are not imported by GPU kernels at runtime. The tooling layer (gray) consumes `performance` metrics independently.
 
 ## Call chain
 
@@ -129,13 +125,15 @@ flowchart LR
 
 Three constructors: `latency_only()`, `elementwise(numel, ...)`, `gemm(M, N, K, ...)`.
 
-### Compute reference layer
+### Reference implementation layer
 
-`triton_ops.compute` provides pure NumPy implementations of the same mathematical operations as the Triton kernels. These are CPU-testable, importable without GPU hardware, and serve as:
+`triton_ops.reference` provides reference implementations mathematically equivalent to the Triton kernels, supporting both CPU (NumPy) and GPU (PyTorch) backends. These are importable without GPU hardware and serve as:
 
 - correctness references for kernel verification,
-- test targets for unit testing without GPU,
+- test targets for unit testing without GPU (using `backend='cpu'`),
 - documentation of the exact mathematical formulas.
+
+References are exported from the root package (e.g., `reference_rmsnorm`, `reference_rope`) but are not imported by GPU kernels at runtime.
 
 ### Validation layer
 

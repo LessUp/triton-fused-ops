@@ -81,12 +81,23 @@ flowchart LR
 
 ## 如何理解指标
 
-仓库提供两个常见指标 helper：
+仓库使用 `PerformanceProfile` 计算派生指标：
 
-- `compute_gemm_metrics`
-- `compute_elementwise_metrics`
+```python
+from triton_ops import PerformanceProfile
 
-它们有助于区分：
+# GEMM 类路径的计算吞吐
+gemm_profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = gemm_profile.metrics(latency_ms=0.5)
+print(f"吞吐量: {metrics.throughput_tflops:.2f} TFLOPS")
+
+# Elementwise / reduction 类路径的有效带宽
+elem_profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = elem_profile.metrics(latency_ms=0.1)
+print(f"带宽利用率: {metrics.bandwidth_utilization:.1f}%")
+```
+
+这有助于区分：
 
 - GEMM 类路径的计算吞吐，
 - elementwise / reduction 类路径的有效带宽。

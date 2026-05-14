@@ -83,12 +83,23 @@ Use it when you want comparable outputs across multiple experiments.
 
 ## Interpreting metrics
 
-The repository provides two metric helpers:
+Use `PerformanceProfile` to compute derived metrics:
 
-- `compute_gemm_metrics`
-- `compute_elementwise_metrics`
+```python
+from triton_ops import PerformanceProfile
 
-Use them to distinguish between:
+# Computational throughput for GEMM-like work
+gemm_profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = gemm_profile.metrics(latency_ms=0.5)
+print(f"Throughput: {metrics.throughput_tflops:.2f} TFLOPS")
+
+# Effective bandwidth for elementwise or reduction-heavy kernels
+elem_profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = elem_profile.metrics(latency_ms=0.1)
+print(f"Bandwidth utilization: {metrics.bandwidth_utilization:.1f}%")
+```
+
+Use these to distinguish between:
 
 - computational throughput for GEMM-like work,
 - effective bandwidth for elementwise or reduction-heavy kernels.

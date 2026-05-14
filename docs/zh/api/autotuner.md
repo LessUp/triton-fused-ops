@@ -78,10 +78,27 @@ ConfigCache(cache_dir: str | None = None)
 
 性能指标统一由 `KernelMetrics` 表示。
 
-`triton_ops.autotuner.tuner` 还提供两个常用指标 helper：
+## 派生指标计算
 
-- `compute_gemm_metrics(M, N, K, latency_ms, ...)`
-- `compute_elementwise_metrics(numel, latency_ms, ...)`
+使用 `PerformanceProfile` 计算派生指标（吞吐量、带宽、利用率）：
+
+```python
+from triton_ops import PerformanceProfile
+
+# GEMM 指标
+profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
+metrics = profile.metrics(latency_ms=0.5)  # 返回 KernelMetrics
+
+# Elementwise 指标
+profile = PerformanceProfile.elementwise(numel=1024*4096)
+metrics = profile.metrics(latency_ms=0.1)
+
+# 仅延迟
+profile = PerformanceProfile.latency_only()
+metrics = profile.metrics(latency_ms=0.5)
+```
+
+`TritonAutoTuner.tune()` 可接受 `performance` 参数以自动计算派生指标。
 
 ## 失败模式
 
