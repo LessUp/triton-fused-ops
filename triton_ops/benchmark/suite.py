@@ -1,6 +1,7 @@
 """Benchmark suite for Triton operators."""
 
 import time
+from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
@@ -8,8 +9,108 @@ import torch
 from triton_ops import performance as perf_module
 from triton_ops.benchmark.correctness import CorrectnessVerifier
 from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
-from triton_ops.performance import PerformanceProfile, latency_only
+from triton_ops.performance import PerformanceProfile, compute_metrics
 from triton_ops.utils import get_device_name, sync_cuda
+
+
+class KernelBenchmark(ABC):
+    """Abstract base class for kernel-specific benchmarks.
+
+    Each kernel family can implement this interface to provide its own
+    benchmark configuration. This allows BenchmarkSuite to be extended
+    without modification when new kernels are added.
+
+    Example:
+        >>> class RMSNormRoPEBenchmark(KernelBenchmark):
+        ...     @property
+        ...     def name(self) -> str:
+        ...         return "fused_rmsnorm_rope"
+        ...
+        ...     def create_inputs(self, problem_size):
+        ...         batch, seq_len, hidden_dim = problem_size
+        ...         return {
+        ...             "x": torch.randn(batch, seq_len, hidden_dim, ...),
+        ...             ...
+        ...         }
+        ...
+        ...     def kernel_fn(self, inputs):
+        ...         return fused_rmsnorm_rope(**inputs)
+        ...
+        ...     def reference_fn(self, inputs):
+        ...         return reference_fused_rmsnorm_rope(**inputs)
+        ...
+        ...     def performance_profile(self, problem_size):
+        ...         batch, seq_len, hidden_dim = problem_size
+        ...         return elementwise(numel=batch * seq_len * hidden_dim)
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the kernel name for reporting."""
+        pass
+
+    @abstractmethod
+    def create_inputs(self, problem_size: Tuple[int, ...]) -> Dict[str, Any]:
+        """Create input tensors for the given problem size.
+
+        Args:
+            problem_size: Problem dimensions
+
+        Returns:
+            Dictionary of input tensors
+        """
+        pass
+
+    @abstractmethod
+    def kernel_fn(self, inputs: Dict[str, Any]) -> torch.Tensor:
+        """Execute the Triton kernel.
+
+        Args:
+            inputs: Dictionary of input tensors from create_inputs()
+
+        Returns:
+            Output tensor
+        """
+        pass
+
+    @abstractmethod
+    def reference_fn(self, inputs: Dict[str, Any]) -> torch.Tensor:
+        """Execute the reference implementation.
+
+        Args:
+            inputs: Dictionary of input tensors from create_inputs()
+
+        Returns:
+            Output tensor
+        """
+        pass
+
+    @abstractmethod
+    def performance_profile(self, problem_size: Tuple[int, ...]) -> Optional[PerformanceProfile]:
+        """Create a performance profile for the given problem size.
+
+        Args:
+            problem_size: Problem dimensions
+
+        Returns:
+            PerformanceProfile or None for latency-only metrics
+        """
+        pass
+
+    def get_problem_sizes(self) -> List[Tuple[int, ...]]:
+        """Return a list of problem sizes to benchmark.
+
+        Override this method to customize the problem sizes for this kernel.
+
+        Returns:
+            List of problem size tuples
+        """
+        return [
+            (2, 128, 4096),
+            (4, 256, 4096),
+            (8, 512, 4096),
+        ]
 
 
 class BenchmarkSuite:
@@ -114,11 +215,8 @@ class BenchmarkSuite:
         # Time kernel
         latency_ms = self._time_kernel(kernel_fn, *args, **kwargs)
 
-        # Compute metrics
-        if performance is not None:
-            metrics = performance.metrics(latency_ms)
-        else:
-            metrics = latency_only().metrics(latency_ms)
+        # Compute metrics using unified compute_metrics function
+        metrics = compute_metrics(latency_ms, profile=performance)
 
         result = BenchmarkResult(
             kernel_name=kernel_name,
@@ -166,14 +264,9 @@ class BenchmarkSuite:
         triton_latency = self._time_kernel(triton_fn, *args, **kwargs)
         pytorch_latency = self._time_kernel(pytorch_fn, *args, **kwargs)
 
-        # Compute metrics
-        if performance is not None:
-            triton_metrics = performance.metrics(triton_latency)
-            pytorch_metrics = performance.metrics(pytorch_latency)
-        else:
-            latency_profile = latency_only()
-            triton_metrics = latency_profile.metrics(triton_latency)
-            pytorch_metrics = latency_profile.metrics(pytorch_latency)
+        # Compute metrics using unified compute_metrics function
+        triton_metrics = compute_metrics(triton_latency, profile=performance)
+        pytorch_metrics = compute_metrics(pytorch_latency, profile=performance)
 
         speedup = (
             pytorch_latency / triton_latency
@@ -357,6 +450,45 @@ class BenchmarkSuite:
                         performance=perf_module.gemm(M=M, N=N, K=K),
                     )
                     results.append(result)
+
+        return results
+
+    def benchmark_kernel_family(
+        self,
+        kernel_benchmark: KernelBenchmark,
+        problem_sizes: Optional[List[Tuple[int, ...]]] = None,
+    ) -> List[BenchmarkResult]:
+        """Benchmark a kernel family using the KernelBenchmark interface.
+
+        This method provides an extensible way to benchmark new kernels
+        without modifying BenchmarkSuite.
+
+        Args:
+            kernel_benchmark: KernelBenchmark implementation for the kernel family
+            problem_sizes: Optional list of problem sizes. If None, uses kernel's defaults.
+
+        Returns:
+            List of benchmark results
+        """
+        sizes = problem_sizes or kernel_benchmark.get_problem_sizes()
+        results = []
+
+        for problem_size in sizes:
+            # Create inputs
+            inputs = kernel_benchmark.create_inputs(problem_size)
+
+            # Get performance profile
+            profile = kernel_benchmark.performance_profile(problem_size)
+
+            # Run benchmark
+            result = self.benchmark_kernel(
+                lambda: kernel_benchmark.kernel_fn(inputs),
+                lambda: kernel_benchmark.reference_fn(inputs),
+                kernel_benchmark.name,
+                problem_size,
+                performance=profile,
+            )
+            results.append(result)
 
         return results
 

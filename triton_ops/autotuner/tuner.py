@@ -7,7 +7,7 @@ from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
-from triton_ops.performance import PerformanceProfile, latency_only
+from triton_ops.performance import PerformanceProfile, compute_metrics
 from triton_ops.utils import sync_cuda
 
 
@@ -79,11 +79,8 @@ class TritonAutoTuner:
             total_time = end_time - start_time
             latency_ms = (total_time / self.benchmark_runs) * 1000
 
-            # Compute metrics using PerformanceProfile
-            if performance is not None:
-                return performance.metrics(latency_ms)
-            else:
-                return latency_only().metrics(latency_ms)
+            # Compute metrics using unified compute_metrics function
+            return compute_metrics(latency_ms, profile=performance)
 
         except (RuntimeError, OSError) as e:
             # Catch CUDA runtime errors and OS-level errors during kernel execution

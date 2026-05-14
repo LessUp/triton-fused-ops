@@ -121,6 +121,63 @@ class TensorSpec:
             tensor = torch.randn(self.shape, dtype=self.dtype, device=self.device)
         return tensor
 
+    def validate_tensor(self, tensor: torch.Tensor) -> Tuple[bool, Optional[str]]:
+        """Validate a tensor against this specification.
+
+        Args:
+            tensor: Tensor to validate.
+
+        Returns:
+            Tuple of (is_valid, error_message).
+
+        Example:
+            >>> spec = TensorSpec((4, 64), torch.float16)
+            >>> t = torch.randn(4, 64, device="cuda", dtype=torch.float16)
+            >>> is_valid, error = spec.validate_tensor(t)
+            >>> is_valid
+            True
+        """
+        if tensor.shape != self.shape:
+            return False, f"shape mismatch: expected {self.shape}, got {tensor.shape}"
+        if tensor.dtype != self.dtype:
+            return False, f"dtype mismatch: expected {self.dtype}, got {tensor.dtype}"
+        if self.device == "cuda" and not tensor.is_cuda:
+            return False, f"device mismatch: expected cuda, got {tensor.device}"
+        if self.contiguous and not tensor.is_contiguous():
+            return False, "tensor must be contiguous"
+        return True, None
+
+    def validate_and_raise(self, tensor: torch.Tensor, name: str = "tensor") -> None:
+        """Validate a tensor and raise an exception if invalid.
+
+        Args:
+            tensor: Tensor to validate.
+            name: Name of the tensor for error messages.
+
+        Raises:
+            ShapeMismatchError: If shape doesn't match.
+            UnsupportedDtypeError: If dtype doesn't match.
+            DeviceError: If device doesn't match.
+            ValueError: If contiguity doesn't match.
+
+        Example:
+            >>> spec = TensorSpec((4, 64), torch.float16)
+            >>> t = torch.randn(4, 32, device="cuda", dtype=torch.float16)
+            >>> spec.validate_and_raise(t, "x")  # Raises ShapeMismatchError
+        """
+        from triton_ops.exceptions import DeviceError, ShapeMismatchError, UnsupportedDtypeError
+
+        is_valid, error = self.validate_tensor(tensor)
+        if not is_valid and error is not None:
+            if "shape" in error.lower():
+                raise ShapeMismatchError(f"{name}: {error}", tensor_name=name)
+            elif "dtype" in error.lower():
+                raise UnsupportedDtypeError(f"{name}: {error}", tensor_name=name)
+            elif "device" in error.lower():
+                raise DeviceError(f"{name}: {error}", tensor_name=name)
+            else:
+                raise ValueError(f"{name}: {error}")
+
 
 @dataclass
 class RMSNormRoPEInput:
@@ -201,6 +258,67 @@ class RMSNormRoPEInput:
             eps=eps,
         )
 
+    def validate(
+        self,
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        cos: torch.Tensor,
+        sin: torch.Tensor,
+    ) -> Tuple[int, int, int, int, int]:
+        """Validate actual tensors against this specification.
+
+        Args:
+            x: Input tensor
+            weight: RMSNorm weight tensor
+            cos: Cosine position embeddings
+            sin: Sine position embeddings
+
+        Returns:
+            Tuple of (batch_size, seq_len, hidden_dim, head_dim, num_heads)
+
+        Raises:
+            ShapeMismatchError: If shapes don't match
+            UnsupportedDtypeError: If dtypes don't match
+            DeviceError: If devices don't match
+
+        Example:
+            >>> spec = RMSNormRoPEInput.from_shapes(batch_size=2, seq_len=128, hidden_dim=4096, head_dim=64)
+            >>> x = torch.randn(2, 128, 4096, device='cuda', dtype=torch.float16)
+            >>> weight = torch.ones(4096, device='cuda', dtype=torch.float16)
+            >>> cos = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+            >>> sin = torch.randn(128, 64, device='cuda', dtype=torch.float16)
+            >>> batch, seq, hidden, head, num_heads = spec.validate(x, weight, cos, sin)
+        """
+        # Validate each tensor
+        self.x.validate_and_raise(x, "x")
+        self.weight.validate_and_raise(weight, "weight")
+        self.cos.validate_and_raise(cos, "cos")
+        self.sin.validate_and_raise(sin, "sin")
+
+        # Extract dimensions
+        batch_size, seq_len, hidden_dim = x.shape
+        head_dim = cos.shape[-1]
+
+        # Validate cross-tensor constraints
+        if weight.shape[0] != hidden_dim:
+            from triton_ops.exceptions import ShapeMismatchError
+
+            raise ShapeMismatchError(
+                f"weight shape {weight.shape} doesn't match hidden_dim {hidden_dim}",
+                tensor_name="weight",
+            )
+
+        # Compute num_heads
+        if hidden_dim % head_dim != 0:
+            from triton_ops.exceptions import ShapeMismatchError
+
+            raise ShapeMismatchError(
+                f"hidden_dim {hidden_dim} must be divisible by head_dim {head_dim}", tensor_name="x"
+            )
+        num_heads = hidden_dim // head_dim
+
+        return batch_size, seq_len, hidden_dim, head_dim, num_heads
+
 
 @dataclass
 class GatedMLPInput:
@@ -271,6 +389,45 @@ class GatedMLPInput:
             activation=activation,
         )
 
+    def validate(
+        self,
+        x: torch.Tensor,
+        gate_weight: torch.Tensor,
+        up_weight: torch.Tensor,
+        activation: str = "silu",
+    ) -> Tuple[int, int, int, int]:
+        """Validate actual tensors against this specification.
+
+        Args:
+            x: Input tensor
+            gate_weight: Gate projection weight tensor
+            up_weight: Up projection weight tensor
+            activation: Activation function type
+
+        Returns:
+            Tuple of (batch_size, seq_len, hidden_dim, intermediate_dim)
+
+        Raises:
+            ShapeMismatchError: If shapes don't match
+            UnsupportedDtypeError: If dtypes don't match
+            DeviceError: If devices don't match
+            ValueError: If activation is not supported
+        """
+        # Validate activation
+        if activation not in ("silu", "gelu"):
+            raise ValueError(f"activation must be 'silu' or 'gelu', got '{activation}'")
+
+        # Validate each tensor
+        self.x.validate_and_raise(x, "x")
+        self.gate_weight.validate_and_raise(gate_weight, "gate_weight")
+        self.up_weight.validate_and_raise(up_weight, "up_weight")
+
+        # Extract dimensions
+        batch_size, seq_len, hidden_dim = x.shape
+        intermediate_dim = gate_weight.shape[0]
+
+        return batch_size, seq_len, hidden_dim, intermediate_dim
+
 
 @dataclass
 class FP8GEMMInput:
@@ -340,6 +497,86 @@ class FP8GEMMInput:
             b_scale=TensorSpec((1,), torch.float32, device),
             output_dtype=output_dtype,
         )
+
+    def validate(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor,
+        a_scale: Optional[torch.Tensor] = None,
+        b_scale: Optional[torch.Tensor] = None,
+        output_dtype: torch.dtype = torch.float16,
+    ) -> Tuple[int, int, int]:
+        """Validate actual tensors against this specification.
+
+        Args:
+            a: First matrix tensor
+            b: Second matrix tensor
+            a_scale: Scale factor for A (optional for float inputs)
+            b_scale: Scale factor for B (optional for float inputs)
+            output_dtype: Output data type
+
+        Returns:
+            Tuple of (M, N, K)
+
+        Raises:
+            ShapeMismatchError: If shapes don't match
+            UnsupportedDtypeError: If dtypes don't match
+            DeviceError: If devices don't match
+            ValueError: If FP8 inputs are missing scale factors
+        """
+        # Check device
+        if not a.is_cuda:
+            from triton_ops.exceptions import DeviceError
+
+            raise DeviceError("a must be on CUDA device", tensor_name="a")
+        if not b.is_cuda:
+            from triton_ops.exceptions import DeviceError
+
+            raise DeviceError("b must be on CUDA device", tensor_name="b")
+
+        # Check FP8 scale requirements
+        fp8_dtypes = [torch.uint8]
+        if hasattr(torch, "float8_e4m3fn"):
+            fp8_dtypes.append(torch.float8_e4m3fn)
+        if hasattr(torch, "float8_e5m2"):
+            fp8_dtypes.append(torch.float8_e5m2)
+
+        if a.dtype in fp8_dtypes and a_scale is None:
+            raise ValueError(f"a_scale is required when A is FP8 (dtype={a.dtype})")
+        if b.dtype in fp8_dtypes and b_scale is None:
+            raise ValueError(f"b_scale is required when B is FP8 (dtype={b.dtype})")
+
+        # Validate shapes
+        if a.dim() != 2:
+            from triton_ops.exceptions import ShapeMismatchError
+
+            raise ShapeMismatchError(f"a must be 2D [M, K], got {a.dim()}D", tensor_name="a")
+        if b.dim() != 2:
+            from triton_ops.exceptions import ShapeMismatchError
+
+            raise ShapeMismatchError(f"b must be 2D [K, N], got {b.dim()}D", tensor_name="b")
+
+        M, K_a = a.shape
+        K_b, N = b.shape
+
+        if K_a != K_b:
+            from triton_ops.exceptions import ShapeMismatchError
+
+            raise ShapeMismatchError(
+                f"Matrix dimensions don't match: a is [{M}, {K_a}], b is [{K_b}, {N}]",
+                tensor_name="a, b",
+            )
+
+        # Validate output dtype
+        if output_dtype not in [torch.float16, torch.bfloat16, torch.float32]:
+            from triton_ops.exceptions import UnsupportedDtypeError
+
+            raise UnsupportedDtypeError(
+                f"output_dtype must be float16, bfloat16, or float32, got {output_dtype}",
+                dtype=output_dtype,
+            )
+
+        return M, N, K_a
 
 
 @dataclass

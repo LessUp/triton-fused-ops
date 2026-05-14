@@ -120,6 +120,7 @@ from triton_ops.autotuner import (
 from triton_ops.benchmark import (
     BenchmarkSuite,
     CorrectnessVerifier,
+    KernelBenchmark,
     PerformanceReport,
 )
 from triton_ops.exceptions import (
@@ -143,7 +144,7 @@ from triton_ops.models import (
     TensorSpec,
     TuningResult,
 )
-from triton_ops.performance import PerformanceProfile
+from triton_ops.performance import MetricsCalculator, PerformanceProfile, compute_metrics
 from triton_ops.reference import (
     dequantize_fp8 as reference_dequantize_fp8,
 )
@@ -166,6 +167,16 @@ from triton_ops.reference import (
     rope as reference_rope,
 )
 from triton_ops.utils import require_cuda, require_tensor_on_cuda
+from triton_ops.validation import (
+    FP8_GEMM_CONTRACT,
+    FP8_QUANTIZE_CONTRACT,
+    GATED_MLP_CONTRACT,
+    RMSNORM_ROPE_CONTRACT,
+    ContractResult,
+    InputContract,
+    TensorContract,
+    validate_with_contract,
+)
 
 __all__ = [
     # Fused kernels
@@ -179,6 +190,8 @@ __all__ = [
     "dequantize_fp8",
     # Performance metrics
     "PerformanceProfile",
+    "MetricsCalculator",
+    "compute_metrics",
     # Data models
     "TensorSpec",
     "RMSNormRoPEInput",
@@ -204,6 +217,7 @@ __all__ = [
     "BenchmarkSuite",
     "CorrectnessVerifier",
     "PerformanceReport",
+    "KernelBenchmark",
     # Reference implementations
     "reference_rmsnorm",
     "reference_rope",
@@ -215,4 +229,13 @@ __all__ = [
     # Utilities
     "require_cuda",
     "require_tensor_on_cuda",
+    # Declarative validation
+    "TensorContract",
+    "InputContract",
+    "ContractResult",
+    "validate_with_contract",
+    "RMSNORM_ROPE_CONTRACT",
+    "GATED_MLP_CONTRACT",
+    "FP8_GEMM_CONTRACT",
+    "FP8_QUANTIZE_CONTRACT",
 ]

@@ -2,22 +2,21 @@
 
 Design Philosophy
 -----------------
-This module uses a procedural style intentionally. Each `validate_*` function:
-1. Performs all necessary checks (device, dtype, contiguous, shape)
-2. Returns extracted dimensions for use by the caller
+This module provides both procedural validation functions and a declarative
+validator framework. The declarative approach allows kernel functions to
+specify their input contracts concisely, while the procedural helpers remain
+available for backward compatibility and fine-grained control.
 
-This pattern provides:
-- **Clarity**: All validation logic is visible in one function
-- **Performance**: No class instantiation overhead
-- **Simplicity**: Easy to understand and modify per-kernel requirements
-
-The private `_check_*` helpers are intentionally kept simple and composable.
-They are not meant to be exposed as public API.
+Key concepts:
+- **InputContract**: Declarative specification of kernel input requirements
+- **validate_contract()**: One-line validation for kernel functions
+- **validate_*() functions**: Traditional procedural validators (preserved for compatibility)
 
 For CPU testing without GPU, use `triton_ops.reference` module instead.
 """
 
-from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 
@@ -473,3 +472,269 @@ def validate_eps(eps: float) -> None:
     """
     if eps <= 0:
         raise ValueError(f"eps must be positive, got {eps}")
+
+
+# =============================================================================
+# Declarative Validation Framework
+# =============================================================================
+
+
+@dataclass
+class TensorContract:
+    """Declarative specification for a single tensor's requirements.
+
+    Attributes:
+        name: Name of the tensor for error messages
+        ndim: Expected number of dimensions (None = any)
+        dtype: Expected dtype or list of supported dtypes (None = any float)
+        device: Expected device ("cuda" or None for any)
+        contiguous: Whether tensor must be contiguous
+        shape: Expected shape as tuple (use None for wildcard dimensions)
+        min_dims: Minimum number of dimensions
+        max_dims: Maximum number of dimensions
+    """
+
+    name: str
+    ndim: Optional[int] = None
+    dtype: Optional[Union[torch.dtype, List[torch.dtype]]] = None
+    device: Optional[str] = "cuda"
+    contiguous: bool = True
+    shape: Optional[Tuple[Optional[int], ...]] = None
+    min_dims: Optional[int] = None
+    max_dims: Optional[int] = None
+
+    def validate(self, tensor: torch.Tensor) -> Tuple[bool, Optional[str]]:
+        """Validate a tensor against this contract.
+
+        Args:
+            tensor: Tensor to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Check device
+        if self.device == "cuda" and not tensor.is_cuda:
+            return False, f"{self.name} must be on CUDA device, got {tensor.device}"
+
+        # Check contiguous
+        if self.contiguous and not tensor.is_contiguous():
+            return False, f"{self.name} must be contiguous"
+
+        # Check dtype
+        if self.dtype is not None:
+            allowed_dtypes = self.dtype if isinstance(self.dtype, list) else [self.dtype]
+            if tensor.dtype not in allowed_dtypes:
+                return False, f"{self.name} has unsupported dtype {tensor.dtype}"
+
+        # Check ndim
+        if self.ndim is not None and tensor.dim() != self.ndim:
+            return False, f"{self.name} must be {self.ndim}D, got {tensor.dim()}D"
+
+        # Check min/max dims
+        if self.min_dims is not None and tensor.dim() < self.min_dims:
+            return False, f"{self.name} must have at least {self.min_dims} dims, got {tensor.dim()}"
+        if self.max_dims is not None and tensor.dim() > self.max_dims:
+            return False, f"{self.name} must have at most {self.max_dims} dims, got {tensor.dim()}"
+
+        # Check shape pattern
+        if self.shape is not None:
+            if len(self.shape) != tensor.dim():
+                return (
+                    False,
+                    f"{self.name} shape {tensor.shape} doesn't match expected pattern {self.shape}",
+                )
+            for i, (expected, actual) in enumerate(zip(self.shape, tensor.shape)):
+                if expected is not None and expected != actual:
+                    return False, f"{self.name} dimension {i} must be {expected}, got {actual}"
+
+        return True, None
+
+
+@dataclass
+class InputContract:
+    """Declarative specification for all inputs to a kernel function.
+
+    This allows kernel functions to specify their input requirements concisely
+    and have all validation performed in one call.
+
+    Example:
+        >>> contract = InputContract(
+        ...     tensors=[
+        ...         TensorContract("x", ndim=3, dtype=[torch.float16, torch.bfloat16]),
+        ...         TensorContract("weight", ndim=1, shape=(None,)),  # last dim inferred
+        ...     ],
+        ...     scalar_params={"eps": lambda v: v > 0},
+        ...     same_device=True,
+        ... )
+        >>> result = contract.validate(x, weight, eps=1e-6)
+        >>> if result.is_valid:
+        ...     batch, seq, hidden = result.dims
+    """
+
+    tensors: List[TensorContract] = field(default_factory=list)
+    scalar_params: Dict[str, Callable[[Any], bool]] = field(default_factory=dict)
+    same_device: bool = True
+    same_dtype: bool = False
+    shape_relations: Dict[str, str] = field(default_factory=dict)  # e.g., {"x:hidden": "weight:0"}
+
+    def validate(self, *tensors: torch.Tensor, **scalars: Any) -> "ContractResult":
+        """Validate all inputs against this contract.
+
+        Args:
+            *tensors: Tensor inputs in order matching self.tensors
+            **scalars: Scalar parameters
+
+        Returns:
+            ContractResult with validation status and extracted dimensions
+        """
+        errors: List[str] = []
+
+        # Validate tensor count
+        if len(tensors) != len(self.tensors):
+            raise ValueError(f"Expected {len(self.tensors)} tensors, got {len(tensors)}")
+
+        # Validate each tensor
+        validated_tensors = {}
+        for contract, tensor in zip(self.tensors, tensors):
+            is_valid, error = contract.validate(tensor)
+            if not is_valid and error is not None:
+                errors.append(error)
+            validated_tensors[contract.name] = tensor
+
+        # Validate scalar parameters
+        for param_name, validator in self.scalar_params.items():
+            if param_name in scalars:
+                value = scalars[param_name]
+                if not validator(value):
+                    errors.append(f"Invalid value for {param_name}: {value}")
+
+        # Check same device constraint
+        if self.same_device and len(tensors) > 1:
+            devices = set(t.device for t in tensors)
+            if len(devices) > 1:
+                errors.append(f"All tensors must be on same device, got {devices}")
+
+        # Check same dtype constraint
+        if self.same_dtype and len(tensors) > 1:
+            dtypes = set(t.dtype for t in tensors)
+            if len(dtypes) > 1:
+                errors.append(f"All tensors must have same dtype, got {dtypes}")
+
+        return ContractResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+            tensors=validated_tensors,
+        )
+
+
+@dataclass
+class ContractResult:
+    """Result of validating inputs against a contract."""
+
+    is_valid: bool
+    errors: List[str]
+    tensors: Dict[str, torch.Tensor]
+
+    @property
+    def dims(self) -> Tuple[int, ...]:
+        """Extract dimensions from validated tensors.
+
+        Returns tuple of all dimension sizes in order.
+        """
+        result = []
+        for tensor in self.tensors.values():
+            result.extend(tensor.shape)
+        return tuple(result)
+
+    def raise_if_invalid(self) -> None:
+        """Raise appropriate exception if validation failed."""
+        if not self.is_valid:
+            error_msg = "; ".join(self.errors)
+            # Determine most appropriate exception type
+            if "CUDA" in error_msg or "device" in error_msg.lower():
+                raise DeviceError(error_msg)
+            elif "shape" in error_msg.lower() or "dimension" in error_msg.lower():
+                raise ShapeMismatchError(error_msg)
+            elif "dtype" in error_msg.lower():
+                raise UnsupportedDtypeError(error_msg)
+            else:
+                raise ValueError(error_msg)
+
+
+# =============================================================================
+# Pre-defined contracts for each kernel family
+# =============================================================================
+
+RMSNORM_ROPE_CONTRACT = InputContract(
+    tensors=[
+        TensorContract("x", ndim=3, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("weight", ndim=1, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("cos", min_dims=2, max_dims=4, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("sin", min_dims=2, max_dims=4, dtype=SUPPORTED_DTYPES_FLOAT),
+    ],
+    scalar_params={
+        "eps": lambda v: isinstance(v, (int, float)) and v > 0,
+        "num_heads": lambda v: v is None or (isinstance(v, int) and v > 0),
+    },
+    same_device=True,
+    same_dtype=True,
+)
+
+GATED_MLP_CONTRACT = InputContract(
+    tensors=[
+        TensorContract("x", ndim=3, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("gate_weight", ndim=2, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("up_weight", ndim=2, dtype=SUPPORTED_DTYPES_FLOAT),
+    ],
+    scalar_params={
+        "activation": lambda v: v in VALID_ACTIVATIONS,
+    },
+    same_device=True,
+    same_dtype=True,
+)
+
+FP8_GEMM_CONTRACT = InputContract(
+    tensors=[
+        TensorContract("a", ndim=2, dtype=None),  # Accepts FP8 or float
+        TensorContract("b", ndim=2, dtype=None),
+        TensorContract("a_scale", ndim=0, dtype=[torch.float32], contiguous=False),
+        TensorContract("b_scale", ndim=0, dtype=[torch.float32], contiguous=False),
+    ],
+    scalar_params={
+        "output_dtype": lambda v: v in [torch.float16, torch.bfloat16, torch.float32],
+    },
+    same_device=True,
+)
+
+FP8_QUANTIZE_CONTRACT = InputContract(
+    tensors=[
+        TensorContract("tensor", min_dims=1, dtype=SUPPORTED_DTYPES_FLOAT),
+        TensorContract("scale", ndim=0, dtype=[torch.float32], contiguous=False),
+    ],
+    scalar_params={},
+    same_device=True,
+)
+
+
+def validate_with_contract(
+    contract: InputContract,
+    *tensors: torch.Tensor,
+    **scalars: Any,
+) -> ContractResult:
+    """Validate inputs against a contract and return result.
+
+    This is a convenience function for one-line validation.
+
+    Args:
+        contract: The input contract to validate against
+        *tensors: Tensor inputs
+        **scalars: Scalar parameters
+
+    Returns:
+        ContractResult with validation status
+
+    Example:
+        >>> result = validate_with_contract(RMSNORM_ROPE_CONTRACT, x, weight, cos, sin, eps=1e-6)
+        >>> result.raise_if_invalid()
+    """
+    return contract.validate(*tensors, **scalars)
