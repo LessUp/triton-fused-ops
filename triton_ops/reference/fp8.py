@@ -20,6 +20,8 @@ Example:
     >>> recovered = dequantize_fp8(quantized, scale, backend='cpu')
 """
 
+from __future__ import annotations
+
 import numpy as np
 import torch
 
@@ -334,7 +336,7 @@ def _fp8_gemm_cpu(
             if isinstance(a_scale, (np.ndarray, torch.Tensor))
             else float(a_scale)
         )
-        a_int = a.astype(np.int32) - 128
+        a_int: np.ndarray = a.astype(np.int32) - 128
         a_float = a_int / 127.0 * FP8Format.max_value / a_scale_val
     else:
         a_float = a.astype(np.float32)
@@ -347,7 +349,7 @@ def _fp8_gemm_cpu(
             if isinstance(b_scale, (np.ndarray, torch.Tensor))
             else float(b_scale)
         )
-        b_int = b.astype(np.int32) - 128
+        b_int: np.ndarray = b.astype(np.int32) - 128
         b_float = b_int / 127.0 * FP8Format.max_value / b_scale_val
     else:
         b_float = b.astype(np.float32)

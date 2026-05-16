@@ -5,7 +5,7 @@ FP8 E4M3 format: 1 sign bit, 4 exponent bits, 3 mantissa bits.
 Max representable value: 448.0
 """
 
-from typing import Optional, Tuple
+from __future__ import annotations
 
 import torch
 import triton
@@ -13,7 +13,7 @@ import triton.language as tl
 
 from triton_ops.exceptions import NumericalOverflowError
 from triton_ops.models import FP8Format
-from triton_ops.utils import require_cuda
+from triton_ops.utils import require_cuda, require_tensor_on_cuda
 from triton_ops.validation import validate_fp8_quantize_inputs
 
 # FP8 E4M3 constants (must match triton_ops.models.FP8Format)
@@ -147,8 +147,8 @@ def compute_scale_kernel(
 
 def quantize_fp8(
     tensor: torch.Tensor,
-    scale: Optional[torch.Tensor] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    scale: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Quantize tensor to FP8 E4M3 format.
 
     FP8 E4M3 format: 1 sign bit, 4 exponent bits, 3 mantissa bits.
@@ -245,6 +245,10 @@ def dequantize_fp8(
     Note:
         All tensors must be on CUDA device and contiguous.
     """
+    require_cuda("dequantize_fp8")
+    require_tensor_on_cuda(tensor, "tensor")
+    require_tensor_on_cuda(scale, "scale")
+
     # Allocate output
     output = torch.empty(tensor.shape, dtype=output_dtype, device=tensor.device)
 

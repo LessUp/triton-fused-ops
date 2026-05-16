@@ -14,6 +14,8 @@ Two approaches are supported:
 2. **Declarative dispatch**: Use `@reference_impl` decorator for automatic dispatch
 """
 
+from __future__ import annotations
+
 from functools import wraps
 from typing import Any, Callable, Literal, TypeVar
 

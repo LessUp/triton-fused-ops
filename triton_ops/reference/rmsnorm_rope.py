@@ -22,6 +22,8 @@ Example:
     >>> output_cuda = rmsnorm(x_cuda, weight, backend='cuda')
 """
 
+from __future__ import annotations
+
 import numpy as np
 import torch
 

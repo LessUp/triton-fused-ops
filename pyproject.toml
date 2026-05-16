@@ -125,5 +125,6 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 # numpy pure-compute reference implementations return untyped ndarray operations
-module = "triton_ops.compute.*"
+module = "triton_ops.reference.*"
 warn_return_any = false
+warn_unused_ignores = false

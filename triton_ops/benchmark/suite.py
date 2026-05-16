@@ -2,7 +2,7 @@
 
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
 import torch
 
@@ -306,10 +306,8 @@ class BenchmarkSuite:
         Returns:
             List of benchmark results
         """
-        from triton_ops.kernels.rmsnorm_rope import (
-            fused_rmsnorm_rope,
-            fused_rmsnorm_rope_reference,
-        )
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from triton_ops.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference
 
         results = []
 
@@ -345,7 +343,7 @@ class BenchmarkSuite:
         seq_lens: List[int],
         hidden_dims: List[int],
         intermediate_dims: List[int],
-        activations: Optional[List[str]] = None,
+        activations: Optional[List[Literal["silu", "gelu"]]] = None,
     ) -> List[BenchmarkResult]:
         """Benchmark Gated MLP across different sizes.
 
@@ -361,10 +359,8 @@ class BenchmarkSuite:
         """
         if activations is None:
             activations = ["silu"]
-        from triton_ops.kernels.gated_mlp import (
-            fused_gated_mlp,
-            gated_mlp_reference,
-        )
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from triton_ops.reference import gated_mlp as gated_mlp_reference
 
         results = []
 
@@ -427,7 +423,8 @@ class BenchmarkSuite:
         Returns:
             List of benchmark results
         """
-        from triton_ops.kernels.fp8_gemm import fp8_gemm, fp8_gemm_reference
+        from triton_ops.kernels.fp8_gemm import fp8_gemm
+        from triton_ops.reference import fp8_gemm as fp8_gemm_reference
 
         results = []
 

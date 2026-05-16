@@ -65,5 +65,5 @@ def get_device_name() -> str:
         Device name string, or 'cpu' if CUDA is not available
     """
     if torch.cuda.is_available():
-        return torch.cuda.get_device_name()
+        return str(torch.cuda.get_device_name())
     return "cpu"
