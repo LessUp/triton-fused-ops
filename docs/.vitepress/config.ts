@@ -9,6 +9,58 @@ const base = rawBase
     : `/${rawBase}/`
   : '/'
 
+const enSections = [
+  { text: 'Overview', link: '/en/overview/', activeMatch: '/en/overview/', sidebarPrefix: '/en/overview/', sidebarLink: '/en/overview/' },
+  { text: 'Academy', link: '/en/academy/', activeMatch: '/en/academy/', sidebarPrefix: '/en/academy/', sidebarLink: '/en/academy/' },
+  { text: 'Kernel Families', link: '/en/kernel-families/', activeMatch: '/en/kernel-families/', sidebarPrefix: '/en/kernel-families/', sidebarLink: '/en/kernel-families/' },
+  { text: 'Architecture Lab', link: '/en/architecture-lab/', activeMatch: '/en/architecture-lab/', sidebarPrefix: '/en/architecture-lab/', sidebarLink: '/en/architecture-lab/' },
+  { text: 'Guides', link: '/en/guides/', activeMatch: '/en/guides/', sidebarPrefix: '/en/guides/', sidebarLink: '/en/guides/' },
+  { text: 'Research', link: '/en/reference-research/', activeMatch: '/en/reference-research/', sidebarPrefix: '/en/reference-research/', sidebarLink: '/en/reference-research/' },
+  { text: 'Release Notes', link: '/en/release-notes/changelog', activeMatch: '/en/release-notes/', sidebarPrefix: '/en/release-notes/', sidebarLink: '/en/release-notes/changelog', sidebarText: 'Changelog' },
+] as const
+
+const zhSections = [
+  { text: '导读', link: '/zh/overview/', activeMatch: '/zh/overview/', sidebarPrefix: '/zh/overview/', sidebarLink: '/zh/overview/' },
+  { text: '学院', link: '/zh/academy/', activeMatch: '/zh/academy/', sidebarPrefix: '/zh/academy/', sidebarLink: '/zh/academy/' },
+  { text: '算子族', link: '/zh/kernel-families/', activeMatch: '/zh/kernel-families/', sidebarPrefix: '/zh/kernel-families/', sidebarLink: '/zh/kernel-families/' },
+  { text: '架构实验室', link: '/zh/architecture-lab/', activeMatch: '/zh/architecture-lab/', sidebarPrefix: '/zh/architecture-lab/', sidebarLink: '/zh/architecture-lab/' },
+  { text: '工程指南', link: '/zh/guides/', activeMatch: '/zh/guides/', sidebarPrefix: '/zh/guides/', sidebarLink: '/zh/guides/' },
+  { text: '参考与研究', link: '/zh/reference-research/', activeMatch: '/zh/reference-research/', sidebarPrefix: '/zh/reference-research/', sidebarLink: '/zh/reference-research/' },
+  { text: '发布说明', link: '/zh/release-notes/changelog', activeMatch: '/zh/release-notes/', sidebarPrefix: '/zh/release-notes/', sidebarLink: '/zh/release-notes/changelog', sidebarText: '变更日志' },
+] as const
+
+function buildNav(
+  sections: ReadonlyArray<{ text: string; link: string; activeMatch: string }>,
+) {
+  return sections.map(({ text, link, activeMatch }) => ({ text, link, activeMatch }))
+}
+
+function buildSidebar(
+  sections: ReadonlyArray<{
+    text: string
+    sidebarPrefix: string
+    sidebarLink: string
+    sidebarText?: string
+  }>,
+) {
+  return Object.fromEntries(
+    sections.map(({ text, sidebarPrefix, sidebarLink, sidebarText }) => [
+      sidebarPrefix,
+      [
+        {
+          text,
+          items: [
+            {
+              text: sidebarText ?? text,
+              link: sidebarLink,
+            },
+          ],
+        },
+      ],
+    ]),
+  )
+}
+
 export default withMermaid(defineConfig({
   base,
   cleanUrls: true,
@@ -30,79 +82,8 @@ export default withMermaid(defineConfig({
       title: 'Triton Fused Ops',
       description: 'High-performance Triton kernels for Transformer inference',
       themeConfig: {
-        nav: [
-          { text: 'Getting Started', link: '/en/getting-started/', activeMatch: '/en/getting-started/' },
-          { text: 'API', link: '/en/api/', activeMatch: '/en/api/' },
-          { text: 'Guides', link: '/en/guides/', activeMatch: '/en/guides/' },
-          { text: 'Internals', link: '/en/internals/', activeMatch: '/en/internals/' },
-          { text: 'References', link: '/en/references/', activeMatch: '/en/references/' },
-          { text: 'Changelog', link: '/en/release-notes/changelog', activeMatch: '/en/release-notes/' },
-        ],
-        sidebar: {
-          '/en/getting-started/': [
-            {
-              text: 'Getting Started',
-              items: [
-                { text: 'Installation', link: '/en/getting-started/installation' },
-                { text: 'Quick Start', link: '/en/getting-started/quickstart' },
-                { text: 'Examples', link: '/en/getting-started/examples' },
-              ],
-            },
-          ],
-          '/en/api/': [
-            {
-              text: 'API Reference',
-              items: [
-                { text: 'Core Kernels', link: '/en/api/kernels' },
-                { text: 'FP8 Quantization', link: '/en/api/quantization' },
-                { text: 'Auto-Tuning', link: '/en/api/autotuner' },
-                { text: 'Benchmarking', link: '/en/api/benchmark' },
-                { text: 'Models and Types', link: '/en/api/models' },
-                { text: 'Validation', link: '/en/api/validation' },
-                { text: 'Errors', link: '/en/api/errors' },
-              ],
-            },
-          ],
-          '/en/guides/': [
-            {
-              text: 'Guides',
-              items: [
-                { text: 'Integration', link: '/en/guides/integration' },
-                { text: 'Performance', link: '/en/guides/performance' },
-                { text: 'FP8 Best Practices', link: '/en/guides/fp8-best-practices' },
-                { text: 'Benchmark Visualization', link: '/en/guides/benchmark-visualization' },
-              ],
-            },
-          ],
-          '/en/internals/': [
-            {
-              text: 'Internals',
-              items: [
-                { text: 'Architecture', link: '/en/internals/architecture' },
-                { text: 'Kernel Design', link: '/en/internals/kernel-design' },
-                { text: 'Memory Optimization', link: '/en/internals/memory-optimization' },
-              ],
-            },
-          ],
-          '/en/references/': [
-            {
-              text: 'References',
-              items: [
-                { text: 'Papers', link: '/en/references/papers' },
-                { text: 'Projects', link: '/en/references/projects' },
-                { text: 'Blogs & Docs', link: '/en/references/blogs' },
-              ],
-            },
-          ],
-          '/en/release-notes/': [
-            {
-              text: 'Release Notes',
-              items: [
-                { text: 'Changelog', link: '/en/release-notes/changelog' },
-              ],
-            },
-          ],
-        },
+        nav: buildNav(enSections),
+        sidebar: buildSidebar(enSections),
       },
     },
     zh: {
@@ -112,80 +93,8 @@ export default withMermaid(defineConfig({
       title: 'Triton Fused Ops',
       description: '面向 Transformer 推理的高性能 Triton 融合算子库',
       themeConfig: {
-        nav: [
-          { text: '开始使用', link: '/zh/getting-started/', activeMatch: '/zh/getting-started/' },
-          { text: 'API', link: '/zh/api/', activeMatch: '/zh/api/' },
-          { text: '工程指南', link: '/zh/guides/', activeMatch: '/zh/guides/' },
-          { text: '内部实现', link: '/zh/internals/', activeMatch: '/zh/internals/' },
-          { text: '参考文献', link: '/zh/references/', activeMatch: '/zh/references/' },
-          { text: '变更日志', link: '/zh/release-notes/changelog', activeMatch: '/zh/release-notes/' },
-        ],
-        sidebar: {
-          '/zh/getting-started/': [
-            {
-              text: '开始使用',
-              items: [
-                { text: '安装指南', link: '/zh/getting-started/installation' },
-                { text: '快速开始', link: '/zh/getting-started/quickstart' },
-                { text: '示例教程', link: '/zh/getting-started/examples' },
-              ],
-            },
-          ],
-          '/zh/api/': [
-            {
-              text: 'API 参考',
-              items: [
-                { text: '核心算子', link: '/zh/api/kernels' },
-                { text: 'FP8 量化', link: '/zh/api/quantization' },
-                { text: '自动调优', link: '/zh/api/autotuner' },
-                { text: '基准测试', link: '/zh/api/benchmark' },
-                { text: '数据模型与类型', link: '/zh/api/models' },
-                { text: '输入校验', link: '/zh/api/validation' },
-                { text: '异常模型', link: '/zh/api/errors' },
-              ],
-            },
-          ],
-          '/zh/guides/': [
-            {
-              text: '工程指南',
-              items: [
-                { text: '集成指南', link: '/zh/guides/integration' },
-                { text: '性能优化', link: '/zh/guides/performance' },
-                { text: 'FP8 最佳实践', link: '/zh/guides/fp8-best-practices' },
-                { text: '性能可视化', link: '/zh/guides/benchmark-visualization' },
-              ],
-            },
-          ],
-          '/zh/internals/': [
-            {
-              text: '内部实现',
-              items: [
-                { text: '架构设计', link: '/zh/internals/architecture' },
-                { text: '算子设计', link: '/zh/internals/kernel-design' },
-                { text: '内存优化', link: '/zh/internals/memory-optimization' },
-              ],
-            },
-          ],
-          '/zh/references/': [
-            {
-              text: '参考文献',
-              items: [
-                { text: '论文', link: '/zh/references/papers' },
-                { text: '项目', link: '/zh/references/projects' },
-                { text: '博客与文档', link: '/zh/references/blogs' },
-                { text: '术语翻译对照', link: '/zh/references/translations' },
-              ],
-            },
-          ],
-          '/zh/release-notes/': [
-            {
-              text: '变更日志',
-              items: [
-                { text: 'Changelog', link: '/zh/release-notes/changelog' },
-              ],
-            },
-          ],
-        },
+        nav: buildNav(zhSections),
+        sidebar: buildSidebar(zhSections),
       },
     },
   },

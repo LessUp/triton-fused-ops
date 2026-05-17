@@ -18,8 +18,8 @@ import { useRouter } from 'vitepress'
 
 onMounted(() => {
   const router = useRouter()
-  const lang = navigator.language || navigator.userLanguage
-  if (lang.startsWith('zh')) {
+  const lang = navigator.language || 'en-US'
+  if (lang.toLowerCase().startsWith('zh')) {
     router.go('/zh/')
   } else {
     router.go('/en/')

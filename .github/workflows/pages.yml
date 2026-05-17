@@ -24,7 +24,7 @@ jobs:
     if: github.repository == 'LessUp/triton-fused-ops'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -40,11 +40,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-docs-node-modules-
 
-      - name: Configure GitHub Pages
+      - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Set VitePress base
+      - name: Resolve VitePress base
         shell: bash
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
