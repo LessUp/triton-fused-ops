@@ -37,14 +37,13 @@ The runtime boundary is more specific than a normal norm layer:
 | `cos`, `sin` | RoPE tables shaped for the sequence and head dimension |
 | `num_heads` | Optional explicit override if you do not want it inferred |
 
-The validators check CUDA placement, dtype support, contiguity, shape agreement, and divisibility relationships between `hidden_dim` and head geometry.
+The current launcher path checks CUDA placement, supported floating dtypes, contiguity, `x`/`weight`/`cos`/`sin` shape agreement, positive `eps`, even `head_dim`, and positive batch/sequence/hidden sizes. When `num_heads` is omitted, it is inferred only if `hidden_dim` is divisible by the RoPE head dimension.
 
 ## Validation and evidence
 
 The relevant evidence surfaces are straightforward:
 
-- validation is centralized in `triton_ops.validation` rather than hidden inside the launch path,
-- `validate_rmsnorm_rope_inputs` defines the runtime constraints,
+- launch-time validation is split between `validate_rmsnorm_rope_inputs` and the scalar helpers `validate_eps`, `validate_head_dim`, and `validate_positive_dimensions`,
 - the reference implementation gives a readable mathematical baseline,
 - Benchmarking should compare the fused path against a clear unfused baseline.
 

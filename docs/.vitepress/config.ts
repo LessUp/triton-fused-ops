@@ -93,6 +93,17 @@ const enSidebar = {
       ],
     },
   ],
+  '/en/guides/': [
+    {
+      text: 'Guides',
+      items: [
+        { text: 'Guides', link: '/en/guides/' },
+        { text: 'Integration Guide', link: '/en/guides/integration' },
+        { text: 'Performance Guide', link: '/en/guides/performance' },
+        { text: 'Benchmark Visualization', link: '/en/guides/benchmark-visualization' },
+      ],
+    },
+  ],
   '/en/reference-research/': [
     {
       text: 'Reference & Research',
