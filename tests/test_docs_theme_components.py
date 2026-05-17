@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 
 
@@ -51,6 +52,9 @@ TOP_LEVEL_DOCS_EXPECTED_ACTIVE_ROUTES = {
         "/zh/reference-research/",
     ),
 }
+README_REFERENCE_IMPORT = (
+    "from triton_ops.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference"
+)
 LEGACY_ROUTE_FRAGMENTS = (
     "/en/api/",
     "/zh/api/",
@@ -649,6 +653,18 @@ def test_top_level_docs_entrypoints_do_not_reference_removed_legacy_routes():
 
         for route in expected_routes:
             assert route in contents, f"{path} should point readers to active route {route!r}"
+
+
+def test_readmes_use_live_reference_import_snippet():
+    for path in (REPO_ROOT / "README.md", REPO_ROOT / "README.zh-CN.md"):
+        contents = read_text(path)
+        assert README_REFERENCE_IMPORT in contents
+
+    module = importlib.import_module("triton_ops.reference")
+    from triton_ops.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference
+
+    assert getattr(module, "fused_rmsnorm_rope") is fused_rmsnorm_rope_reference
+    assert callable(fused_rmsnorm_rope_reference)
 
 
 def test_homepages_replace_removed_api_page_copy_with_live_sections():
