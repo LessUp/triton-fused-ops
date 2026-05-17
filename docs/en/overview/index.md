@@ -49,17 +49,17 @@ A technical whitepaper is only useful if readers can trace each claim back to a 
 ## Where to go next
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="/en/academy/">
+  <a class="info-card" href="../academy/">
     <span class="card-kicker">Academy</span>
     <strong>System-level explanation</strong>
     <span>Read the system overview before diving into individual kernel families.</span>
   </a>
-  <a class="info-card" href="/en/kernel-families/">
+  <a class="info-card" href="../kernel-families/">
     <span class="card-kicker">Kernel Families</span>
     <strong>Operation-by-operation analysis</strong>
     <span>Compare fused RMSNorm + RoPE, fused Gated MLP, and the FP8 stack.</span>
   </a>
-  <a class="info-card" href="/en/architecture-lab/">
+  <a class="info-card" href="../architecture-lab/">
     <span class="card-kicker">Architecture Lab</span>
     <strong>Module seams and runtime contracts</strong>
     <span>Use this when you need the implementation-facing explanation rather than the product-facing one.</span>

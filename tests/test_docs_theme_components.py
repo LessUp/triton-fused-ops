@@ -128,9 +128,9 @@ ENGLISH_WHITEPAPER_PAGES = {
 ENGLISH_GUIDE_EXPECTATIONS = {
     DOCS_ROOT / "en" / "guides" / "index.md": (
         "Choose the narrative you need",
-        "/en/guides/performance",
-        "/en/guides/integration",
-        "/en/reference-research/",
+        "./performance",
+        "./integration",
+        "../reference-research/",
     ),
     DOCS_ROOT / "en" / "guides" / "performance.md": (
         "Benchmarking",
@@ -143,6 +143,28 @@ ENGLISH_GUIDE_EXPECTATIONS = {
         "Kernel family",
         "FusedRMSNormRoPE",
         "FP8Linear",
+    ),
+}
+ENGLISH_BASE_AWARE_CARD_LINKS = {
+    DOCS_ROOT / "en" / "index.md": (
+        'href="./overview/"',
+        'href="./academy/"',
+        'href="./guides/"',
+    ),
+    DOCS_ROOT / "en" / "overview" / "index.md": (
+        'href="../academy/"',
+        'href="../kernel-families/"',
+        'href="../architecture-lab/"',
+    ),
+    DOCS_ROOT / "en" / "guides" / "index.md": (
+        'href="./integration"',
+        'href="./performance"',
+        'href="../reference-research/"',
+    ),
+    DOCS_ROOT / "en" / "reference-research" / "index.md": (
+        'href="./related-projects"',
+        'href="./references"',
+        'href="./evolution-thinking"',
     ),
 }
 
@@ -254,6 +276,27 @@ def test_english_guides_match_whitepaper_information_architecture():
 
         for snippet in expected_snippets:
             assert snippet in contents, f"{path} should mention {snippet!r}"
+
+
+def test_english_whitepaper_card_links_are_base_aware():
+    for path, expected_links in ENGLISH_BASE_AWARE_CARD_LINKS.items():
+        contents = read_text(path)
+
+        assert 'href="/en/' not in contents, f"{path} should not hardcode /en card links"
+
+        for link in expected_links:
+            assert link in contents, f"{path} should include base-aware link {link!r}"
+
+
+def test_english_guides_sidebar_lists_child_pages():
+    contents = read_text(DOCS_ROOT / ".vitepress" / "config.ts")
+
+    assert "const enSidebar = {" in contents
+    assert "text: 'Guides'" in contents
+    assert "link: '/en/guides/'" in contents
+    assert "link: '/en/guides/integration'" in contents
+    assert "link: '/en/guides/performance'" in contents
+    assert "link: '/en/guides/benchmark-visualization'" in contents
 
 
 def test_kernel_showcase_localized_links_are_base_aware():

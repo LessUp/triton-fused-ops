@@ -16,17 +16,17 @@ A useful research agenda for this codebase has three parts:
 3. **evolution thinking** — what an industrial, evidence-backed kernel library should keep improving without losing focus.
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="/en/reference-research/related-projects">
+  <a class="info-card" href="./related-projects">
     <span class="card-kicker">Projects</span>
     <strong>Adjacent system designs</strong>
     <span>Use related projects as comparison points for APIs, deployment posture, and kernel scope.</span>
   </a>
-  <a class="info-card" href="/en/reference-research/references">
+  <a class="info-card" href="./references">
     <span class="card-kicker">References</span>
     <strong>Curated papers and technical sources</strong>
     <span>Read the underlying work behind Triton, FlashAttention, FP8, RoPE, and normalization.</span>
   </a>
-  <a class="info-card" href="/en/reference-research/evolution-thinking">
+  <a class="info-card" href="./evolution-thinking">
     <span class="card-kicker">Evolution</span>
     <strong>How the repo should grow carefully</strong>
     <span>Use evolution notes to reason about scope, proof surfaces, and the next questions worth answering.</span>

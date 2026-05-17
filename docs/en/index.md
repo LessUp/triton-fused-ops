@@ -22,17 +22,17 @@ import ResearchLandscape from '@theme/components/ResearchLandscape.vue'
 Triton Fused Ops is a focused GPU kernel library for Transformer inference. It does **not** try to be a full model framework. It ships a small set of user-facing kernel families, a reference layer for verification, a validation layer for runtime contracts, and tooling for Benchmarking, Auto-Tuning, and Performance metrics.
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="/en/overview/">
+  <a class="info-card" href="./overview/">
     <span class="card-kicker">Overview</span>
     <strong>Learn the vocabulary first</strong>
     <span>Start with the project terms, evidence model, and reading order used across the docs.</span>
   </a>
-  <a class="info-card" href="/en/academy/">
+  <a class="info-card" href="./academy/">
     <span class="card-kicker">Academy</span>
     <strong>Take the interview-grade path</strong>
     <span>Read the system overview, then descend into kernel families and architecture notes.</span>
   </a>
-  <a class="info-card" href="/en/guides/">
+  <a class="info-card" href="./guides/">
     <span class="card-kicker">Guides</span>
     <strong>Wire it into real code</strong>
     <span>Use the integration and performance guides when you are making deployment decisions.</span>

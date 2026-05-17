@@ -5,7 +5,7 @@ description: Validation rules, typed errors, and launch-time expectations for Tr
 
 # Runtime Contracts
 
-Every shipped Kernel family assumes its inputs have already crossed a strict validation boundary. That boundary is the reason the launchers stay readable instead of becoming a mix of fast-path logic and scattered guard code.
+Every shipped Kernel family assumes its inputs have already crossed a validation boundary. That boundary is the reason the launchers stay readable instead of becoming a mix of fast-path logic and scattered guard code.
 
 ## What the validators enforce
 
@@ -17,15 +17,16 @@ Every shipped Kernel family assumes its inputs have already crossed a strict val
 - contiguous memory layouts must match expectations,
 - scalar arguments such as epsilon or activation choices must be sane.
 
-## Error vocabulary
+## Error vocabulary today
 
 | Error type | When it appears |
 | :-- | :-- |
 | `DeviceError` | A tensor is not on CUDA or is on the wrong device relative to its peers |
 | `ShapeMismatchError` | Tensor shapes or derived dimensions disagree |
 | `UnsupportedDtypeError` | The dtype is outside the family’s supported set |
-| `NumericalOverflowError` | FP8 scaling or quantization cannot safely proceed |
-| `TuningFailedError` | Auto-Tuning cannot find a valid configuration |
+| `ValueError` | Contiguity checks, activation validation, positive-scalar checks, and some declarative-contract fallbacks still use plain `ValueError` |
+
+`NumericalOverflowError` and `TuningFailedError` are exported library exceptions, but they are not the normal result of the current `triton_ops.validation` helpers.
 
 ## Contract examples by family
 
@@ -43,4 +44,4 @@ The FP8 path validates shape compatibility, scale availability, supported storag
 
 ## Why this matters for integration
 
-When an integration fails, the goal is to fail early and with typed information. That is why the docs keep pointing back to runtime contracts: they are the stable explanation for what a Kernel family expects from upstream model code.
+When an integration fails, the goal is to fail early and with as much specific information as the current validators provide. That is why the docs keep pointing back to runtime contracts: they are the stable explanation for what a Kernel family expects from upstream model code, even though some checks still surface as plain `ValueError`.
