@@ -32,6 +32,119 @@ HOMEPAGE_EDITORIAL_COMPONENTS = (
     "KernelAtlas",
     "SystemBlueprint",
 )
+ENGLISH_WHITEPAPER_COMPONENTS = (
+    "WhitepaperHero",
+    "ReaderTracks",
+    "KernelAtlas",
+    "SystemBlueprint",
+    "ResearchLandscape",
+)
+ENGLISH_WHITEPAPER_PAGES = {
+    DOCS_ROOT / "en" / "overview" / "index.md": (
+        "Kernel family",
+        "Benchmarking",
+        "Auto-Tuning",
+        "Performance metrics",
+    ),
+    DOCS_ROOT / "en" / "academy" / "index.md": (
+        "Academy map",
+        "/en/academy/system-overview",
+        "/en/kernel-families/",
+        "/en/architecture-lab/",
+    ),
+    DOCS_ROOT / "en" / "academy" / "system-overview.md": (
+        "Public API surface",
+        "Validation contracts",
+        "Kernel and reference execution",
+        "Benchmarking and Auto-Tuning",
+    ),
+    DOCS_ROOT / "en" / "kernel-families" / "index.md": (
+        "Fused RMSNorm + RoPE",
+        "Fused Gated MLP",
+        "FP8 GEMM",
+        "FP8 quantization utilities",
+    ),
+    DOCS_ROOT / "en" / "kernel-families" / "rmsnorm-rope.md": (
+        "RMSNorm",
+        "RoPE",
+        "validation",
+        "Benchmarking",
+    ),
+    DOCS_ROOT / "en" / "kernel-families" / "gated-mlp.md": (
+        "SwiGLU",
+        "GeGLU",
+        "intermediate_dim",
+        "activation",
+    ),
+    DOCS_ROOT / "en" / "kernel-families" / "fp8-stack.md": (
+        "FP8 GEMM",
+        "quantize_fp8",
+        "dequantize_fp8",
+        "scale",
+    ),
+    DOCS_ROOT / "en" / "architecture-lab" / "index.md": (
+        "module map",
+        "runtime contracts",
+        "public exports",
+        "validation",
+    ),
+    DOCS_ROOT / "en" / "architecture-lab" / "module-map.md": (
+        "triton_ops/__init__.py",
+        "triton_ops/kernels/",
+        "triton_ops/reference/",
+        "triton_ops/benchmark/",
+    ),
+    DOCS_ROOT / "en" / "architecture-lab" / "runtime-contracts.md": (
+        "DeviceError",
+        "ShapeMismatchError",
+        "UnsupportedDtypeError",
+        "contiguous",
+    ),
+    DOCS_ROOT / "en" / "reference-research" / "index.md": (
+        "related projects",
+        "references",
+        "evolution thinking",
+        "research agenda",
+    ),
+    DOCS_ROOT / "en" / "reference-research" / "related-projects.md": (
+        "OpenAI Triton",
+        "PyTorch",
+        "vLLM",
+        "TensorRT-LLM",
+    ),
+    DOCS_ROOT / "en" / "reference-research" / "references.md": (
+        "FlashAttention",
+        "FP8 Formats for Deep Learning",
+        "RoFormer",
+        "Root Mean Square Layer Normalization",
+    ),
+    DOCS_ROOT / "en" / "reference-research" / "evolution-thinking.md": (
+        "industrial",
+        "kernel family",
+        "evidence-backed",
+        "next questions",
+    ),
+}
+ENGLISH_GUIDE_EXPECTATIONS = {
+    DOCS_ROOT / "en" / "guides" / "index.md": (
+        "Choose the narrative you need",
+        "/en/guides/performance",
+        "/en/guides/integration",
+        "/en/reference-research/",
+    ),
+    DOCS_ROOT / "en" / "guides" / "performance.md": (
+        "Benchmarking",
+        "Auto-Tuning",
+        "Performance metrics",
+        "BenchmarkSuite",
+    ),
+    DOCS_ROOT / "en" / "guides" / "integration.md": (
+        "runtime contracts",
+        "Kernel family",
+        "FusedRMSNormRoPE",
+        "FP8Linear",
+    ),
+}
 
 
 def read_text(path: Path) -> str:
@@ -97,9 +210,50 @@ def test_homepages_compose_editorial_shared_components_without_legacy_blocks():
             f"{locale} homepage should not use legacy architecture preview"
         )
 
-        for component in HOMEPAGE_EDITORIAL_COMPONENTS:
+        expected_components = (
+            ENGLISH_WHITEPAPER_COMPONENTS if locale == "en" else HOMEPAGE_EDITORIAL_COMPONENTS
+        )
+
+        for component in expected_components:
             assert f"import {component} from '@theme/components/{component}.vue'" in contents
-            assert f"<{component} />" in contents
+            assert f"<{component}" in contents
+
+
+def test_english_homepage_uses_whitepaper_landing_composition():
+    contents = read_text(HOMEPAGE_PATHS["en"])
+
+    assert "HomeHero" not in contents
+
+    for component in ENGLISH_WHITEPAPER_COMPONENTS:
+        assert f"import {component} from '@theme/components/{component}.vue'" in contents
+        assert f"<{component}" in contents
+
+
+def test_english_whitepaper_routes_are_not_stubs_and_cover_key_topics():
+    forbidden_stub_markers = (
+        "reserved for",
+        "will be expanded",
+        "route hub is in place",
+        "follow-up content tasks",
+    )
+
+    for path, expected_snippets in ENGLISH_WHITEPAPER_PAGES.items():
+        contents = read_text(path)
+        lowered = contents.lower()
+
+        for marker in forbidden_stub_markers:
+            assert marker not in lowered, f"{path} should not remain a placeholder"
+
+        for snippet in expected_snippets:
+            assert snippet in contents, f"{path} should mention {snippet!r}"
+
+
+def test_english_guides_match_whitepaper_information_architecture():
+    for path, expected_snippets in ENGLISH_GUIDE_EXPECTATIONS.items():
+        contents = read_text(path)
+
+        for snippet in expected_snippets:
+            assert snippet in contents, f"{path} should mention {snippet!r}"
 
 
 def test_kernel_showcase_localized_links_are_base_aware():
