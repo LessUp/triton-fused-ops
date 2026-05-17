@@ -26,6 +26,38 @@ HOMEPAGE_PATHS = {
     "en": DOCS_ROOT / "en" / "index.md",
     "zh": DOCS_ROOT / "zh" / "index.md",
 }
+OPENSPEC_CHANGE_DIR = REPO_ROOT / "openspec" / "changes" / "rebuild-pages-whitepaper-academy"
+TOP_LEVEL_DOCS_ENTRYPOINTS = (
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "README.zh-CN.md",
+    DOCS_ROOT / ".vitepress" / "config.ts",
+    DOCS_ROOT / "en" / "index.md",
+    DOCS_ROOT / "zh" / "index.md",
+)
+TOP_LEVEL_DOCS_EXPECTED_ACTIVE_ROUTES = {
+    REPO_ROOT / "README.md": (
+        "/en/academy/",
+        "/en/kernel-families/",
+        "/en/architecture-lab/",
+        "/en/reference-research/",
+    ),
+    REPO_ROOT / "README.zh-CN.md": (
+        "/zh/academy/",
+        "/zh/kernel-families/",
+        "/zh/architecture-lab/",
+        "/zh/reference-research/",
+    ),
+}
+LEGACY_ROUTE_FRAGMENTS = (
+    "/en/api/",
+    "/zh/api/",
+    "/en/getting-started/",
+    "/zh/getting-started/",
+    "/en/internals/",
+    "/zh/internals/",
+    "/en/references/",
+    "/zh/references/",
+)
 WHITEPAPER_HOMEPAGE_COMPONENTS = (
     "WhitepaperHero",
     "ReaderTracks",
@@ -564,3 +596,34 @@ def test_benchmark_visualization_pages_use_figure_frame_and_theme_safe_tokens():
         assert "BenchmarkVisualizationFigures" in contents, (
             f"{locale} benchmark visualization page should render the shared figure component"
         )
+
+
+def test_worktree_contains_openspec_change_record():
+    assert OPENSPEC_CHANGE_DIR.is_dir(), "worktree should include the OpenSpec change directory"
+
+    for relative_path in (
+        ".openspec.yaml",
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "specs/docs-academy-content/spec.md",
+        "specs/docs-dual-theme-visuals/spec.md",
+        "specs/docs-whitepaper-site/spec.md",
+    ):
+        assert (OPENSPEC_CHANGE_DIR / relative_path).is_file(), (
+            f"missing OpenSpec artifact: {relative_path}"
+        )
+
+
+def test_top_level_docs_entrypoints_do_not_reference_removed_legacy_routes():
+    for path in TOP_LEVEL_DOCS_ENTRYPOINTS:
+        contents = read_text(path)
+
+        for fragment in LEGACY_ROUTE_FRAGMENTS:
+            assert fragment not in contents, f"{path} should not reference removed route {fragment!r}"
+
+    for path, expected_routes in TOP_LEVEL_DOCS_EXPECTED_ACTIVE_ROUTES.items():
+        contents = read_text(path)
+
+        for route in expected_routes:
+            assert route in contents, f"{path} should point readers to active route {route!r}"

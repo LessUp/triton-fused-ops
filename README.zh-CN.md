@@ -37,7 +37,7 @@ User API (triton_ops.__init__)
     └── 工具层 (autotuner, benchmark, performance metrics)
 ```
 
-详见 [架构设计](https://lessup.github.io/triton-fused-ops/zh/internals/architecture) 与 [算子设计](https://lessup.github.io/triton-fused-ops/zh/internals/kernel-design) 文档。
+详见[架构实验室](https://lessup.github.io/triton-fused-ops/zh/architecture-lab/)与[算子族](https://lessup.github.io/triton-fused-ops/zh/kernel-families/)文档。
 
 ## 快速开始
 
@@ -87,10 +87,10 @@ NVIDIA A100 SXM4 80GB 上的代表性数据（CUDA 12.1, PyTorch 2.1, Triton 2.1
 
 | 章节 | 适合读者 | 核心收获 |
 |:--|:--|:--|
-| [开始使用](https://lessup.github.io/triton-fused-ops/zh/getting-started/) | 初次接触 | 5 分钟跑通第一个 kernel |
-| [算子设计](https://lessup.github.io/triton-fused-ops/zh/internals/kernel-design) | 面试准备 | 融合思路、tiling 策略、内存优化 |
+| [学院](https://lessup.github.io/triton-fused-ops/zh/academy/) | 初次接触 | 从系统总览到实现边界的叙事阅读路径 |
+| [架构实验室](https://lessup.github.io/triton-fused-ops/zh/architecture-lab/) | 面试准备 | 模块边界、运行时契约、公共导出 |
 | [性能优化](https://lessup.github.io/triton-fused-ops/zh/guides/performance) | 调优实践 | 正确的测速方法、瓶颈分析 |
-| [参考文献](https://lessup.github.io/triton-fused-ops/zh/references/) | 深度学习研究者 | 论文、竞品、技术栈全景 |
+| [参考与研究](https://lessup.github.io/triton-fused-ops/zh/reference-research/) | 深度学习研究者 | 论文、竞品、技术栈全景 |
 
 ## 开发
 
