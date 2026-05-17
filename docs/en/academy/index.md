@@ -11,25 +11,25 @@ The academy is the narrative route through the repository. Instead of listing AP
 
 | Sequence | Route | Why it comes here |
 | :-- | :-- | :-- |
-| 1 | [System overview](/en/academy/system-overview) | Understand the library as a layered system before focusing on one part |
-| 2 | [Kernel Families](/en/kernel-families/) | Learn each user-facing operation in the language of workload, contracts, and evidence |
-| 3 | [Architecture Lab](/en/architecture-lab/) | Inspect module seams, public exports, and runtime contracts |
-| 4 | [Guides](/en/guides/) | Move from understanding to usage, measurement, and integration |
-| 5 | [Reference & Research](/en/reference-research/) | Place the repo in the broader inference and kernel-systems conversation |
+| 1 | [System overview](./system-overview) | Understand the library as a layered system before focusing on one part |
+| 2 | [Kernel Families](../kernel-families/) | Learn each user-facing operation in the language of workload, contracts, and evidence |
+| 3 | [Architecture Lab](../architecture-lab/) | Inspect module seams, public exports, and runtime contracts |
+| 4 | [Guides](../guides/) | Move from understanding to usage, measurement, and integration |
+| 5 | [Reference & Research](../reference-research/) | Place the repo in the broader inference and kernel-systems conversation |
 
 ## Three ways to read it
 
 ### For evaluators
 
-Start with the [system overview](/en/academy/system-overview), then jump to [runtime contracts](/en/architecture-lab/runtime-contracts). This path is optimized for reviewers asking whether the implementation is disciplined.
+Start with the [system overview](./system-overview), then jump to [runtime contracts](../architecture-lab/runtime-contracts). This path is optimized for reviewers asking whether the implementation is disciplined.
 
 ### For kernel engineers
 
-Read [Kernel Families](/en/kernel-families/) next, then compare the descriptions against `triton_ops.kernels` and `triton_ops.reference`. This path is optimized for contributors who need to understand exactly where fusion, reference math, and validation join.
+Read [Kernel Families](../kernel-families/) next, then compare the descriptions against `triton_ops.kernels` and `triton_ops.reference`. This path is optimized for contributors who need to understand exactly where fusion, reference math, and validation join.
 
 ### For performance practitioners
 
-Read the system overview, then move directly to the [performance guide](/en/guides/performance) and the [research notes](/en/reference-research/). This path is optimized for readers who care about Benchmarking, Auto-Tuning, and Performance metrics.
+Read the system overview, then move directly to the [performance guide](../guides/performance) and the [research notes](../reference-research/). This path is optimized for readers who care about Benchmarking, Auto-Tuning, and Performance metrics.
 
 ## What the academy emphasizes
 

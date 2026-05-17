@@ -115,6 +115,15 @@ const enSidebar = {
       ],
     },
   ],
+  '/en/release-notes/': [
+    {
+      text: 'Release Notes',
+      items: [
+        { text: 'Release Notes', link: '/en/release-notes/' },
+        { text: 'Changelog', link: '/en/release-notes/changelog' },
+      ],
+    },
+  ],
 } as const
 
 
@@ -169,6 +178,15 @@ const zhSidebar = {
         { text: '相关项目', link: '/zh/reference-research/related-projects' },
         { text: '参考文献', link: '/zh/reference-research/references' },
         { text: '演进思路', link: '/zh/reference-research/evolution-thinking' },
+      ],
+    },
+  ],
+  '/zh/release-notes/': [
+    {
+      text: '发布说明',
+      items: [
+        { text: '发布说明', link: '/zh/release-notes/' },
+        { text: '变更日志', link: '/zh/release-notes/changelog' },
       ],
     },
   ],

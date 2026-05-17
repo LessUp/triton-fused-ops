@@ -50,8 +50,8 @@ Triton Fused Ops is a focused GPU kernel library for Transformer inference. It d
 
 ## Reading order for different jobs
 
-1. **Evaluator** — read [Overview](/en/overview/), [Academy](/en/academy/), and [Architecture Lab](/en/architecture-lab/).
-2. **Integrator** — go from [Kernel Families](/en/kernel-families/) to [Integration Guide](/en/guides/integration).
-3. **Performance reviewer** — read [Performance Guide](/en/guides/performance), then [Reference & Research](/en/reference-research/).
+1. **Evaluator** — read [Overview](./overview/), [Academy](./academy/), and [Architecture Lab](./architecture-lab/).
+2. **Integrator** — go from [Kernel Families](./kernel-families/) to [Integration Guide](./guides/integration).
+3. **Performance reviewer** — read [Performance Guide](./guides/performance), then [Reference & Research](./reference-research/).
 
 <ResearchLandscape />

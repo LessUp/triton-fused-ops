@@ -91,9 +91,9 @@ ENGLISH_WHITEPAPER_PAGES = {
     ),
     DOCS_ROOT / "en" / "academy" / "index.md": (
         "Academy map",
-        "/en/academy/system-overview",
-        "/en/kernel-families/",
-        "/en/architecture-lab/",
+        "./system-overview",
+        "../kernel-families/",
+        "../architecture-lab/",
     ),
     DOCS_ROOT / "en" / "academy" / "system-overview.md": (
         "Public API surface",
@@ -197,9 +197,9 @@ CHINESE_WHITEPAPER_PAGES = {
     ),
     DOCS_ROOT / "zh" / "academy" / "index.md": (
         "学院地图",
-        "/zh/academy/system-overview",
-        "/zh/kernel-families/",
-        "/zh/architecture-lab/",
+        "./system-overview",
+        "../kernel-families/",
+        "../architecture-lab/",
     ),
     DOCS_ROOT / "zh" / "academy" / "system-overview.md": (
         "公共 API",

@@ -88,4 +88,4 @@ from triton_ops.kernels.fp8_quantize import quantize_fp8_with_overflow_handling
 1. Micikevicius, P., et al. (2022). FP8 Formats for Deep Learning. *arXiv preprint*. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433)
 2. Xiao, G., et al. (2023). SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. *ICML*. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438)
 
-详见[相关项目](/zh/reference-research/related-projects)与完整[参考文献](/zh/reference-research/references)页面获取更多资源。
+详见[相关项目](../reference-research/related-projects)与完整[参考文献](../reference-research/references)页面获取更多资源。
