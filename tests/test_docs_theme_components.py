@@ -1,7 +1,6 @@
 import importlib
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCS_ROOT = REPO_ROOT / "docs"
 THEME_ROOT = REPO_ROOT / "docs" / ".vitepress" / "theme"
@@ -82,9 +81,7 @@ WHITEPAPER_HOMEPAGE_COMPONENTS = (
     "SystemBlueprint",
     "ResearchLandscape",
 )
-ENGLISH_WHITEPAPER_COMPONENTS = (
-    *WHITEPAPER_HOMEPAGE_COMPONENTS,
-)
+ENGLISH_WHITEPAPER_COMPONENTS = (*WHITEPAPER_HOMEPAGE_COMPONENTS,)
 ENGLISH_WHITEPAPER_PAGES = {
     DOCS_ROOT / "en" / "overview" / "index.md": (
         "Kernel family",
@@ -377,7 +374,7 @@ def test_shared_editorial_components_are_production_ready():
     for filename, expectations in COMPONENTS.items():
         contents = read_text(THEME_ROOT / "components" / filename)
         assert "docs-shell-stub" not in contents, f"{filename} should not remain a stub"
-        assert "<script setup lang=\"ts\">" in contents, f"{filename} should use typed setup"
+        assert '<script setup lang="ts">' in contents, f"{filename} should use typed setup"
 
         if expectations["needs_locale"]:
             assert "useData" in contents, f"{filename} should read VitePress locale data"
@@ -508,7 +505,10 @@ def test_root_redirect_uses_base_aware_locale_targets():
     contents = read_text(ROOT_INDEX_PATH)
 
     assert "withBase" in contents
-    assert "const target = lang.toLowerCase().startsWith('zh') ? withBase('/zh/') : withBase('/en/')" in contents
+    assert (
+        "const target = lang.toLowerCase().startsWith('zh') ? withBase('/zh/') : withBase('/en/')"
+        in contents
+    )
     assert "router.go(target)" in contents
     assert "router.go('/zh/')" not in contents
     assert "router.go('/en/')" not in contents
@@ -590,7 +590,7 @@ def test_system_blueprint_uses_shared_figure_frame_language():
     contents = read_text(SYSTEM_BLUEPRINT_PATH)
 
     assert "FigureFrame" in contents
-    assert "tone=\"accent\"" in contents
+    assert 'tone="accent"' in contents
 
 
 def test_benchmark_visualization_pages_use_figure_frame_and_theme_safe_tokens():
@@ -646,7 +646,9 @@ def test_top_level_docs_entrypoints_do_not_reference_removed_legacy_routes():
         contents = read_text(path)
 
         for fragment in LEGACY_ROUTE_FRAGMENTS:
-            assert fragment not in contents, f"{path} should not reference removed route {fragment!r}"
+            assert fragment not in contents, (
+                f"{path} should not reference removed route {fragment!r}"
+            )
 
     for path, expected_routes in TOP_LEVEL_DOCS_EXPECTED_ACTIVE_ROUTES.items():
         contents = read_text(path)
