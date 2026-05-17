@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+DOCS_ROOT = REPO_ROOT / "docs"
 THEME_ROOT = REPO_ROOT / "docs" / ".vitepress" / "theme"
 STYLE_PATH = THEME_ROOT / "style.css"
 INDEX_PATH = THEME_ROOT / "index.ts"
@@ -14,6 +15,16 @@ COMPONENTS = {
     "FigureFrame.vue": {"needs_locale": False},
     "ResearchLandscape.vue": {"needs_locale": True},
 }
+HOMEPAGE_PATHS = {
+    "en": DOCS_ROOT / "en" / "index.md",
+    "zh": DOCS_ROOT / "zh" / "index.md",
+}
+HOMEPAGE_EDITORIAL_COMPONENTS = (
+    "HomeHero",
+    "ReaderTracks",
+    "KernelAtlas",
+    "SystemBlueprint",
+)
 
 
 def read_text(path: Path) -> str:
@@ -65,6 +76,29 @@ def test_home_hero_uses_editorial_hero_layout_without_metrics_strip():
 
     assert "metrics-strip" not in contents
     assert "whitepaper-hero" in contents
+    assert "toLocalizedHref" in contents
+    assert '"/en/' not in contents
+    assert '"/zh/' not in contents
+
+
+def test_homepages_compose_editorial_shared_components_without_legacy_blocks():
+    for locale, path in HOMEPAGE_PATHS.items():
+        contents = read_text(path)
+
+        assert "KernelShowcase" not in contents, f"{locale} homepage should not use legacy showcase"
+        assert "ArchitecturePreview" not in contents, (
+            f"{locale} homepage should not use legacy architecture preview"
+        )
+
+        for component in HOMEPAGE_EDITORIAL_COMPONENTS:
+            assert f"import {component} from '@theme/components/{component}.vue'" in contents
+            assert f"<{component} />" in contents
+
+
+def test_kernel_showcase_localized_links_are_base_aware():
+    contents = read_text(THEME_ROOT / "components" / "KernelShowcase.vue")
+
+    assert "withBase" in contents
     assert "toLocalizedHref" in contents
     assert '"/en/' not in contents
     assert '"/zh/' not in contents
