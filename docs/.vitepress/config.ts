@@ -117,6 +117,63 @@ const enSidebar = {
   ],
 } as const
 
+
+const zhSidebar = {
+  ...buildSidebar(zhSections),
+  '/zh/academy/': [
+    {
+      text: '学院',
+      items: [
+        { text: '学院', link: '/zh/academy/' },
+        { text: '系统总览', link: '/zh/academy/system-overview' },
+      ],
+    },
+  ],
+  '/zh/kernel-families/': [
+    {
+      text: '算子族',
+      items: [
+        { text: '算子族', link: '/zh/kernel-families/' },
+        { text: 'Fused RMSNorm + RoPE', link: '/zh/kernel-families/rmsnorm-rope' },
+        { text: 'Fused Gated MLP', link: '/zh/kernel-families/gated-mlp' },
+        { text: 'FP8 栈', link: '/zh/kernel-families/fp8-stack' },
+      ],
+    },
+  ],
+  '/zh/architecture-lab/': [
+    {
+      text: '架构实验室',
+      items: [
+        { text: '架构实验室', link: '/zh/architecture-lab/' },
+        { text: '模块地图', link: '/zh/architecture-lab/module-map' },
+        { text: '运行时契约', link: '/zh/architecture-lab/runtime-contracts' },
+      ],
+    },
+  ],
+  '/zh/guides/': [
+    {
+      text: '工程指南',
+      items: [
+        { text: '工程指南', link: '/zh/guides/' },
+        { text: '集成指南', link: '/zh/guides/integration' },
+        { text: '性能指南', link: '/zh/guides/performance' },
+        { text: '性能可视化', link: '/zh/guides/benchmark-visualization' },
+      ],
+    },
+  ],
+  '/zh/reference-research/': [
+    {
+      text: '参考与研究',
+      items: [
+        { text: '参考与研究', link: '/zh/reference-research/' },
+        { text: '相关项目', link: '/zh/reference-research/related-projects' },
+        { text: '参考文献', link: '/zh/reference-research/references' },
+        { text: '演进思路', link: '/zh/reference-research/evolution-thinking' },
+      ],
+    },
+  ],
+} as const
+
 export default withMermaid(defineConfig({
   base,
   cleanUrls: true,
@@ -150,7 +207,7 @@ export default withMermaid(defineConfig({
       description: '面向 Transformer 推理的高性能 Triton 融合算子库',
       themeConfig: {
         nav: buildNav(zhSections),
-        sidebar: buildSidebar(zhSections),
+        sidebar: zhSidebar,
       },
     },
   },

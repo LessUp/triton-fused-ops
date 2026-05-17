@@ -1,146 +1,66 @@
 ---
-title: 性能优化
-description: "如何在本仓库中正确测量、理解并调优性能"
+title: 性能指南
+description: 如何在 Triton Fused Ops 中正确做 Benchmarking、Auto-Tuning 与性能解释
 ---
 
-# 性能优化
+# 性能指南
 
-本页说明如何正确测量仓库中的 kernel，以及怎样理解这些性能结果。融合优化思想借鉴了 FlashAttention [1] 的 IO-aware 调度原则。
+在这个仓库里讨论性能，前提是始终把三个词分开：**Benchmarking**、**Auto-Tuning**、**Performance metrics**。
 
-## 先明确你在测什么
+## 三层职责
 
-仓库里的三类性能故事并不完全一样：
+| 关注点 | 主要工具 | 它回答什么问题 |
+| :-- | :-- | :-- |
+| Benchmarking | `BenchmarkSuite`、`CorrectnessVerifier`、`PerformanceReport` | 某个 Kernel family 在声明的方法下测得多快，并且是否仍然正确？ |
+| Auto-Tuning | `TritonAutoTuner`、`ConfigCache`、预设配置空间 | 哪组 launch 参数把 latency 压到最低？ |
+| Performance metrics | `PerformanceProfile`、`MetricsCalculator`、`compute_metrics` | 在已知 shape 上下文下，这个 latency 意味着怎样的吞吐或带宽？ |
 
-- `fused_rmsnorm_rope`：更偏向减少内存往返，
-- `fused_gated_mlp`：更偏向融合后减少 launch 与中间结果搬运，
-- `fp8_gemm`：更偏向量化与矩阵乘吞吐量。
+## 先做 Benchmarking
 
-测量和解释时不要把它们混成同一种优化问题。
+先做 Benchmarking，因为它回答最基础的问题：测到的 kernel 既快不快，也对不对。
 
-## 正确计时方式
+严肃的 Benchmarking 至少应包含：
 
-```python
-import time
-import torch
-from triton_ops import fused_rmsnorm_rope
+- warmup 轮次；
+- 计时区间前后的显式 `torch.cuda.synchronize()`；
+- 来自真实模型的代表性 shape；
+- 与 reference 实现的正确性比对。
 
-x = torch.randn(8, 2048, 4096, device="cuda", dtype=torch.float16)
-weight = torch.ones(4096, device="cuda", dtype=torch.float16)
-cos = torch.randn(2048, 64, device="cuda", dtype=torch.float16)
-sin = torch.randn(2048, 64, device="cuda", dtype=torch.float16)
+`BenchmarkSuite` 已经把这些流程封装在一起，所以在你需要可比较证据时，它应是默认起点。
 
-for _ in range(10):
-    _ = fused_rmsnorm_rope(x, weight, cos, sin)
-torch.cuda.synchronize()
+## Auto-Tuning 放在哪
 
-start = time.perf_counter()
-for _ in range(100):
-    _ = fused_rmsnorm_rope(x, weight, cos, sin)
-torch.cuda.synchronize()
-end = time.perf_counter()
+Auto-Tuning 用来搜索 block size、warp 数等 launch 参数，不应与端到端 benchmark 混为一谈。
 
-print((end - start) / 100 * 1000)
-```
+一个实用规则是：
 
-必须包含：
+- 当你拥有 callable 并想找最佳配置时，用 **Auto-Tuning**；
+- 当你需要把结果提交为证据时，用 **Benchmarking**。
 
-- warmup，
-- 计时前后的显式同步，
-- 来自真实模型的代表性形状。
+## 如何解释 Performance metrics
 
-### 计时流程图
+单独的 latency 不是完整故事。只有在问题 shape 明确后，`triton_ops.performance` 的 Performance metrics 才有意义。
 
-```mermaid
-flowchart LR
-    WARM["Warmup<br/>(10 轮)"] --> SYNC1["torch.cuda.synchronize()"]
-    SYNC1 --> START["开始计时"]
-    START --> LOOP["循环执行<br/>(100 轮)"]
-    LOOP --> SYNC2["torch.cuda.synchronize()"]
-    SYNC2 --> END["结束计时"]
+- elementwise / reduction 风格路径通常更适合看有效带宽；
+- GEMM 风格路径通常更适合看吞吐；
+- 没有 shape 上下文时，结论应停留在 latency。
 
-    ERR1["&cross; 缺少 warmup"] -.-> WARM
-    ERR2["&cross; 缺少同步"] -.-> SYNC1
-    ERR3["&cross; 循环后未同步"] -.-> SYNC2
+## 各 family 的提醒
 
-    style WARM fill:#143,stroke:#76B900,color:#fff
-    style SYNC1 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
-    style START fill:#0d2600,stroke:#76B900,color:#76B900
-    style LOOP fill:#143,stroke:#76B900,color:#fff
-    style SYNC2 fill:#1a1a2e,stroke:#ffc517,color:#ffc517
-    style END fill:#0d2600,stroke:#76B900,color:#76B900
-    style ERR1 fill:#260000,stroke:#ff5454,color:#ff5454
-    style ERR2 fill:#260000,stroke:#ff5454,color:#ff5454
-    style ERR3 fill:#260000,stroke:#ff5454,color:#ff5454
-```
+### RMSNorm + RoPE
 
-> **图 6.** 正确的 GPU 计时流程。Warmup（绿色）预热缓存和 kernel。同步（黄色）在测量区域前后都是必须的。常见错误（红色）会导致计时结果无效。
+把它视为内存敏感型 family。Benchmarking 应覆盖有代表性的 sequence length 与 hidden size。
 
-## 优先复用内置 benchmark 层
+### Gated MLP
 
-`BenchmarkSuite` 已经封装了 warmup、重复执行、正确性校验和报告生成。如果你要做多轮实验对比，优先用它。
+把它视为 launch 次数与融合效率的故事。实验记录里必须写清 activation 选择。
 
-## 如何理解指标
+### FP8 栈
 
-仓库使用 `PerformanceProfile` 计算派生指标：
+把它视为格式、scale 与矩阵乘行为共同决定的路径。需要记录输入是预先量化还是运行时自动量化。
 
-```python
-from triton_ops import PerformanceProfile
+## 不该做什么
 
-# GEMM 类路径的计算吞吐
-gemm_profile = PerformanceProfile.gemm(M=1024, N=4096, K=4096)
-metrics = gemm_profile.metrics(latency_ms=0.5)
-print(f"吞吐量: {metrics.throughput_tflops:.2f} TFLOPS")
-
-# Elementwise / reduction 类路径的有效带宽
-elem_profile = PerformanceProfile.elementwise(numel=1024*4096)
-metrics = elem_profile.metrics(latency_ms=0.1)
-print(f"带宽利用率: {metrics.bandwidth_utilization:.1f}%")
-```
-
-这有助于区分：
-
-- GEMM 类路径的计算吞吐，
-- elementwise / reduction 类路径的有效带宽。
-
-## 自定义 kernel 的调优
-
-`TritonAutoTuner` 适合你自己写了 kernel wrapper，想在这些维度上搜索：
-
-- block 大小，
-- warp 数，
-- 其他以关键字参数传入的 launch 配置。
-
-仓库导出的 kernel 入口函数在正常调用时不会自动做在线配置搜索。
-
-## 实际排查清单
-
-### 对 `fused_rmsnorm_rope`
-
-- 检查 RoPE cache 形状是否正确且 contiguous，
-- 确保 hidden dimension 与 head 布局匹配，
-- 把主要优化目标理解为内存流量削减。
-
-### 对 `fused_gated_mlp`
-
-- 用真实 intermediate dimension 做 benchmark，
-- 明确区分 `silu` 与 `gelu`，
-- 记住完整 FFN 还包含 kernel 外部的额外计算。
-
-### 对 `fp8_gemm`
-
-- 对比自动量化与显式预量化两种路径，
-- 一定要与 FP16 baseline 做数值误差比较，
-- 不要只测方阵，也要覆盖真实的长宽比。
-
-## 哪些结果不能盲信
-
-- 单一 GPU 上的结果，不能直接外推到所有硬件。
-- 没有同步的 benchmark 结果基本没有意义。
-- 单 kernel 的提速，不等于端到端模型同样幅度的提速。
-
-## 参考文献
-
-1. Dao, T., et al. (2022). FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. *NeurIPS*. [arXiv:2205.14135](https://arxiv.org/abs/2205.14135)
-2. Williams, S., Waterman, A., & Patterson, D. (2009). Roofline: An Insightful Visual Performance Model for Floating-Point Programs and Multicore Architectures. *Communications of the ACM*.
-
-详见完整 [参考文献](/zh/references/papers) 页面与 [性能可视化](/zh/guides/benchmark-visualization) 图表。
+- 不要把 Auto-Tuning 结果包装成完整 Benchmarking 证据；
+- 不要在没有说明 shape 假设时报告 Performance metrics；
+- 不要把单个 kernel 的收益直接外推成整模型提速。
