@@ -16,7 +16,7 @@ const enSections = [
   { text: 'Architecture Lab', link: '/en/architecture-lab/', activeMatch: '/en/architecture-lab/', sidebarPrefix: '/en/architecture-lab/', sidebarLink: '/en/architecture-lab/' },
   { text: 'Guides', link: '/en/guides/', activeMatch: '/en/guides/', sidebarPrefix: '/en/guides/', sidebarLink: '/en/guides/' },
   { text: 'Research', link: '/en/reference-research/', activeMatch: '/en/reference-research/', sidebarPrefix: '/en/reference-research/', sidebarLink: '/en/reference-research/' },
-  { text: 'Release Notes', link: '/en/release-notes/changelog', activeMatch: '/en/release-notes/', sidebarPrefix: '/en/release-notes/', sidebarLink: '/en/release-notes/changelog', sidebarText: 'Changelog' },
+  { text: 'Release Notes', link: '/en/release-notes/', activeMatch: '/en/release-notes/', sidebarPrefix: '/en/release-notes/', sidebarLink: '/en/release-notes/' },
 ] as const
 
 const zhSections = [
@@ -26,7 +26,7 @@ const zhSections = [
   { text: '架构实验室', link: '/zh/architecture-lab/', activeMatch: '/zh/architecture-lab/', sidebarPrefix: '/zh/architecture-lab/', sidebarLink: '/zh/architecture-lab/' },
   { text: '工程指南', link: '/zh/guides/', activeMatch: '/zh/guides/', sidebarPrefix: '/zh/guides/', sidebarLink: '/zh/guides/' },
   { text: '参考与研究', link: '/zh/reference-research/', activeMatch: '/zh/reference-research/', sidebarPrefix: '/zh/reference-research/', sidebarLink: '/zh/reference-research/' },
-  { text: '发布说明', link: '/zh/release-notes/changelog', activeMatch: '/zh/release-notes/', sidebarPrefix: '/zh/release-notes/', sidebarLink: '/zh/release-notes/changelog', sidebarText: '变更日志' },
+  { text: '发布说明', link: '/zh/release-notes/', activeMatch: '/zh/release-notes/', sidebarPrefix: '/zh/release-notes/', sidebarLink: '/zh/release-notes/' },
 ] as const
 
 function buildNav(
