@@ -103,9 +103,9 @@ const localeContent: Record<'en' | 'zh', HeroContent> = {
     title: 'A homepage shaped like technical review, not a metrics strip',
     dek: 'Trace Triton Fused Ops through kernel families, validation seams, and benchmark evidence before you ever drop into the implementation details.',
     actions: [
-      { label: 'Start with installation', href: '/getting-started/installation/', primary: true },
-      { label: 'Inspect the architecture', href: '/internals/architecture/' },
-      { label: 'Browse the academy', href: '/academy/' },
+      { label: 'Enter the academy', href: '/academy/', primary: true },
+      { label: 'Inspect the architecture lab', href: '/architecture-lab/' },
+      { label: 'Browse kernel families', href: '/kernel-families/' },
       { label: 'GitHub', href: 'https://github.com/LessUp/triton-fused-ops', external: true },
     ],
     highlights: [
@@ -144,9 +144,9 @@ const localeContent: Record<'en' | 'zh', HeroContent> = {
     title: '首页首先呈现技术评审视角，而不是指标条幅',
     dek: '先从算子家族、验证边界与基准证据理解 Triton Fused Ops，再进入更细的实现细节。',
     actions: [
-      { label: '从安装开始', href: '/getting-started/installation/', primary: true },
-      { label: '查看架构设计', href: '/internals/architecture/' },
-      { label: '浏览学院导读', href: '/academy/' },
+      { label: '进入学院导读', href: '/academy/', primary: true },
+      { label: '查看架构实验室', href: '/architecture-lab/' },
+      { label: '浏览算子族', href: '/kernel-families/' },
       { label: 'GitHub', href: 'https://github.com/LessUp/triton-fused-ops', external: true },
     ],
     highlights: [

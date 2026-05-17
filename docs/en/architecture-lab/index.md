@@ -9,8 +9,8 @@ The architecture lab is the implementation-facing route through the codebase. It
 
 ## What to inspect here
 
-- the [module map](/en/architecture-lab/module-map) for the repository’s structure,
-- the [runtime contracts](/en/architecture-lab/runtime-contracts) for the validation and error model,
+- the [module map](./module-map) for the repository’s structure,
+- the [runtime contracts](./runtime-contracts) for the validation and error model,
 - the public exports that separate stable APIs from private Triton details.
 
 ## Why this section exists
