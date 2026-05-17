@@ -43,8 +43,8 @@ Triton Fused Ops is a focused GPU kernel library for Transformer inference. It d
 
 | Question | Where to look | What counts as evidence |
 | :-- | :-- | :-- |
-| What is the public promise? | `triton_ops.__init__`, API pages, kernel family pages | Exported launchers, wrappers, helpers, and their documented contracts |
-| How is correctness checked? | `triton_ops.reference`, `triton_ops.validation`, `BenchmarkSuite` | Reference implementations, explicit validation, correctness verification |
+| What is the public promise? | `triton_ops.__init__`, kernel family pages, Architecture Lab | Exported launchers, wrappers, helpers, and their documented contracts |
+| How is correctness checked? | Kernel family pages, `triton_ops.reference`, `triton_ops.validation`, `BenchmarkSuite` | Reference implementations, explicit validation, correctness verification |
 | How are latency claims framed? | Benchmarking docs, benchmark suite, performance helpers | Warmup, synchronization, explicit problem shapes, derived metrics |
 | Where does tuning stop? | `triton_ops.autotuner`, guides/performance | Auto-Tuning searches latency configs; it does not silently rewrite runtime semantics |
 

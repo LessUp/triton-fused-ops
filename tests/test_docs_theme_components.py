@@ -6,6 +6,7 @@ DOCS_ROOT = REPO_ROOT / "docs"
 THEME_ROOT = REPO_ROOT / "docs" / ".vitepress" / "theme"
 STYLE_PATH = THEME_ROOT / "style.css"
 INDEX_PATH = THEME_ROOT / "index.ts"
+ROOT_INDEX_PATH = DOCS_ROOT / "index.md"
 COMPONENTS = {
     "HomeHero.vue": {"needs_locale": True},
     "WhitepaperHero.vue": {"needs_locale": True},
@@ -26,10 +27,12 @@ HOMEPAGE_PATHS = {
     "en": DOCS_ROOT / "en" / "index.md",
     "zh": DOCS_ROOT / "zh" / "index.md",
 }
+LEGACY_THEME_COMPONENTS = ("KernelShowcase", "ArchitecturePreview")
 OPENSPEC_CHANGE_DIR = REPO_ROOT / "openspec" / "changes" / "rebuild-pages-whitepaper-academy"
 TOP_LEVEL_DOCS_ENTRYPOINTS = (
     REPO_ROOT / "README.md",
     REPO_ROOT / "README.zh-CN.md",
+    ROOT_INDEX_PATH,
     DOCS_ROOT / ".vitepress" / "config.ts",
     DOCS_ROOT / "en" / "index.md",
     DOCS_ROOT / "zh" / "index.md",
@@ -58,6 +61,16 @@ LEGACY_ROUTE_FRAGMENTS = (
     "/en/references/",
     "/zh/references/",
 )
+HOMEPAGE_REMOVED_COPY = {
+    DOCS_ROOT / "en" / "index.md": {
+        "forbidden": ("API pages",),
+        "required": ("What is the public promise?", "Architecture Lab", "Kernel family pages"),
+    },
+    DOCS_ROOT / "zh" / "index.md": {
+        "forbidden": ("API 页面",),
+        "required": ("对外承诺是什么？", "架构实验室", "算子族页面"),
+    },
+}
 WHITEPAPER_HOMEPAGE_COMPONENTS = (
     "WhitepaperHero",
     "ReaderTracks",
@@ -487,6 +500,16 @@ def test_chinese_whitepaper_card_links_are_base_aware():
             assert link in contents, f"{path} should include base-aware link {link!r}"
 
 
+def test_root_redirect_uses_base_aware_locale_targets():
+    contents = read_text(ROOT_INDEX_PATH)
+
+    assert "withBase" in contents
+    assert "const target = lang.toLowerCase().startsWith('zh') ? withBase('/zh/') : withBase('/en/')" in contents
+    assert "router.go(target)" in contents
+    assert "router.go('/zh/')" not in contents
+    assert "router.go('/en/')" not in contents
+
+
 def test_english_guides_sidebar_lists_child_pages():
     contents = read_text(DOCS_ROOT / ".vitepress" / "config.ts")
 
@@ -516,15 +539,6 @@ def test_chinese_sidebar_lists_new_whitepaper_children():
     assert "link: '/zh/guides/benchmark-visualization'" in contents
 
 
-def test_kernel_showcase_localized_links_are_base_aware():
-    contents = read_text(THEME_ROOT / "components" / "KernelShowcase.vue")
-
-    assert "withBase" in contents
-    assert "toLocalizedHref" in contents
-    assert '"/en/' not in contents
-    assert '"/zh/' not in contents
-
-
 def test_theme_registers_shared_editorial_components():
     index_source = read_text(INDEX_PATH)
 
@@ -532,6 +546,14 @@ def test_theme_registers_shared_editorial_components():
         stem = component_name.removesuffix(".vue")
         assert f"import {stem} from './components/{component_name}'" in index_source
         assert f"app.component('{stem}', {stem})" in index_source
+
+    for legacy_component in LEGACY_THEME_COMPONENTS:
+        assert legacy_component not in index_source
+
+
+def test_legacy_theme_components_are_removed():
+    for legacy_component in LEGACY_THEME_COMPONENTS:
+        assert not (THEME_ROOT / "components" / f"{legacy_component}.vue").exists()
 
 
 def test_performance_chart_reads_theme_safe_palette_tokens():
@@ -627,3 +649,14 @@ def test_top_level_docs_entrypoints_do_not_reference_removed_legacy_routes():
 
         for route in expected_routes:
             assert route in contents, f"{path} should point readers to active route {route!r}"
+
+
+def test_homepages_replace_removed_api_page_copy_with_live_sections():
+    for path, expectations in HOMEPAGE_REMOVED_COPY.items():
+        contents = read_text(path)
+
+        for snippet in expectations["forbidden"]:
+            assert snippet not in contents, f"{path} should not mention removed API pages"
+
+        for snippet in expectations["required"]:
+            assert snippet in contents, f"{path} should mention live section {snippet!r}"
