@@ -1,78 +1,203 @@
 <template>
-  <div class="home-hero">
-    <div class="hero-content">
-      <h1 class="hero-title">
-        <span class="gradient">Triton Fused Ops</span>
-      </h1>
-      <p class="hero-tagline">{{ tagline }}</p>
-      <p class="hero-abstract">{{ abstract }}</p>
+  <section class="whitepaper-hero" :aria-label="content.title">
+    <div class="whitepaper-hero__body">
+      <span class="editorial-kicker">{{ content.eyebrow }}</span>
+      <h1 class="editorial-title">{{ content.title }}</h1>
+      <p class="whitepaper-hero__lede">{{ content.dek }}</p>
 
-      <!-- Metrics Strip -->
-      <div class="metrics-strip">
-        <div class="metric">
-          <span class="value">~3×</span>
-          <span class="label">{{ t.speedup }}</span>
-        </div>
-        <div class="metric">
-          <span class="value">50%</span>
-          <span class="label">{{ t.memory }}</span>
-        </div>
-        <div class="metric">
-          <span class="value">4</span>
-          <span class="label">{{ t.kernels }}</span>
+      <div class="whitepaper-hero__highlights">
+        <div
+          v-for="(highlight, index) in content.highlights"
+          :key="highlight.title"
+          class="whitepaper-hero__highlight"
+        >
+          <span class="whitepaper-hero__highlight-index">{{ String(index + 1).padStart(2, '0') }}</span>
+          <div>
+            <strong>{{ highlight.title }}</strong>
+            <p class="editorial-caption">{{ highlight.detail }}</p>
+          </div>
         </div>
       </div>
 
-      <!-- CTAs -->
-      <div class="hero-actions">
-        <a :href="links.getStarted" class="cta primary">{{ t.getStarted }}</a>
-        <a :href="links.architecture" class="cta secondary">{{ t.architecture }}</a>
-        <a href="https://github.com/LessUp/triton-fused-ops" class="cta outline">GitHub</a>
+      <div class="whitepaper-hero__actions">
+        <a
+          v-for="action in content.actions"
+          :key="action.label"
+          :href="action.href"
+          class="whitepaper-hero__action"
+          :class="{ 'whitepaper-hero__action--primary': action.primary }"
+        >
+          <span>{{ action.label }}</span>
+          <span aria-hidden="true">→</span>
+        </a>
       </div>
     </div>
-  </div>
+
+    <aside class="whitepaper-hero__aside">
+      <div class="whitepaper-hero__sheet">
+        <div
+          v-for="fact in content.facts"
+          :key="fact.label"
+          class="whitepaper-hero__sheet-row"
+        >
+          <span class="whitepaper-hero__sheet-label">{{ fact.label }}</span>
+          <span class="whitepaper-hero__sheet-value">{{ fact.value }}</span>
+        </div>
+      </div>
+
+      <div class="whitepaper-hero__rail">
+        <div
+          v-for="panel in content.rail"
+          :key="panel.title"
+          class="whitepaper-hero__rail-item"
+        >
+          <strong>{{ panel.title }}</strong>
+          <p class="editorial-caption">{{ panel.detail }}</p>
+        </div>
+      </div>
+    </aside>
+  </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
+
+interface HeroAction {
+  href: string
+  label: string
+  primary?: boolean
+  external?: boolean
+}
+
+interface HeroHighlight {
+  title: string
+  detail: string
+}
+
+interface HeroFact {
+  label: string
+  value: string
+}
+
+interface HeroRailItem {
+  title: string
+  detail: string
+}
+
+interface HeroContent {
+  eyebrow: string
+  title: string
+  dek: string
+  actions: HeroAction[]
+  highlights: HeroHighlight[]
+  facts: HeroFact[]
+  rail: HeroRailItem[]
+}
 
 const { lang } = useData()
 
-const i18n = {
+const localeContent: Record<'en' | 'zh', HeroContent> = {
   en: {
-    tagline: 'High-Performance GPU Kernels for Transformer Inference',
-    abstract: 'Production-ready Triton implementations of RMSNorm+RoPE fusion, Gated MLP fusion, and FP8 GEMM with auto-tuning infrastructure.',
-    speedup: 'Speedup',
-    memory: 'Memory ↓',
-    kernels: 'Kernels',
-    getStarted: 'Get Started',
-    architecture: 'Architecture',
+    eyebrow: 'Engineering Field Guide',
+    title: 'A homepage shaped like technical review, not a metrics strip',
+    dek: 'Trace Triton Fused Ops through kernel families, validation seams, and benchmark evidence before you ever drop into the implementation details.',
+    actions: [
+      { label: 'Start with installation', href: '/getting-started/installation/', primary: true },
+      { label: 'Inspect the architecture', href: '/internals/architecture/' },
+      { label: 'Browse the academy', href: '/academy/' },
+      { label: 'GitHub', href: 'https://github.com/LessUp/triton-fused-ops', external: true },
+    ],
+    highlights: [
+      {
+        title: 'Lead with operating context',
+        detail: 'The first screen explains what the kernel library covers, how to evaluate it, and where each reader should go next.',
+      },
+      {
+        title: 'Editorial structure over launch-page theatrics',
+        detail: 'Highlights, facts, and reading rails follow the same whitepaper system introduced across the Task 2 docs rebuild.',
+      },
+      {
+        title: 'Built for code-adjacent reading',
+        detail: 'Sections are optimized for engineers who compare docs against source, validation contracts, and benchmark methodology.',
+      },
+    ],
+    facts: [
+      { label: 'Kernel families', value: 'RMSNorm + RoPE, Gated MLP, FP8 GEMM' },
+      { label: 'Validation mode', value: 'CPU references plus runtime contracts' },
+      { label: 'Reading paths', value: 'Installation, architecture, academy' },
+      { label: 'Voice', value: 'Concise, technical, evidence-backed' },
+    ],
+    rail: [
+      {
+        title: 'For evaluators',
+        detail: 'Jump from the hero into architecture and academy notes without passing through a marketing funnel.',
+      },
+      {
+        title: 'For implementers',
+        detail: 'Installation and downstream sections stay one click away, with locale-aware internal routes for deployed docs bases.',
+      },
+    ],
   },
   zh: {
-    tagline: '面向 Transformer 推理的高性能 GPU 算子',
-    abstract: '生产级 Triton 实现：RMSNorm+RoPE 融合、Gated MLP 融合、FP8 GEMM，配备自动调优基础设施。',
-    speedup: '加速比',
-    memory: '内存 ↓',
-    kernels: '算子数',
-    getStarted: '开始使用',
-    architecture: '架构设计',
+    eyebrow: '工程导读',
+    title: '首页首先呈现技术评审视角，而不是指标条幅',
+    dek: '先从算子家族、验证边界与基准证据理解 Triton Fused Ops，再进入更细的实现细节。',
+    actions: [
+      { label: '从安装开始', href: '/getting-started/installation/', primary: true },
+      { label: '查看架构设计', href: '/internals/architecture/' },
+      { label: '浏览学院导读', href: '/academy/' },
+      { label: 'GitHub', href: 'https://github.com/LessUp/triton-fused-ops', external: true },
+    ],
+    highlights: [
+      {
+        title: '先交代运行语境',
+        detail: '首屏说明库覆盖的算子范围、评估方式，以及不同读者下一步该去哪里。',
+      },
+      {
+        title: '延续白皮书式编排',
+        detail: '高亮、事实卡与阅读侧栏沿用 Task 2 文档重建引入的 editorial 系统，而不是回到营销页套路。',
+      },
+      {
+        title: '适合对照代码阅读',
+        detail: '整体节奏服务于需要同时查看源码、校验约束与基准方法的工程读者。',
+      },
+    ],
+    facts: [
+      { label: '算子家族', value: 'RMSNorm + RoPE、Gated MLP、FP8 GEMM' },
+      { label: '验证方式', value: 'CPU 参考实现 + 运行时输入校验' },
+      { label: '阅读路径', value: '安装、架构、学院导读' },
+      { label: '语气', value: '克制、技术化、强调证据' },
+    ],
+    rail: [
+      {
+        title: '给评审者',
+        detail: '从首页可直接进入架构和学院说明，不需要穿过营销化叙事漏斗。',
+      },
+      {
+        title: '给实现者',
+        detail: '安装与后续章节始终保持一步可达，并通过 base-aware 链接适配部署后的文档路径。',
+      },
+    ],
   },
 }
 
-const links = {
-  en: {
-    getStarted: '/en/getting-started/',
-    architecture: '/en/internals/architecture',
-  },
-  zh: {
-    getStarted: '/zh/getting-started/',
-    architecture: '/zh/internals/architecture',
-  },
+const localeKey = computed<'en' | 'zh'>(() => (lang.value?.startsWith('zh') ? 'zh' : 'en'))
+const localePrefix = computed(() => `/${localeKey.value}`)
+
+function toLocalizedHref(path: string): string {
+  return withBase(`${localePrefix.value}${path}`)
 }
 
-const currentLang = computed(() => lang.value?.startsWith('zh') ? 'zh' : 'en')
-const t = computed(() => i18n[currentLang.value])
-const tagline = computed(() => t.value.tagline)
-const abstract = computed(() => t.value.abstract)
+const content = computed<HeroContent>(() => {
+  const fallback = localeContent[localeKey.value]
+
+  return {
+    ...fallback,
+    actions: fallback.actions.map((action) => ({
+      ...action,
+      href: action.external ? action.href : toLocalizedHref(action.href),
+    })),
+  }
+})
 </script>

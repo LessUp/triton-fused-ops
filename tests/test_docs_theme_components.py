@@ -6,6 +6,7 @@ THEME_ROOT = REPO_ROOT / "docs" / ".vitepress" / "theme"
 STYLE_PATH = THEME_ROOT / "style.css"
 INDEX_PATH = THEME_ROOT / "index.ts"
 COMPONENTS = {
+    "HomeHero.vue": {"needs_locale": True},
     "WhitepaperHero.vue": {"needs_locale": True},
     "ReaderTracks.vue": {"needs_locale": True},
     "KernelAtlas.vue": {"needs_locale": True},
@@ -54,9 +55,19 @@ def test_shared_editorial_components_are_production_ready():
         if expectations["needs_locale"]:
             assert "useData" in contents, f"{filename} should read VitePress locale data"
 
-    for filename in ("WhitepaperHero.vue", "ReaderTracks.vue", "KernelAtlas.vue"):
+    for filename in ("HomeHero.vue", "WhitepaperHero.vue", "ReaderTracks.vue", "KernelAtlas.vue"):
         contents = read_text(THEME_ROOT / "components" / filename)
         assert "withBase" in contents, f"{filename} should generate base-aware internal links"
+
+
+def test_home_hero_uses_editorial_hero_layout_without_metrics_strip():
+    contents = read_text(THEME_ROOT / "components" / "HomeHero.vue")
+
+    assert "metrics-strip" not in contents
+    assert "whitepaper-hero" in contents
+    assert "toLocalizedHref" in contents
+    assert '"/en/' not in contents
+    assert '"/zh/' not in contents
 
 
 def test_theme_registers_shared_editorial_components():
