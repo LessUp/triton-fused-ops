@@ -61,6 +61,51 @@ function buildSidebar(
   )
 }
 
+const enSidebar = {
+  ...buildSidebar(enSections),
+  '/en/academy/': [
+    {
+      text: 'Academy',
+      items: [
+        { text: 'Academy', link: '/en/academy/' },
+        { text: 'System Overview', link: '/en/academy/system-overview' },
+      ],
+    },
+  ],
+  '/en/kernel-families/': [
+    {
+      text: 'Kernel Families',
+      items: [
+        { text: 'Kernel Families', link: '/en/kernel-families/' },
+        { text: 'Fused RMSNorm + RoPE', link: '/en/kernel-families/rmsnorm-rope' },
+        { text: 'Fused Gated MLP', link: '/en/kernel-families/gated-mlp' },
+        { text: 'FP8 Stack', link: '/en/kernel-families/fp8-stack' },
+      ],
+    },
+  ],
+  '/en/architecture-lab/': [
+    {
+      text: 'Architecture Lab',
+      items: [
+        { text: 'Architecture Lab', link: '/en/architecture-lab/' },
+        { text: 'Module Map', link: '/en/architecture-lab/module-map' },
+        { text: 'Runtime Contracts', link: '/en/architecture-lab/runtime-contracts' },
+      ],
+    },
+  ],
+  '/en/reference-research/': [
+    {
+      text: 'Reference & Research',
+      items: [
+        { text: 'Reference & Research', link: '/en/reference-research/' },
+        { text: 'Related Projects', link: '/en/reference-research/related-projects' },
+        { text: 'References', link: '/en/reference-research/references' },
+        { text: 'Evolution Thinking', link: '/en/reference-research/evolution-thinking' },
+      ],
+    },
+  ],
+} as const
+
 export default withMermaid(defineConfig({
   base,
   cleanUrls: true,
@@ -83,7 +128,7 @@ export default withMermaid(defineConfig({
       description: 'High-performance Triton kernels for Transformer inference',
       themeConfig: {
         nav: buildNav(enSections),
-        sidebar: buildSidebar(enSections),
+        sidebar: enSidebar,
       },
     },
     zh: {
