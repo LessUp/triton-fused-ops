@@ -37,7 +37,7 @@ User API (triton_ops.__init__)
     └── Tooling Layer (autotuner, benchmark, performance metrics)
 ```
 
-See [Architecture](https://lessup.github.io/triton-fused-ops/en/internals/architecture) and [Kernel Design](https://lessup.github.io/triton-fused-ops/en/internals/kernel-design) docs for details.
+See the [Architecture Lab](https://lessup.github.io/triton-fused-ops/en/architecture-lab/) and [Kernel Families](https://lessup.github.io/triton-fused-ops/en/kernel-families/) docs for details.
 
 ## Quick Start
 
@@ -87,10 +87,10 @@ See [Benchmark Visualization](https://lessup.github.io/triton-fused-ops/en/guide
 
 | Section | Best For | Key Takeaway |
 |:--|:--|:--|
-| [Getting Started](https://lessup.github.io/triton-fused-ops/en/getting-started/) | First-time users | 5-minute first kernel run |
-| [Kernel Design](https://lessup.github.io/triton-fused-ops/en/internals/kernel-design) | Interview prep | Fusion patterns, tiling, memory optimization |
+| [Academy](https://lessup.github.io/triton-fused-ops/en/academy/) | First-time users | Narrative reading path from system overview to implementation seams |
+| [Architecture Lab](https://lessup.github.io/triton-fused-ops/en/architecture-lab/) | Interview prep | Module seams, runtime contracts, public exports |
 | [Performance](https://lessup.github.io/triton-fused-ops/en/guides/performance) | Tuning practitioners | Correct timing, bottleneck analysis |
-| [References](https://lessup.github.io/triton-fused-ops/en/references/) | Deep learning researchers | Papers, projects, tech stack landscape |
+| [Reference & Research](https://lessup.github.io/triton-fused-ops/en/reference-research/) | Deep learning researchers | Papers, projects, tech stack landscape |
 
 ## Development
 

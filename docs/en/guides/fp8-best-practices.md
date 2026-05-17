@@ -92,4 +92,4 @@ Use it when you expect extreme ranges and want retry-based scale reduction befor
 1. Micikevicius, P., et al. (2022). FP8 Formats for Deep Learning. *arXiv preprint*. [arXiv:2209.05433](https://arxiv.org/abs/2209.05433)
 2. Xiao, G., et al. (2023). SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models. *ICML*. [arXiv:2211.10438](https://arxiv.org/abs/2211.10438)
 
-See the [NVIDIA FP8 developer blog](/en/references/blogs) and the full [Papers](/en/references/papers) page for more resources.
+See the [Related Projects](/en/reference-research/related-projects) notes and the full [References](/en/reference-research/references) page for more resources.
