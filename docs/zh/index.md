@@ -43,8 +43,8 @@ Triton Fused Ops 是一个面向 Transformer 推理的聚焦型 GPU kernel 库�
 
 | 问题 | 去哪里看 | 什么算证据 |
 | :-- | :-- | :-- |
-| 对外承诺是什么？ | `triton_ops.__init__`、API 页面、算子族页面 | 导出的 launcher、模块封装、辅助函数与它们的契约 |
-| 正确性如何核对？ | `triton_ops.reference`、`triton_ops.validation`、`BenchmarkSuite` | reference 实现、显式验证、correctness 校验 |
+| 对外承诺是什么？ | `triton_ops.__init__`、算子族页面、架构实验室 | 导出的 launcher、模块封装、辅助函数与它们的契约 |
+| 正确性如何核对？ | 算子族页面、`triton_ops.reference`、`triton_ops.validation`、`BenchmarkSuite` | reference 实现、显式验证、correctness 校验 |
 | 延迟结论怎么表达？ | Benchmarking 文档、benchmark 套件、performance 工具 | warmup、同步、明确问题形状、派生指标 |
 | 调优边界停在哪里？ | `triton_ops.autotuner`、性能指南 | Auto-Tuning 只搜索低延迟配置，不会偷偷改写运行时语义 |
 

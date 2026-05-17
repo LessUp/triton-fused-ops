@@ -60,7 +60,7 @@ python3 -m build
 ```python
 import torch
 from triton_ops import fused_rmsnorm_rope, BenchmarkSuite
-from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope_reference
+from triton_ops.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference
 
 x = torch.randn(2, 2048, 4096, device="cuda", dtype=torch.float16)
 suite = BenchmarkSuite(warmup_runs=10, benchmark_runs=100)
