@@ -15,6 +15,13 @@ COMPONENTS = {
     "FigureFrame.vue": {"needs_locale": False},
     "ResearchLandscape.vue": {"needs_locale": True},
 }
+PERFORMANCE_CHART_PATH = THEME_ROOT / "components" / "PerformanceChart.vue"
+SYSTEM_BLUEPRINT_PATH = THEME_ROOT / "components" / "SystemBlueprint.vue"
+BENCHMARK_VISUALIZATION_PATHS = {
+    "en": DOCS_ROOT / "en" / "guides" / "benchmark-visualization.md",
+    "zh": DOCS_ROOT / "zh" / "guides" / "benchmark-visualization.md",
+}
+BENCHMARK_FIGURES_PATH = THEME_ROOT / "components" / "BenchmarkVisualizationFigures.vue"
 HOMEPAGE_PATHS = {
     "en": DOCS_ROOT / "en" / "index.md",
     "zh": DOCS_ROOT / "zh" / "index.md",
@@ -111,3 +118,67 @@ def test_theme_registers_shared_editorial_components():
         stem = component_name.removesuffix(".vue")
         assert f"import {stem} from './components/{component_name}'" in index_source
         assert f"app.component('{stem}', {stem})" in index_source
+
+
+def test_performance_chart_reads_theme_safe_palette_tokens():
+    contents = read_text(PERFORMANCE_CHART_PATH)
+
+    expected_tokens = [
+        "--editorial-accent",
+        "--editorial-signal",
+        "--editorial-rule",
+        "--vp-c-text-1",
+        "--vp-c-bg-elv",
+    ]
+
+    assert "getComputedStyle" in contents
+
+    for token in expected_tokens:
+        assert token in contents
+
+
+def test_benchmark_figures_pass_microsecond_units_to_theme_safe_chart():
+    chart_contents = read_text(PERFORMANCE_CHART_PATH)
+    figure_contents = read_text(BENCHMARK_FIGURES_PATH)
+
+    assert "valueUnit" in chart_contents
+    assert "yAxisLabel" in chart_contents
+    assert 'value-unit="µs"' in figure_contents
+
+
+def test_system_blueprint_uses_shared_figure_frame_language():
+    contents = read_text(SYSTEM_BLUEPRINT_PATH)
+
+    assert "FigureFrame" in contents
+    assert "tone=\"accent\"" in contents
+
+
+def test_benchmark_visualization_pages_use_figure_frame_and_theme_safe_tokens():
+    forbidden_literals = (
+        "#76B900",
+        "#30363d",
+        "#21262d",
+        "#3476f6",
+        "#1a4a9e",
+        "#ffc517",
+        "#c49000",
+        "#ff5454",
+        "#0d1117",
+        "#fff",
+        "#1a1a1a",
+        "rgba(118,185,0,0.08)",
+    )
+
+    figure_contents = read_text(BENCHMARK_FIGURES_PATH)
+
+    assert "FigureFrame" in figure_contents
+    assert "--viz-accent" in figure_contents
+
+    for literal in forbidden_literals:
+        assert literal not in figure_contents, f"benchmark figures should not hard-code {literal}"
+
+    for locale, path in BENCHMARK_VISUALIZATION_PATHS.items():
+        contents = read_text(path)
+        assert "BenchmarkVisualizationFigures" in contents, (
+            f"{locale} benchmark visualization page should render the shared figure component"
+        )

@@ -1,11 +1,11 @@
 <template>
-  <section class="system-blueprint" :aria-label="content.title">
-    <div class="editorial-shell">
-      <span class="editorial-kicker">{{ content.eyebrow }}</span>
-      <h2 class="editorial-title">{{ content.title }}</h2>
-      <p class="editorial-intro">{{ content.intro }}</p>
-    </div>
-
+  <FigureFrame
+    class="system-blueprint"
+    tone="accent"
+    :label="content.eyebrow"
+    :title="content.title"
+    :caption="content.intro"
+  >
     <div class="system-blueprint__layout">
       <div class="system-blueprint__layers">
         <article
@@ -42,12 +42,13 @@
         </div>
       </aside>
     </div>
-  </section>
+  </FigureFrame>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useData } from 'vitepress'
+import FigureFrame from './FigureFrame.vue'
 
 interface BlueprintLayer {
   name: string
