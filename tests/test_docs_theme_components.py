@@ -26,18 +26,15 @@ HOMEPAGE_PATHS = {
     "en": DOCS_ROOT / "en" / "index.md",
     "zh": DOCS_ROOT / "zh" / "index.md",
 }
-HOMEPAGE_EDITORIAL_COMPONENTS = (
-    "HomeHero",
-    "ReaderTracks",
-    "KernelAtlas",
-    "SystemBlueprint",
-)
-ENGLISH_WHITEPAPER_COMPONENTS = (
+WHITEPAPER_HOMEPAGE_COMPONENTS = (
     "WhitepaperHero",
     "ReaderTracks",
     "KernelAtlas",
     "SystemBlueprint",
     "ResearchLandscape",
+)
+ENGLISH_WHITEPAPER_COMPONENTS = (
+    *WHITEPAPER_HOMEPAGE_COMPONENTS,
 )
 ENGLISH_WHITEPAPER_PAGES = {
     DOCS_ROOT / "en" / "overview" / "index.md": (
@@ -145,6 +142,112 @@ ENGLISH_GUIDE_EXPECTATIONS = {
         "FP8Linear",
     ),
 }
+CHINESE_WHITEPAPER_PAGES = {
+    DOCS_ROOT / "zh" / "overview" / "index.md": (
+        "Kernel family",
+        "Benchmarking",
+        "Auto-Tuning",
+        "Performance metrics",
+    ),
+    DOCS_ROOT / "zh" / "academy" / "index.md": (
+        "学院地图",
+        "/zh/academy/system-overview",
+        "/zh/kernel-families/",
+        "/zh/architecture-lab/",
+    ),
+    DOCS_ROOT / "zh" / "academy" / "system-overview.md": (
+        "公共 API",
+        "验证契约",
+        "Kernel 与 reference",
+        "Benchmarking",
+    ),
+    DOCS_ROOT / "zh" / "kernel-families" / "index.md": (
+        "Fused RMSNorm + RoPE",
+        "Fused Gated MLP",
+        "FP8 GEMM",
+        "FP8 量化工具",
+    ),
+    DOCS_ROOT / "zh" / "kernel-families" / "rmsnorm-rope.md": (
+        "RMSNorm",
+        "RoPE",
+        "验证",
+        "Benchmarking",
+    ),
+    DOCS_ROOT / "zh" / "kernel-families" / "gated-mlp.md": (
+        "SwiGLU",
+        "GeGLU",
+        "intermediate_dim",
+        "activation",
+    ),
+    DOCS_ROOT / "zh" / "kernel-families" / "fp8-stack.md": (
+        "FP8 GEMM",
+        "quantize_fp8",
+        "dequantize_fp8",
+        "scale",
+    ),
+    DOCS_ROOT / "zh" / "architecture-lab" / "index.md": (
+        "模块地图",
+        "运行时契约",
+        "公共导出",
+        "validation",
+    ),
+    DOCS_ROOT / "zh" / "architecture-lab" / "module-map.md": (
+        "triton_ops/__init__.py",
+        "triton_ops/kernels/",
+        "triton_ops/reference/",
+        "triton_ops/benchmark/",
+    ),
+    DOCS_ROOT / "zh" / "architecture-lab" / "runtime-contracts.md": (
+        "DeviceError",
+        "ShapeMismatchError",
+        "UnsupportedDtypeError",
+        "contiguous",
+    ),
+    DOCS_ROOT / "zh" / "reference-research" / "index.md": (
+        "相关项目",
+        "参考文献",
+        "演进思路",
+        "研究议程",
+    ),
+    DOCS_ROOT / "zh" / "reference-research" / "related-projects.md": (
+        "OpenAI Triton",
+        "PyTorch",
+        "vLLM",
+        "TensorRT-LLM",
+    ),
+    DOCS_ROOT / "zh" / "reference-research" / "references.md": (
+        "FlashAttention",
+        "FP8 Formats for Deep Learning",
+        "RoFormer",
+        "Root Mean Square Layer Normalization",
+    ),
+    DOCS_ROOT / "zh" / "reference-research" / "evolution-thinking.md": (
+        "工业化",
+        "kernel family",
+        "evidence-backed",
+        "下一个问题",
+    ),
+}
+CHINESE_GUIDE_EXPECTATIONS = {
+    DOCS_ROOT / "zh" / "guides" / "index.md": (
+        "选择你需要的叙事路径",
+        "./performance",
+        "./integration",
+        "../reference-research/",
+    ),
+    DOCS_ROOT / "zh" / "guides" / "performance.md": (
+        "Benchmarking",
+        "Auto-Tuning",
+        "Performance metrics",
+        "BenchmarkSuite",
+    ),
+    DOCS_ROOT / "zh" / "guides" / "integration.md": (
+        "运行时契约",
+        "Kernel family",
+        "FusedRMSNormRoPE",
+        "FP8Linear",
+    ),
+}
 ENGLISH_BASE_AWARE_CARD_LINKS = {
     DOCS_ROOT / "en" / "index.md": (
         'href="./overview/"',
@@ -162,6 +265,28 @@ ENGLISH_BASE_AWARE_CARD_LINKS = {
         'href="../reference-research/"',
     ),
     DOCS_ROOT / "en" / "reference-research" / "index.md": (
+        'href="./related-projects"',
+        'href="./references"',
+        'href="./evolution-thinking"',
+    ),
+}
+CHINESE_BASE_AWARE_CARD_LINKS = {
+    DOCS_ROOT / "zh" / "index.md": (
+        'href="./overview/"',
+        'href="./academy/"',
+        'href="./guides/"',
+    ),
+    DOCS_ROOT / "zh" / "overview" / "index.md": (
+        'href="../academy/"',
+        'href="../kernel-families/"',
+        'href="../architecture-lab/"',
+    ),
+    DOCS_ROOT / "zh" / "guides" / "index.md": (
+        'href="./integration"',
+        'href="./performance"',
+        'href="../reference-research/"',
+    ),
+    DOCS_ROOT / "zh" / "reference-research" / "index.md": (
         'href="./related-projects"',
         'href="./references"',
         'href="./evolution-thinking"',
@@ -232,11 +357,7 @@ def test_homepages_compose_editorial_shared_components_without_legacy_blocks():
             f"{locale} homepage should not use legacy architecture preview"
         )
 
-        expected_components = (
-            ENGLISH_WHITEPAPER_COMPONENTS if locale == "en" else HOMEPAGE_EDITORIAL_COMPONENTS
-        )
-
-        for component in expected_components:
+        for component in WHITEPAPER_HOMEPAGE_COMPONENTS:
             assert f"import {component} from '@theme/components/{component}.vue'" in contents
             assert f"<{component}" in contents
 
@@ -247,6 +368,16 @@ def test_english_homepage_uses_whitepaper_landing_composition():
     assert "HomeHero" not in contents
 
     for component in ENGLISH_WHITEPAPER_COMPONENTS:
+        assert f"import {component} from '@theme/components/{component}.vue'" in contents
+        assert f"<{component}" in contents
+
+
+def test_chinese_homepage_uses_localized_whitepaper_landing_composition():
+    contents = read_text(HOMEPAGE_PATHS["zh"])
+
+    assert "HomeHero" not in contents
+
+    for component in WHITEPAPER_HOMEPAGE_COMPONENTS:
         assert f"import {component} from '@theme/components/{component}.vue'" in contents
         assert f"<{component}" in contents
 
@@ -270,8 +401,34 @@ def test_english_whitepaper_routes_are_not_stubs_and_cover_key_topics():
             assert snippet in contents, f"{path} should mention {snippet!r}"
 
 
+def test_chinese_whitepaper_routes_are_not_stubs_and_cover_key_topics():
+    forbidden_stub_markers = (
+        "预留给",
+        "后续内容任务",
+        "先为新信息架构",
+        "后续会补齐",
+    )
+
+    for path, expected_snippets in CHINESE_WHITEPAPER_PAGES.items():
+        contents = read_text(path)
+
+        for marker in forbidden_stub_markers:
+            assert marker not in contents, f"{path} should not remain a placeholder"
+
+        for snippet in expected_snippets:
+            assert snippet in contents, f"{path} should mention {snippet!r}"
+
+
 def test_english_guides_match_whitepaper_information_architecture():
     for path, expected_snippets in ENGLISH_GUIDE_EXPECTATIONS.items():
+        contents = read_text(path)
+
+        for snippet in expected_snippets:
+            assert snippet in contents, f"{path} should mention {snippet!r}"
+
+
+def test_chinese_guides_match_whitepaper_information_architecture():
+    for path, expected_snippets in CHINESE_GUIDE_EXPECTATIONS.items():
         contents = read_text(path)
 
         for snippet in expected_snippets:
@@ -288,6 +445,16 @@ def test_english_whitepaper_card_links_are_base_aware():
             assert link in contents, f"{path} should include base-aware link {link!r}"
 
 
+def test_chinese_whitepaper_card_links_are_base_aware():
+    for path, expected_links in CHINESE_BASE_AWARE_CARD_LINKS.items():
+        contents = read_text(path)
+
+        assert 'href="/zh/' not in contents, f"{path} should not hardcode /zh card links"
+
+        for link in expected_links:
+            assert link in contents, f"{path} should include base-aware link {link!r}"
+
+
 def test_english_guides_sidebar_lists_child_pages():
     contents = read_text(DOCS_ROOT / ".vitepress" / "config.ts")
 
@@ -297,6 +464,24 @@ def test_english_guides_sidebar_lists_child_pages():
     assert "link: '/en/guides/integration'" in contents
     assert "link: '/en/guides/performance'" in contents
     assert "link: '/en/guides/benchmark-visualization'" in contents
+
+
+def test_chinese_sidebar_lists_new_whitepaper_children():
+    contents = read_text(DOCS_ROOT / ".vitepress" / "config.ts")
+
+    assert "text: '学院'" in contents
+    assert "link: '/zh/academy/system-overview'" in contents
+    assert "link: '/zh/kernel-families/rmsnorm-rope'" in contents
+    assert "link: '/zh/kernel-families/gated-mlp'" in contents
+    assert "link: '/zh/kernel-families/fp8-stack'" in contents
+    assert "link: '/zh/architecture-lab/module-map'" in contents
+    assert "link: '/zh/architecture-lab/runtime-contracts'" in contents
+    assert "link: '/zh/reference-research/related-projects'" in contents
+    assert "link: '/zh/reference-research/references'" in contents
+    assert "link: '/zh/reference-research/evolution-thinking'" in contents
+    assert "link: '/zh/guides/integration'" in contents
+    assert "link: '/zh/guides/performance'" in contents
+    assert "link: '/zh/guides/benchmark-visualization'" in contents
 
 
 def test_kernel_showcase_localized_links_are_base_aware():

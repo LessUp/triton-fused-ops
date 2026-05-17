@@ -4,22 +4,28 @@ title: 工程指南
 
 # 工程指南
 
-这些页面聚焦工程决策：融合算子应放在模型的哪个边界、性能该如何正确测量、FP8 的收益和风险如何取舍。
+选择你需要的叙事路径。这些页面面向已经理解系统形状、现在需要做工程决策的读者。
 
 <div class="link-grid link-grid-3">
-  <a class="info-card" href="/zh/guides/integration">
+  <a class="info-card" href="./integration">
     <span class="card-kicker">集成</span>
-    <strong>运行契约与模型边界</strong>
-    <span>帮助你在函数式 API、模块封装与自定义适配器之间做选择。</span>
+    <strong>把 Kernel family 接进模型代码</strong>
+    <span>先画清运行时契约、模块封装与适配边界，再替换热点路径。</span>
   </a>
-  <a class="info-card" href="/zh/guides/performance">
+  <a class="info-card" href="./performance">
     <span class="card-kicker">性能</span>
-    <strong>测量方法与调优路径</strong>
-    <span>说明如何做正确基准测试、如何理解指标、如何调优自定义 kernel。</span>
+    <strong>正确测量、调优并解释结果</strong>
+    <span>把 Benchmarking、Auto-Tuning 与 Performance metrics 分开，才能让结论站得住。</span>
   </a>
-  <a class="info-card" href="/zh/guides/fp8-best-practices">
-    <span class="card-kicker">FP8</span>
-    <strong>量化最佳实践</strong>
-    <span>说明 FP8 适合的位置，以及数值敏感步骤应保留更高精度。</span>
+  <a class="info-card" href="../reference-research/">
+    <span class="card-kicker">研究</span>
+    <strong>把实现放回更大的系统语境里</strong>
+    <span>当你需要与相邻项目或论文做比较时，从研究部分进入。</span>
   </a>
 </div>
+
+## 选页启发式
+
+- 当你要修改模型边界时，优先读 **integration**。
+- 当你在审查 latency、Auto-Tuning 或 Performance metrics 时，优先读 **performance**。
+- 当你需要外部比较视角再做架构判断时，转去 **reference-research**。
