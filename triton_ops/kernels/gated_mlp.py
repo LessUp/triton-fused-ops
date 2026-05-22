@@ -13,7 +13,6 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.utils import require_cuda, require_tensor_on_cuda
 from triton_ops.validation import (
     ACTIVATION_GELU,
     ACTIVATION_SILU,
@@ -192,12 +191,6 @@ def fused_gated_mlp(
     Note:
         All tensors must be on CUDA device and contiguous.
     """
-    # Check CUDA availability
-    require_cuda("x")
-
-    # Check that tensors are on CUDA
-    require_tensor_on_cuda(x, "x")
-
     # Validate inputs
     batch_size, seq_len, hidden_dim, intermediate_dim = validate_gated_mlp_inputs(
         x, gate_weight, up_weight, activation

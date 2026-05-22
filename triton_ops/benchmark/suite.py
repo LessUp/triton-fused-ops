@@ -1,6 +1,5 @@
 """Benchmark suite for Triton operators."""
 
-import time
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
 
@@ -9,8 +8,7 @@ import torch
 from triton_ops import performance as perf_module
 from triton_ops.benchmark.correctness import CorrectnessVerifier
 from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
-from triton_ops.performance import PerformanceProfile, compute_metrics
-from triton_ops.utils import get_device_name, sync_cuda
+from triton_ops.performance import PerformanceProfile, measure_metrics
 
 
 class KernelBenchmark(ABC):
@@ -143,41 +141,13 @@ class BenchmarkSuite:
         self.report = PerformanceReport()
 
         # Set device metadata
-        self.report.set_metadata("device", get_device_name())
+        self.report.set_metadata(
+            "device",
+            str(torch.cuda.get_device_name(0)) if torch.cuda.is_available() else "cpu",
+        )
         if torch.cuda.is_available():
             self.report.set_metadata("cuda_version", torch.version.cuda)
         self.report.set_metadata("pytorch_version", torch.__version__)
-
-    def _time_kernel(
-        self,
-        kernel_fn: Callable,
-        *args,
-        **kwargs,
-    ) -> float:
-        """Time a kernel execution.
-
-        Args:
-            kernel_fn: Kernel function to time
-            *args: Positional arguments
-            **kwargs: Keyword arguments
-
-        Returns:
-            Average latency in milliseconds
-        """
-        # Warmup
-        for _ in range(self.warmup_runs):
-            kernel_fn(*args, **kwargs)
-
-        sync_cuda()
-
-        # Benchmark
-        start = time.perf_counter()
-        for _ in range(self.benchmark_runs):
-            kernel_fn(*args, **kwargs)
-        sync_cuda()
-        end = time.perf_counter()
-
-        return (end - start) / self.benchmark_runs * 1000  # Convert to ms
 
     def benchmark_kernel(
         self,
@@ -212,11 +182,12 @@ class BenchmarkSuite:
         # Verify correctness
         is_correct = self.verifier.verify_allclose(triton_output, reference_output)
 
-        # Time kernel
-        latency_ms = self._time_kernel(kernel_fn, *args, **kwargs)
-
-        # Compute metrics using unified compute_metrics function
-        metrics = compute_metrics(latency_ms, profile=performance)
+        metrics = measure_metrics(
+            lambda: kernel_fn(*args, **kwargs),
+            warmup_runs=self.warmup_runs,
+            benchmark_runs=self.benchmark_runs,
+            profile=performance,
+        )
 
         result = BenchmarkResult(
             kernel_name=kernel_name,
@@ -260,19 +231,24 @@ class BenchmarkSuite:
         # Verify correctness
         is_correct = self.verifier.verify_allclose(triton_output, pytorch_output)
 
-        # Time both
-        triton_latency = self._time_kernel(triton_fn, *args, **kwargs)
-        pytorch_latency = self._time_kernel(pytorch_fn, *args, **kwargs)
-
-        # Compute metrics using unified compute_metrics function
-        triton_metrics = compute_metrics(triton_latency, profile=performance)
-        pytorch_metrics = compute_metrics(pytorch_latency, profile=performance)
+        triton_metrics = measure_metrics(
+            lambda: triton_fn(*args, **kwargs),
+            warmup_runs=self.warmup_runs,
+            benchmark_runs=self.benchmark_runs,
+            profile=performance,
+        )
+        pytorch_metrics = measure_metrics(
+            lambda: pytorch_fn(*args, **kwargs),
+            warmup_runs=self.warmup_runs,
+            benchmark_runs=self.benchmark_runs,
+            profile=performance,
+        )
 
         speedup = (
-            pytorch_latency / triton_latency
-            if triton_latency > 0
+            pytorch_metrics.latency_ms / triton_metrics.latency_ms
+            if triton_metrics.latency_ms > 0
             else float("inf")
-            if pytorch_latency > 0
+            if pytorch_metrics.latency_ms > 0
             else 0
         )
 

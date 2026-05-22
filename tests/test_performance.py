@@ -1,7 +1,7 @@
 import pytest
 
 from triton_ops import performance
-from triton_ops.utils import MIN_LATENCY_MS
+from triton_ops.performance import MIN_LATENCY_MS
 
 
 def test_latency_only_preserves_latency_and_zeroes_derived_fields():

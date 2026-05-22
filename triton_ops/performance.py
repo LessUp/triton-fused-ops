@@ -12,11 +12,20 @@ computation, used by both the auto-tuner and benchmark suite.
 """
 
 import math
+import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
+
+import torch
 
 from triton_ops.models import KernelMetrics
-from triton_ops.utils import MIN_LATENCY_MS
+
+MIN_LATENCY_MS: float = 1e-9
+
+
+def _sync_cuda() -> None:
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
 
 def _normalize_latency(latency_ms: float) -> float:
@@ -161,130 +170,45 @@ def gemm(
     )
 
 
-# =============================================================================
-# Unified Metrics Calculator
-# =============================================================================
+def measure_latency(
+    operation: Callable[[], object],
+    *,
+    warmup_runs: int = 10,
+    benchmark_runs: int = 100,
+) -> float:
+    """Measure operation latency in milliseconds with CUDA synchronization."""
+    if warmup_runs < 0:
+        raise ValueError("warmup_runs must be non-negative")
+    if benchmark_runs <= 0:
+        raise ValueError("benchmark_runs must be positive")
+
+    for _ in range(warmup_runs):
+        operation()
+
+    _sync_cuda()
+    start = time.perf_counter()
+    for _ in range(benchmark_runs):
+        operation()
+    _sync_cuda()
+    end = time.perf_counter()
+
+    return (end - start) / benchmark_runs * 1000
 
 
-class MetricsCalculator:
-    """Unified metrics calculator for latency → derived metrics conversion.
-
-    This class provides a single point of computation for performance metrics,
-    eliminating duplicate logic between autotuner and benchmark modules.
-
-    The calculator can be configured with:
-    - A default PerformanceProfile for all calculations
-    - Optional per-call profile overrides
-
-    Example:
-        >>> calc = MetricsCalculator.default()
-        >>> metrics = calc.compute(latency_ms=0.45)
-        >>> print(metrics.latency_ms)
-        0.45
-        >>> # With a specific profile
-        >>> calc = MetricsCalculator(gemm(M=1024, N=4096, K=4096))
-        >>> metrics = calc.compute(latency_ms=0.45)
-        >>> print(metrics.throughput_tflops)
-        156.2
-    """
-
-    def __init__(self, profile: Optional[PerformanceProfile] = None):
-        """Initialize the calculator with an optional profile.
-
-        Args:
-            profile: Default profile for metrics computation. If None,
-                     uses latency_only() as default.
-        """
-        self._profile = profile if profile is not None else latency_only()
-
-    @property
-    def profile(self) -> PerformanceProfile:
-        """Get the default profile."""
-        return self._profile
-
-    @profile.setter
-    def profile(self, value: PerformanceProfile) -> None:
-        """Set the default profile."""
-        self._profile = value
-
-    def compute(
-        self,
-        latency_ms: float,
-        profile: Optional[PerformanceProfile] = None,
-    ) -> KernelMetrics:
-        """Compute metrics from latency.
-
-        Args:
-            latency_ms: Latency in milliseconds
-            profile: Optional profile override. If None, uses default profile.
-
-        Returns:
-            KernelMetrics with computed values
-        """
-        active_profile = profile if profile is not None else self._profile
-        return active_profile.metrics(latency_ms)
-
-    @classmethod
-    def default(cls) -> "MetricsCalculator":
-        """Create a default calculator with latency-only profile."""
-        return cls(latency_only())
-
-    @classmethod
-    def for_elementwise(
-        cls,
-        numel: int,
-        bytes_per_element: int = 2,
-        peak_bandwidth_gbps: float = 2039.0,
-    ) -> "MetricsCalculator":
-        """Create a calculator for elementwise operations.
-
-        Args:
-            numel: Number of elements
-            bytes_per_element: Bytes per element
-            peak_bandwidth_gbps: Peak memory bandwidth in GB/s
-
-        Returns:
-            Configured MetricsCalculator
-        """
-        return cls(
-            elementwise(
-                numel=numel,
-                bytes_per_element=bytes_per_element,
-                peak_bandwidth_gbps=peak_bandwidth_gbps,
-            )
-        )
-
-    @classmethod
-    def for_gemm(
-        cls,
-        M: int,
-        N: int,
-        K: int,
-        bytes_per_element: int = 2,
-        peak_tflops: float = 312.0,
-        peak_bandwidth_gbps: float = 2039.0,
-    ) -> "MetricsCalculator":
-        """Create a calculator for GEMM operations.
-
-        Args:
-            M, N, K: Matrix dimensions
-            bytes_per_element: Bytes per element
-            peak_tflops: Peak compute throughput in TFLOPS
-            peak_bandwidth_gbps: Peak memory bandwidth in GB/s
-
-        Returns:
-            Configured MetricsCalculator
-        """
-        return cls(
-            gemm(
-                M=M,
-                N=N,
-                K=K,
-                bytes_per_element=bytes_per_element,
-                peak_tflops=peak_tflops,
-                peak_bandwidth_gbps=peak_bandwidth_gbps,
-            )
-        )
+def measure_metrics(
+    operation: Callable[[], object],
+    *,
+    warmup_runs: int = 10,
+    benchmark_runs: int = 100,
+    profile: Optional[PerformanceProfile] = None,
+) -> KernelMetrics:
+    """Measure latency and immediately derive metrics."""
+    latency_ms = measure_latency(
+        operation,
+        warmup_runs=warmup_runs,
+        benchmark_runs=benchmark_runs,
+    )
+    return compute_metrics(latency_ms, profile=profile)
 
 
 def compute_metrics(

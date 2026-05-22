@@ -137,14 +137,11 @@ from triton_ops.kernels.gated_mlp import FusedGatedMLP, fused_gated_mlp
 from triton_ops.kernels.rmsnorm_rope import FusedRMSNormRoPE, fused_rmsnorm_rope
 from triton_ops.models import (
     FP8Format,
-    FP8GEMMInput,
-    GatedMLPInput,
     KernelMetrics,
-    RMSNormRoPEInput,
     TensorSpec,
     TuningResult,
 )
-from triton_ops.performance import MetricsCalculator, PerformanceProfile, compute_metrics
+from triton_ops.performance import PerformanceProfile, compute_metrics
 from triton_ops.reference import (
     dequantize_fp8 as reference_dequantize_fp8,
 )
@@ -166,17 +163,6 @@ from triton_ops.reference import (
 from triton_ops.reference import (
     rope as reference_rope,
 )
-from triton_ops.utils import require_cuda, require_tensor_on_cuda
-from triton_ops.validation import (
-    FP8_GEMM_CONTRACT,
-    FP8_QUANTIZE_CONTRACT,
-    GATED_MLP_CONTRACT,
-    RMSNORM_ROPE_CONTRACT,
-    ContractResult,
-    InputContract,
-    TensorContract,
-    validate_with_contract,
-)
 
 __all__ = [
     # Fused kernels
@@ -190,13 +176,9 @@ __all__ = [
     "dequantize_fp8",
     # Performance metrics
     "PerformanceProfile",
-    "MetricsCalculator",
     "compute_metrics",
     # Data models
     "TensorSpec",
-    "RMSNormRoPEInput",
-    "GatedMLPInput",
-    "FP8GEMMInput",
     "KernelMetrics",
     "TuningResult",
     "FP8Format",
@@ -226,16 +208,4 @@ __all__ = [
     "reference_quantize_fp8",
     "reference_dequantize_fp8",
     "reference_fp8_gemm",
-    # Utilities
-    "require_cuda",
-    "require_tensor_on_cuda",
-    # Declarative validation
-    "TensorContract",
-    "InputContract",
-    "ContractResult",
-    "validate_with_contract",
-    "RMSNORM_ROPE_CONTRACT",
-    "GATED_MLP_CONTRACT",
-    "FP8_GEMM_CONTRACT",
-    "FP8_QUANTIZE_CONTRACT",
 ]

@@ -13,7 +13,7 @@ Performance work in this repository is easier once three terms stay separate: **
 | :-- | :-- | :-- |
 | Benchmarking | `BenchmarkSuite`, `CorrectnessVerifier`, `PerformanceReport` | How fast was a Kernel family under a declared method, and was it still correct? |
 | Auto-Tuning | `TritonAutoTuner`, `ConfigCache`, preset config spaces | Which launch configuration minimizes latency? |
-| Performance metrics | `PerformanceProfile`, `MetricsCalculator`, `compute_metrics` | Given shape context, what throughput or bandwidth does the observed latency imply? |
+| Performance metrics | `PerformanceProfile`, `measure_latency`, `measure_metrics`, `compute_metrics` | Given shape context, what throughput or bandwidth does the observed latency imply, and how was the latency measured? |
 
 ## Benchmarking first
 
@@ -26,7 +26,7 @@ A serious Benchmarking setup should include:
 - representative model shapes,
 - correctness checks against the reference implementation.
 
-`BenchmarkSuite` already packages that workflow, which is why it should be the default measurement tool when you want comparable evidence.
+`BenchmarkSuite` already packages that workflow, and it now delegates the actual timing loop to `triton_ops.performance.measure_metrics`, which keeps the synchronization discipline in one place.
 
 ## Where Auto-Tuning fits
 
