@@ -13,8 +13,7 @@ import triton.language as tl
 
 from triton_ops.exceptions import NumericalOverflowError
 from triton_ops.models import FP8Format
-from triton_ops.utils import require_cuda, require_tensor_on_cuda
-from triton_ops.validation import validate_fp8_quantize_inputs
+from triton_ops.validation import validate_fp8_dequantize_inputs, validate_fp8_quantize_inputs
 
 # FP8 E4M3 constants (must match triton_ops.models.FP8Format)
 # These are kept as module-level constants for use in Triton kernels (constexpr)
@@ -174,9 +173,6 @@ def quantize_fp8(
     Note:
         All tensors must be on CUDA device and contiguous.
     """
-    # Check CUDA availability
-    require_cuda("tensor")
-
     validate_fp8_quantize_inputs(tensor, scale)
 
     # Handle empty tensors
@@ -195,10 +191,6 @@ def quantize_fp8(
             "Scale must be positive",
             scale=scale.item(),
         )
-
-    # Ensure scale is on same device
-    if not scale.is_cuda:
-        scale = scale.to(tensor.device)
 
     # Allocate output
     output = torch.empty(tensor.shape, dtype=torch.uint8, device=tensor.device)
@@ -245,9 +237,7 @@ def dequantize_fp8(
     Note:
         All tensors must be on CUDA device and contiguous.
     """
-    require_cuda("dequantize_fp8")
-    require_tensor_on_cuda(tensor, "tensor")
-    require_tensor_on_cuda(scale, "scale")
+    validate_fp8_dequantize_inputs(tensor, scale, output_dtype)
 
     # Allocate output
     output = torch.empty(tensor.shape, dtype=output_dtype, device=tensor.device)

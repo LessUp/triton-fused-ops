@@ -1,14 +1,12 @@
 """Auto-tuning framework for Triton kernels."""
 
-import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
 from triton_ops.exceptions import TuningFailedError
 from triton_ops.models import KernelMetrics, TuningResult
-from triton_ops.performance import PerformanceProfile, compute_metrics
-from triton_ops.utils import sync_cuda
+from triton_ops.performance import PerformanceProfile, measure_metrics
 
 
 class TritonAutoTuner:
@@ -61,26 +59,12 @@ class TritonAutoTuner:
             KernelMetrics or None if configuration fails
         """
         try:
-            # Warmup runs
-            for _ in range(self.warmup_runs):
-                self.kernel_fn(*args, **config, **kwargs)
-
-            # Synchronize before timing
-            sync_cuda()
-
-            # Benchmark runs
-            start_time = time.perf_counter()
-            for _ in range(self.benchmark_runs):
-                self.kernel_fn(*args, **config, **kwargs)
-            sync_cuda()
-            end_time = time.perf_counter()
-
-            # Calculate latency
-            total_time = end_time - start_time
-            latency_ms = (total_time / self.benchmark_runs) * 1000
-
-            # Compute metrics using unified compute_metrics function
-            return compute_metrics(latency_ms, profile=performance)
+            return measure_metrics(
+                lambda: self.kernel_fn(*args, **config, **kwargs),
+                warmup_runs=self.warmup_runs,
+                benchmark_runs=self.benchmark_runs,
+                profile=performance,
+            )
 
         except (RuntimeError, OSError) as e:
             # Catch CUDA runtime errors and OS-level errors during kernel execution

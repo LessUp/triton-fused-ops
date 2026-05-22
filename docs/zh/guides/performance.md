@@ -13,7 +13,7 @@ description: 如何在 Triton Fused Ops 中正确做 Benchmarking、Auto-Tuning 
 | :-- | :-- | :-- |
 | Benchmarking | `BenchmarkSuite`、`CorrectnessVerifier`、`PerformanceReport` | 某个 Kernel family 在声明的方法下测得多快，并且是否仍然正确？ |
 | Auto-Tuning | `TritonAutoTuner`、`ConfigCache`、预设配置空间 | 哪组 launch 参数把 latency 压到最低？ |
-| Performance metrics | `PerformanceProfile`、`MetricsCalculator`、`compute_metrics` | 在已知 shape 上下文下，这个 latency 意味着怎样的吞吐或带宽？ |
+| Performance metrics | `PerformanceProfile`、`measure_latency`、`measure_metrics`、`compute_metrics` | 在已知 shape 上下文下，这个 latency 意味着怎样的吞吐或带宽，以及这个 latency 是如何测出来的？ |
 
 ## 先做 Benchmarking
 
@@ -26,7 +26,7 @@ description: 如何在 Triton Fused Ops 中正确做 Benchmarking、Auto-Tuning 
 - 来自真实模型的代表性 shape；
 - 与 reference 实现的正确性比对。
 
-`BenchmarkSuite` 已经把这些流程封装在一起，所以在你需要可比较证据时，它应是默认起点。
+`BenchmarkSuite` 已经把这些流程封装在一起，并且把实际计时循环委托给 `triton_ops.performance.measure_metrics`，这样同步纪律只需要维护一处。
 
 ## Auto-Tuning 放在哪
 

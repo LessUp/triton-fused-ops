@@ -23,7 +23,7 @@ description: 说明公共 API、验证契约、reference 路径与性能工具�
 - shape 是否兼容；
 - 标量参数是否合法。
 
-仓库还显式导出 `RMSNORM_ROPE_CONTRACT`、`GATED_MLP_CONTRACT`、`FP8_GEMM_CONTRACT` 与 `FP8_QUANTIZE_CONTRACT`。这意味着验证不是临时防御代码，而是设计表面的一部分。
+仓库把验证保留为靠近各个 Kernel family 的过程式 helper。这样验证仍然是设计表面的一部分，但不会再引入一套调用者还得额外学习的声明式接口。
 
 ## Kernel 与 reference 执行路径
 

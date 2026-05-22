@@ -23,7 +23,7 @@ That choice matters because it keeps the public story compact: users import kern
 - shape compatibility,
 - scalar parameter validity.
 
-The repo also exposes declarative contract objects such as `RMSNORM_ROPE_CONTRACT`, `GATED_MLP_CONTRACT`, `FP8_GEMM_CONTRACT`, and `FP8_QUANTIZE_CONTRACT`. That means validation is not just ad hoc error handling; it is part of the design surface.
+The repo keeps validation as procedural helpers close to the kernel families that use them. That means validation is part of the design surface without introducing a second declarative interface that callers have to learn.
 
 ## Kernel and reference execution
 

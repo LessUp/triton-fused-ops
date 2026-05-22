@@ -15,7 +15,6 @@ import triton.language as tl
 
 from triton_ops.kernels.fp8_quantize import quantize_fp8
 from triton_ops.models import FP8Format
-from triton_ops.utils import require_cuda
 from triton_ops.validation import validate_fp8_gemm_inputs
 
 # FP8 constants (must match triton_ops.models.FP8Format)
@@ -171,9 +170,6 @@ def fp8_gemm(
     Note:
         All tensors must be on CUDA device and contiguous.
     """
-    # Check CUDA availability
-    require_cuda("a")
-
     # Handle float inputs by quantizing to FP8
     if a.dtype in [torch.float16, torch.bfloat16, torch.float32]:
         a, a_scale = quantize_fp8(a)
