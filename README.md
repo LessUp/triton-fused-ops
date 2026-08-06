@@ -61,7 +61,7 @@ python -m build
 - CUDA C++ 的系统学习路径：[`cuda-kernel-academy`](https://github.com/AICL-Lab/cuda-kernel-academy)
 - FlashAttention 前后向的 CUDA C++ 深挖：[`cuflash-attn`](https://github.com/AICL-Lab/cuflash-attn)
 - 完整模型加载与 token 生成：[`tiny-llm`](https://github.com/AICL-Lab/tiny-llm)
-- Paged KV 与 continuous batching 控制面：[`hetero-paged-infer`](https://github.com/AICL-Lab/hetero-paged-infer)
+- Paged KV 与 continuous batching 控制面：[`paged-infer`](https://github.com/AICL-Lab/paged-infer)
 
 新 kernel 只有在具备独立参考实现、边界测试和真实 GPU 验证计划时才进入主分支。未在当前硬件上测量的性能数字不会写入 README。
 
