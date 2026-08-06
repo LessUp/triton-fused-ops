@@ -2,7 +2,6 @@
 
 from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import (
-    FP8_GEMM_CONFIGS,
     GATED_MLP_CONFIGS,
     RMSNORM_ROPE_CONFIGS,
 )
@@ -12,6 +11,5 @@ __all__ = [
     "TritonAutoTuner",
     "RMSNORM_ROPE_CONFIGS",
     "GATED_MLP_CONFIGS",
-    "FP8_GEMM_CONFIGS",
     "ConfigCache",
 ]

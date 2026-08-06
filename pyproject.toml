@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "triton-fused-ops"
-version = "1.0.1"
-description = "High-performance Triton operators for Transformer models with operator fusion and FP8 quantization"
+version = "2.0.0"
+description = "Small, verifiable Triton kernels for Transformer inference"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.9"
+license = "MIT"
+requires-python = ">=3.10"
 authors = [
     {name = "Triton Fused Ops Team", email = "triton-fused-ops@example.com"}
 ]
@@ -20,24 +20,20 @@ keywords = [
     "cuda",
     "gpu",
     "transformer",
-    "fp8",
-    "quantization",
     "operator-fusion",
     "deep-learning",
     "machine-learning",
     "rmsnorm",
     "rope",
     "gated-mlp",
-    "gemm",
+    "flash-attention",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -51,11 +47,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://lessup.github.io/triton-fused-ops/"
-Documentation = "https://lessup.github.io/triton-fused-ops/en/"
-Repository = "https://github.com/LessUp/triton-fused-ops.git"
-Issues = "https://github.com/LessUp/triton-fused-ops/issues"
-Changelog = "https://github.com/LessUp/triton-fused-ops/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/AICL-Lab/triton-fused-ops"
+Repository = "https://github.com/AICL-Lab/triton-fused-ops.git"
+Issues = "https://github.com/AICL-Lab/triton-fused-ops/issues"
+Changelog = "https://github.com/AICL-Lab/triton-fused-ops/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -99,14 +94,14 @@ fail_under = 70
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP"]
 ignore = [
     "E501",  # Line too long (handled by formatter policy)
-    "UP035", # Deprecated typing imports (for Python 3.9 compatibility)
-    "UP006", # Use dict/list instead of Dict/List (for Python 3.9 compatibility)
+    "UP035", # Keep the existing public typing style
+    "UP006", # Keep the existing public typing style
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -115,7 +110,7 @@ ignore = [
 "triton_ops/autotuner/*" = ["F841"]  # Allow unused variables in autotuner
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

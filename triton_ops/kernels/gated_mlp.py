@@ -4,7 +4,7 @@ This module implements a fused kernel for Gated MLP (used in LLaMA, Mistral, etc
 that combines gate projection, up projection, and activation into a single kernel.
 
 Mathematical formula:
-output = gate_proj(x) * activation(up_proj(x))
+output = activation(gate_proj(x)) * up_proj(x)
 
 Where activation is either SiLU (x * sigmoid(x)) or GELU.
 """
@@ -66,8 +66,7 @@ def fused_gated_mlp_kernel(
 ):
     """Fused Gated MLP kernel.
 
-    Computes: output = gate_proj(x) * activation(up_proj(x))
-    Note: activation is applied to up_proj, matching standard SwiGLU.
+    Computes: output = activation(gate_proj(x)) * up_proj(x)
     Each program computes a BLOCK_M x BLOCK_N tile of the output.
     """
     # Program ID
@@ -130,15 +129,13 @@ def fused_gated_mlp_kernel(
         gate_acc += tl.dot(x_block.to(tl.float32), gw_block.to(tl.float32))
         up_acc += tl.dot(x_block.to(tl.float32), uw_block.to(tl.float32))
 
-    # Apply activation to up projection (standard SwiGLU formula)
-    # output = gate_proj(x) * activation(up_proj(x))
+    # Standard SwiGLU/GeGLU applies the non-linearity to the gate projection.
     if activation_type == 0:
-        up_activated = silu(up_acc)
+        gate_activated = silu(gate_acc)
     else:
-        up_activated = gelu(up_acc)
+        gate_activated = gelu(gate_acc)
 
-    # Compute gated output
-    output = gate_acc * up_activated
+    output = gate_activated * up_acc
 
     # Store output
     out_ptrs = (
@@ -161,8 +158,8 @@ def fused_gated_mlp(
 ) -> torch.Tensor:
     """Apply fused Gated MLP transformation.
 
-    Computes: output = gate_proj(x) * activation(up_proj(x))
-    Activation is applied to up_proj, matching standard SwiGLU/GeGLU.
+    Computes: output = activation(gate_proj(x)) * up_proj(x), matching
+    standard SwiGLU/GeGLU.
 
     This fused implementation reduces memory bandwidth by computing both
     projections and the activation in a single kernel.

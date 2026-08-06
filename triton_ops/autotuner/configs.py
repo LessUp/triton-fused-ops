@@ -19,16 +19,6 @@ GATED_MLP_CONFIGS = {
     "num_stages": [2, 3, 4],
 }
 
-# FP8 GEMM configuration space
-FP8_GEMM_CONFIGS = {
-    "BLOCK_M": [64, 128, 256],
-    "BLOCK_N": [64, 128, 256],
-    "BLOCK_K": [32, 64],
-    "GROUP_SIZE_M": [4, 8],
-    "num_warps": [4, 8],
-    "num_stages": [3, 4, 5],
-}
-
 
 def generate_configs(config_space: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
     """Generate all configurations from a configuration space.
@@ -104,7 +94,7 @@ def get_default_config(kernel_type: str) -> Dict[str, Any]:
     """Get default configuration for a kernel type.
 
     Args:
-        kernel_type: One of "rmsnorm_rope", "gated_mlp", "fp8_gemm"
+        kernel_type: One of "rmsnorm_rope" or "gated_mlp"
 
     Returns:
         Default configuration dictionary
@@ -121,14 +111,6 @@ def get_default_config(kernel_type: str) -> Dict[str, Any]:
             "BLOCK_K": 32,
             "num_warps": 4,
             "num_stages": 3,
-        },
-        "fp8_gemm": {
-            "BLOCK_M": 128,
-            "BLOCK_N": 128,
-            "BLOCK_K": 32,
-            "GROUP_SIZE_M": 8,
-            "num_warps": 4,
-            "num_stages": 4,
         },
     }
 

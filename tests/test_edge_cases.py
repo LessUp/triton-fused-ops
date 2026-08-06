@@ -51,19 +51,6 @@ class TestValidationErrors:
         with pytest.raises(ValueError):
             validate_gated_mlp_inputs(x, gate_w, up_w, activation="invalid")
 
-    def test_fp8_gemm_dimension_mismatch(self):
-        """Test that matrix dimension mismatches raise errors."""
-        from triton_ops.exceptions import ShapeMismatchError
-        from triton_ops.validation import validate_fp8_gemm_inputs
-
-        a = torch.randn(64, 128, device="cuda", dtype=torch.float16)
-        b = torch.randn(64, 64, device="cuda", dtype=torch.float16)  # K mismatch
-        a_scale = torch.tensor(1.0, device="cuda")
-        b_scale = torch.tensor(1.0, device="cuda")
-
-        with pytest.raises(ShapeMismatchError):
-            validate_fp8_gemm_inputs(a, b, a_scale, b_scale)
-
 
 class TestDataModels:
     """Tests for data model classes."""
@@ -89,23 +76,6 @@ class TestDataModels:
         # Wrong dtype
         wrong_dtype = torch.randn(2, 16, 256, device="cuda", dtype=torch.float32)
         assert not spec.validate(wrong_dtype)
-
-    def test_fp8_format_scale_computation(self):
-        """Test FP8Format scale computation."""
-        from triton_ops.models import FP8Format
-
-        # Normal tensor
-        tensor = torch.randn(100, device="cuda", dtype=torch.float16) * 10
-        scale = FP8Format.compute_scale(tensor)
-
-        # Scale should map max value to FP8 max
-        scaled_max = (tensor.abs().max() * scale).item()
-        assert abs(scaled_max - FP8Format.max_value) < 1.0
-
-        # Zero tensor
-        zero_tensor = torch.zeros(100, device="cuda", dtype=torch.float16)
-        zero_scale = FP8Format.compute_scale(zero_tensor)
-        assert zero_scale.item() == 1.0
 
     def test_kernel_metrics_str(self):
         """Test KernelMetrics string representation."""
@@ -142,21 +112,6 @@ class TestExceptionAttributes:
         assert error.expected == (2, 16, 256)
         assert error.actual == (2, 16, 128)
         assert error.tensor_name == "x"
-
-    def test_numerical_overflow_error_attributes(self):
-        """Test NumericalOverflowError attributes."""
-        from triton_ops.exceptions import NumericalOverflowError
-
-        error = NumericalOverflowError(
-            "Overflow",
-            max_value=1000.0,
-            scale=0.5,
-            attempts=3,
-        )
-
-        assert error.max_value == 1000.0
-        assert error.scale == 0.5
-        assert error.attempts == 3
 
 
 class TestModuleWrappers:
@@ -205,23 +160,3 @@ class TestModuleWrappers:
         output = module(x)
 
         assert output.shape == (2, 16, intermediate_dim)
-
-    def test_fp8_linear_module(self):
-        """Test FP8Linear module."""
-        from triton_ops.kernels.fp8_gemm import FP8Linear
-
-        in_features = 256
-        out_features = 512
-
-        module = FP8Linear(in_features, out_features)
-
-        # Check parameters
-        assert module.weight.shape == (out_features, in_features)
-
-        # Forward pass
-        x = torch.randn(2, 16, in_features, device="cuda", dtype=torch.float16)
-
-        module = module.cuda()
-        output = module(x)
-
-        assert output.shape == (2, 16, out_features)

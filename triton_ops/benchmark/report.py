@@ -3,7 +3,7 @@
 import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from triton_ops.models import KernelMetrics
 
@@ -26,7 +26,7 @@ class BenchmarkResult:
     config: Dict[str, Any]
     metrics: KernelMetrics
     correctness: bool
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
 
     def __post_init__(self):
         if self.timestamp is None:

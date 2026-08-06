@@ -5,7 +5,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 _logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class ConfigCache:
         cache_dir: Directory to store cache files. If None, uses in-memory cache only.
     """
 
-    def __init__(self, cache_dir: Optional[str] = None):
+    def __init__(self, cache_dir: str | None = None):
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self._memory_cache: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()  # Thread-safe lock
@@ -54,7 +54,7 @@ class ConfigCache:
         kernel_type: str,
         problem_size: Tuple[int, ...],
         device: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """Retrieve cached configuration.
 
         Args:

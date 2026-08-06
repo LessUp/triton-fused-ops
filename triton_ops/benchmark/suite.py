@@ -1,7 +1,7 @@
 """Benchmark suite for Triton operators."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, List, Literal, Tuple
 
 import torch
 
@@ -85,7 +85,7 @@ class KernelBenchmark(ABC):
         pass
 
     @abstractmethod
-    def performance_profile(self, problem_size: Tuple[int, ...]) -> Optional[PerformanceProfile]:
+    def performance_profile(self, problem_size: Tuple[int, ...]) -> PerformanceProfile | None:
         """Create a performance profile for the given problem size.
 
         Args:
@@ -157,7 +157,7 @@ class BenchmarkSuite:
         problem_size: Tuple[int, ...],
         *args,
         config: Dict[str, Any] = None,
-        performance: Optional[PerformanceProfile] = None,
+        performance: PerformanceProfile | None = None,
         **kwargs,
     ) -> BenchmarkResult:
         """Benchmark a kernel and verify correctness.
@@ -207,7 +207,7 @@ class BenchmarkSuite:
         kernel_name: str,
         problem_size: Tuple[int, ...],
         *args,
-        performance: Optional[PerformanceProfile] = None,
+        performance: PerformanceProfile | None = None,
         **kwargs,
     ) -> ComparisonResult:
         """Compare Triton kernel with PyTorch native operation.
@@ -319,7 +319,7 @@ class BenchmarkSuite:
         seq_lens: List[int],
         hidden_dims: List[int],
         intermediate_dims: List[int],
-        activations: Optional[List[Literal["silu", "gelu"]]] = None,
+        activations: List[Literal["silu", "gelu"]] | None = None,
     ) -> List[BenchmarkResult]:
         """Benchmark Gated MLP across different sizes.
 
@@ -383,53 +383,10 @@ class BenchmarkSuite:
 
         return results
 
-    def benchmark_fp8_gemm(
-        self,
-        M_sizes: List[int],
-        N_sizes: List[int],
-        K_sizes: List[int],
-    ) -> List[BenchmarkResult]:
-        """Benchmark FP8 GEMM across different sizes.
-
-        Args:
-            M_sizes: List of M dimensions
-            N_sizes: List of N dimensions
-            K_sizes: List of K dimensions
-
-        Returns:
-            List of benchmark results
-        """
-        from triton_ops.kernels.fp8_gemm import fp8_gemm
-        from triton_ops.reference import fp8_gemm as fp8_gemm_reference
-
-        results = []
-
-        for M in M_sizes:
-            for N in N_sizes:
-                for K in K_sizes:
-                    # Create inputs
-                    a = torch.randn(M, K, device="cuda", dtype=torch.float16)
-                    b = torch.randn(K, N, device="cuda", dtype=torch.float16)
-
-                    problem_size = (M, N, K)
-
-                    result = self.benchmark_kernel(
-                        fp8_gemm,
-                        fp8_gemm_reference,
-                        "fp8_gemm",
-                        problem_size,
-                        a,
-                        b,
-                        performance=perf_module.gemm(M=M, N=N, K=K),
-                    )
-                    results.append(result)
-
-        return results
-
     def benchmark_kernel_family(
         self,
         kernel_benchmark: KernelBenchmark,
-        problem_sizes: Optional[List[Tuple[int, ...]]] = None,
+        problem_sizes: List[Tuple[int, ...]] | None = None,
     ) -> List[BenchmarkResult]:
         """Benchmark a kernel family using the KernelBenchmark interface.
 

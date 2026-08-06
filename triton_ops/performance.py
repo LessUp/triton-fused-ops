@@ -14,7 +14,7 @@ computation, used by both the auto-tuner and benchmark suite.
 import math
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 import torch
 
@@ -200,7 +200,7 @@ def measure_metrics(
     *,
     warmup_runs: int = 10,
     benchmark_runs: int = 100,
-    profile: Optional[PerformanceProfile] = None,
+    profile: PerformanceProfile | None = None,
 ) -> KernelMetrics:
     """Measure latency and immediately derive metrics."""
     latency_ms = measure_latency(
@@ -213,7 +213,7 @@ def measure_metrics(
 
 def compute_metrics(
     latency_ms: float,
-    profile: Optional[PerformanceProfile] = None,
+    profile: PerformanceProfile | None = None,
 ) -> KernelMetrics:
     """Convenience function for one-off metrics computation.
 

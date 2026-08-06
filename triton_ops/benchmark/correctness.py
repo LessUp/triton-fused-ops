@@ -110,46 +110,6 @@ class CorrectnessVerifier:
         return float(rel_diff.max().item())
 
 
-def verify_fp8_accuracy(
-    fp8_result: torch.Tensor,
-    fp16_baseline: torch.Tensor,
-    max_relative_error: float = 0.01,
-) -> Tuple[bool, dict]:
-    """Verify FP8 result accuracy against FP16 baseline.
-
-    Args:
-        fp8_result: Result from FP8 computation
-        fp16_baseline: Result from FP16 computation
-        max_relative_error: Maximum allowed relative error (default 1%)
-
-    Returns:
-        Tuple of (is_within_tolerance, details_dict)
-    """
-    # Compute relative error
-    abs_diff = (fp8_result.float() - fp16_baseline.float()).abs()
-    baseline_abs = fp16_baseline.float().abs()
-
-    # Avoid division by zero
-    rel_error = abs_diff / (baseline_abs + 1e-10)
-
-    # Check if within tolerance
-    max_rel_error = rel_error.max().item()
-    mean_rel_error = rel_error.mean().item()
-
-    is_within_tolerance = max_rel_error <= max_relative_error
-
-    details = {
-        "is_within_tolerance": is_within_tolerance,
-        "max_relative_error": max_rel_error,
-        "mean_relative_error": mean_rel_error,
-        "tolerance": max_relative_error,
-        "max_abs_diff": abs_diff.max().item(),
-        "mean_abs_diff": abs_diff.mean().item(),
-    }
-
-    return is_within_tolerance, details
-
-
 def verify_nan_inf_propagation(
     output: torch.Tensor,
     input_has_nan: bool,

@@ -72,34 +72,6 @@ class TestBenchmarkCorrectnessVerification:
         assert not is_correct, f"Non-matching results should be identified as incorrect: {details}"
 
 
-class TestFP8AccuracyVerification:
-    """Unit tests for FP8 accuracy verification."""
-
-    def test_fp8_within_tolerance(self):
-        """Test FP8 accuracy verification with results within tolerance."""
-        from triton_ops.benchmark.correctness import verify_fp8_accuracy
-
-        # Create tensors with small difference
-        fp16_baseline = torch.randn(100, 100, device="cuda", dtype=torch.float16)
-        fp8_result = fp16_baseline + torch.randn_like(fp16_baseline) * 0.001
-
-        is_within, details = verify_fp8_accuracy(fp8_result, fp16_baseline, max_relative_error=0.01)
-
-        assert is_within, f"Should be within tolerance: {details}"
-
-    def test_fp8_outside_tolerance(self):
-        """Test FP8 accuracy verification with results outside tolerance."""
-        from triton_ops.benchmark.correctness import verify_fp8_accuracy
-
-        # Create tensors with large difference
-        fp16_baseline = torch.randn(100, 100, device="cuda", dtype=torch.float16)
-        fp8_result = fp16_baseline * 1.5  # 50% error
-
-        is_within, details = verify_fp8_accuracy(fp8_result, fp16_baseline, max_relative_error=0.01)
-
-        assert not is_within, f"Should be outside tolerance: {details}"
-
-
 class TestNaNInfVerification:
     """Unit tests for NaN/Inf propagation verification."""
 

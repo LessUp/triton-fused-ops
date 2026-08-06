@@ -34,8 +34,6 @@ from triton_ops.reference.base import (
     validate_backend,
 )
 
-# FP8 constants from models (single source of truth)
-
 
 def rmsnorm(
     x: np.ndarray | torch.Tensor,
@@ -310,7 +308,7 @@ def compute_rope_frequencies(
         inv_freq = 1.0 / (base ** (np.arange(0, head_dim, 2, dtype=np.float32) / head_dim))
 
         # Compute positions
-        positions = np.arange(seq_len, dtype=np.float32)
+        positions: np.ndarray = np.arange(seq_len, dtype=np.float32)
 
         # Compute angles
         angles = np.outer(positions, inv_freq)

@@ -88,6 +88,7 @@ def to_output_dtype(
     if backend == "cpu":
         if isinstance(result, torch.Tensor):
             result = result.detach().cpu().numpy()
+        numpy_dtype: Any
         if isinstance(input_dtype, torch.dtype):
             # Map torch dtype to numpy dtype
             dtype_map = {
@@ -95,10 +96,10 @@ def to_output_dtype(
                 torch.float32: np.float32,
                 torch.bfloat16: np.float32,  # numpy doesn't have bfloat16
             }
-            target_dtype = dtype_map.get(input_dtype, np.float32)
+            numpy_dtype = dtype_map.get(input_dtype, np.float32)
         else:
-            target_dtype = input_dtype
-        return result.astype(target_dtype)
+            numpy_dtype = input_dtype
+        return result.astype(numpy_dtype)
     else:
         # GPU backend
         if isinstance(result, np.ndarray):
@@ -109,10 +110,10 @@ def to_output_dtype(
                 np.dtype(np.float16): torch.float16,
                 np.dtype(np.float32): torch.float32,
             }
-            target_dtype = dtype_map.get(input_dtype, torch.float32)
+            torch_dtype = dtype_map.get(input_dtype, torch.float32)
         else:
-            target_dtype = input_dtype
-        return result.to(dtype=target_dtype)
+            torch_dtype = input_dtype
+        return result.to(dtype=torch_dtype)
 
 
 # =============================================================================

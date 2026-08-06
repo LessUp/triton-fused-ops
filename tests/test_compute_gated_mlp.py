@@ -61,10 +61,25 @@ class TestActivationFunctions:
 class TestReferenceGatedMLP:
     """Test Gated MLP reference implementation."""
 
+    def test_standard_swiglu_activates_gate_projection(self):
+        x = np.array([[[1.0, 2.0]]], dtype=np.float32)
+        gate_w = np.array([[2.0, -1.0], [0.5, 1.5]], dtype=np.float32)
+        up_w = np.array([[-1.0, 3.0], [2.0, 0.25]], dtype=np.float32)
+
+        gate = x.reshape(-1, 2) @ gate_w.T
+        up = x.reshape(-1, 2) @ up_w.T
+        expected = (_silu_cpu(gate) * up).reshape(1, 1, 2)
+        reversed_contract = (gate * _silu_cpu(up)).reshape(1, 1, 2)
+
+        actual = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
+
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+        assert not np.allclose(expected, reversed_contract)
+
     def test_basic_computation_cpu(self):
         """Test basic Gated MLP computation on CPU."""
-        batch, seq_len, hidden_dim = 2, 128, 4096
-        intermediate_dim = 11264
+        batch, seq_len, hidden_dim = 2, 4, 16
+        intermediate_dim = 24
 
         x = np.random.randn(batch, seq_len, hidden_dim).astype(np.float32) * 0.1
         gate_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
@@ -77,9 +92,9 @@ class TestReferenceGatedMLP:
 
     def test_activation_variants_cpu(self):
         """Test Gated MLP with different activations on CPU."""
-        x = np.random.randn(2, 128, 4096).astype(np.float32) * 0.1
-        gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
-        up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
+        x = np.random.randn(2, 4, 16).astype(np.float32) * 0.1
+        gate_w = np.random.randn(24, 16).astype(np.float32) * 0.01
+        up_w = np.random.randn(24, 16).astype(np.float32) * 0.01
 
         output_silu = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
         output_gelu = gated_mlp(x, gate_w, up_w, activation="gelu", backend="cpu")
@@ -90,30 +105,30 @@ class TestReferenceGatedMLP:
     def test_dimension_flexibility_cpu(self):
         """Test Gated MLP with different dimensions on CPU."""
         test_cases = [
-            (4096, 11264),  # LLaMA-style
-            (5120, 13824),  # Larger model
-            (2048, 5632),  # Smaller model
+            (16, 24),
+            (32, 48),
+            (64, 96),
         ]
 
         for hidden_dim, intermediate_dim in test_cases:
-            x = np.random.randn(2, 128, hidden_dim).astype(np.float32) * 0.1
+            x = np.random.randn(2, 4, hidden_dim).astype(np.float32) * 0.1
             gate_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
             up_w = np.random.randn(intermediate_dim, hidden_dim).astype(np.float32) * 0.01
 
             output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
-            assert output.shape == (2, 128, intermediate_dim)
+            assert output.shape == (2, 4, intermediate_dim)
 
     def test_weight_independence_cpu(self):
         """Test that gate and up weights are independent on CPU."""
-        x = np.random.randn(1, 1, 4096).astype(np.float32) * 0.1
-        gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
+        x = np.random.randn(1, 1, 16).astype(np.float32) * 0.1
+        gate_w = np.random.randn(24, 16).astype(np.float32) * 0.01
 
         # Same weight for both
         output_same = gated_mlp(x, gate_w, gate_w, activation="silu", backend="cpu")
 
         # Different weights
-        up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
+        up_w = np.random.randn(24, 16).astype(np.float32) * 0.01
         output_diff = gated_mlp(x, gate_w, up_w, activation="silu", backend="cpu")
 
         # Should produce different outputs
@@ -121,9 +136,9 @@ class TestReferenceGatedMLP:
 
     def test_batch_independence_cpu(self):
         """Test that each batch element is processed independently on CPU."""
-        x = np.random.randn(4, 128, 4096).astype(np.float32) * 0.1
-        gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
-        up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
+        x = np.random.randn(4, 4, 16).astype(np.float32) * 0.1
+        gate_w = np.random.randn(24, 16).astype(np.float32) * 0.01
+        up_w = np.random.randn(24, 16).astype(np.float32) * 0.01
 
         output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
@@ -135,9 +150,9 @@ class TestReferenceGatedMLP:
 
     def test_zero_input_cpu(self):
         """Test Gated MLP with zero input on CPU."""
-        x = np.zeros((2, 128, 4096), dtype=np.float32)
-        gate_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
-        up_w = np.random.randn(11264, 4096).astype(np.float32) * 0.01
+        x = np.zeros((2, 4, 16), dtype=np.float32)
+        gate_w = np.random.randn(24, 16).astype(np.float32) * 0.01
+        up_w = np.random.randn(24, 16).astype(np.float32) * 0.01
 
         output = gated_mlp(x, gate_w, up_w, backend="cpu")
 
@@ -146,9 +161,9 @@ class TestReferenceGatedMLP:
 
     def test_invalid_activation(self):
         """Test that invalid activation raises error."""
-        x = np.random.randn(2, 128, 4096).astype(np.float32)
-        gate_w = np.random.randn(11264, 4096).astype(np.float32)
-        up_w = np.random.randn(11264, 4096).astype(np.float32)
+        x = np.random.randn(2, 4, 16).astype(np.float32)
+        gate_w = np.random.randn(24, 16).astype(np.float32)
+        up_w = np.random.randn(24, 16).astype(np.float32)
 
         with pytest.raises(ValueError, match="activation must be"):
             gated_mlp(x, gate_w, up_w, activation="invalid", backend="cpu")

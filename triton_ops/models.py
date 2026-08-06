@@ -1,7 +1,7 @@
 """Data models and type definitions for Triton operators."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import torch
 
@@ -65,7 +65,7 @@ class TensorSpec:
             return False
         return True
 
-    def create_tensor(self, fill_value: Optional[float] = None) -> torch.Tensor:
+    def create_tensor(self, fill_value: float | None = None) -> torch.Tensor:
         """Create a tensor matching this specification.
 
         Creates a new tensor with the specified shape, dtype, and device.
@@ -92,7 +92,7 @@ class TensorSpec:
             tensor = torch.randn(self.shape, dtype=self.dtype, device=self.device)
         return tensor
 
-    def validate_tensor(self, tensor: torch.Tensor) -> Tuple[bool, Optional[str]]:
+    def validate_tensor(self, tensor: torch.Tensor) -> Tuple[bool, str | None]:
         """Validate a tensor against this specification.
 
         Args:
@@ -218,119 +218,10 @@ class TuningResult:
     best_config: Dict[str, Any]
     metrics: KernelMetrics
     all_results: List[Tuple[Dict[str, Any], KernelMetrics]] = field(default_factory=list)
-    problem_size: Optional[Tuple[int, ...]] = None
-    device: Optional[str] = None
+    problem_size: Tuple[int, ...] | None = None
+    device: str | None = None
 
     def __str__(self) -> str:
         """Return human-readable string representation."""
         config_str = ", ".join(f"{k}={v}" for k, v in self.best_config.items())
         return f"Best config: {{{config_str}}}\n{self.metrics}"
-
-
-@dataclass
-class FP8Format:
-    """FP8 E4M3 format specification and utilities.
-
-    The E4M3 format (IEEE 754-like):
-        - 1 sign bit
-        - 4 exponent bits (bias = 7)
-        - 3 mantissa bits
-
-    Representable Range:
-        - Maximum: 448.0
-        - Minimum normal: 2^-6 ≈ 0.015625
-        - No infinities or NaNs in standard E4M3
-
-    Attributes:
-        exponent_bits: Number of exponent bits (4 for E4M3).
-        mantissa_bits: Number of mantissa bits (3 for E4M3).
-        max_value: Maximum representable value (448.0).
-        min_normal: Smallest normal number (2^-6).
-
-    Example:
-        >>> FP8Format.max_value
-        448.0
-        >>> scale = FP8Format.compute_scale(torch.tensor([100.0, 200.0, 300.0]))
-        >>> scale.item()
-        1.493333...  # 448.0 / 300.0
-    """
-
-    exponent_bits: int = 4
-    mantissa_bits: int = 3
-    max_value: float = 448.0
-    min_normal: float = 2**-6
-
-    @staticmethod
-    def compute_scale(tensor: torch.Tensor) -> torch.Tensor:
-        """Compute optimal scaling factor for FP8 conversion.
-
-        The scale is computed to map the tensor's maximum absolute value
-        to FP8's maximum representable value (448.0).
-
-        Formula: ``scale = FP8_MAX / max(abs(tensor))``
-
-        Args:
-            tensor: Input tensor to compute scale for.
-
-        Returns:
-            Scaling factor tensor with dtype ``float32``.
-
-        Example:
-            >>> x = torch.tensor([1.0, 2.0, 4.0])
-            >>> scale = FP8Format.compute_scale(x)
-            >>> scale.item()  # 448.0 / 4.0
-            112.0
-        """
-        max_abs = tensor.abs().max()
-        if max_abs == 0:
-            return torch.tensor(1.0, device=tensor.device, dtype=torch.float32)
-        return torch.tensor(
-            FP8Format.max_value / max_abs.item(), device=tensor.device, dtype=torch.float32
-        )
-
-    @staticmethod
-    def compute_scale_per_channel(tensor: torch.Tensor, dim: int = 0) -> torch.Tensor:
-        """Compute per-channel scaling factors for FP8 conversion.
-
-        Useful for quantizing weight matrices where each output channel
-        can have its own scale factor for better precision.
-
-        Args:
-            tensor: Input tensor to compute scales for.
-            dim: Dimension along which to compute scales (default: 0).
-
-        Returns:
-            Per-channel scaling factors with shape matching tensor except
-            for the reduced dimension.
-
-        Example:
-            >>> weight = torch.randn(4096, 1024)  # [out_features, in_features]
-            >>> scales = FP8Format.compute_scale_per_channel(weight, dim=1)
-            >>> scales.shape
-            torch.Size([4096, 1])
-        """
-        max_abs = tensor.abs().amax(dim=dim, keepdim=True)
-        max_abs = torch.where(max_abs == 0, torch.ones_like(max_abs), max_abs)
-        return FP8Format.max_value / max_abs
-
-    @staticmethod
-    def is_in_range(tensor: torch.Tensor, scale: torch.Tensor) -> bool:
-        """Check if scaled tensor is within FP8 representable range.
-
-        Args:
-            tensor: Input tensor.
-            scale: Scaling factor to apply.
-
-        Returns:
-            ``True`` if all scaled values are within ``[-448.0, 448.0]``.
-
-        Example:
-            >>> x = torch.tensor([100.0, 200.0])
-            >>> scale = torch.tensor(1.0)
-            >>> FP8Format.is_in_range(x, scale)
-            True
-            >>> FP8Format.is_in_range(torch.tensor([500.0]), scale)
-            False
-        """
-        scaled = tensor * scale
-        return bool(scaled.abs().max() <= FP8Format.max_value)

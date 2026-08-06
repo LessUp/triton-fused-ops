@@ -1,6 +1,6 @@
 """Auto-tuning framework for Triton kernels."""
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from triton_ops.autotuner.cache import ConfigCache
 from triton_ops.autotuner.configs import generate_configs
@@ -29,7 +29,7 @@ class TritonAutoTuner:
         config_space: Dict[str, List[Any]],
         warmup_runs: int = 10,
         benchmark_runs: int = 100,
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
     ):
         self.kernel_fn = kernel_fn
         self.config_space = config_space
@@ -44,9 +44,9 @@ class TritonAutoTuner:
         self,
         config: Dict[str, Any],
         *args,
-        performance: Optional[PerformanceProfile] = None,
+        performance: PerformanceProfile | None = None,
         **kwargs,
-    ) -> Optional[KernelMetrics]:
+    ) -> KernelMetrics | None:
         """Benchmark a single configuration.
 
         Args:
@@ -79,7 +79,7 @@ class TritonAutoTuner:
         problem_size: Tuple[int, ...] = None,
         device: str = None,
         kernel_type: str = "unknown",
-        performance: Optional[PerformanceProfile] = None,
+        performance: PerformanceProfile | None = None,
         **kwargs,
     ) -> TuningResult:
         """Search configuration space and return optimal config.
@@ -154,7 +154,7 @@ class TritonAutoTuner:
         problem_size: Tuple[int, ...],
         device: str,
         kernel_type: str = "unknown",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """Retrieve cached optimal configuration.
 
         Args:

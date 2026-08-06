@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://lessup.github.io/triton-fused-ops/sitemap.xml

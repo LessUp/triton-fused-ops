@@ -122,7 +122,7 @@ class TestAutoTunerConfigSpace:
         from triton_ops.autotuner.configs import get_default_config
 
         # Test each kernel type
-        for kernel_type in ["rmsnorm_rope", "gated_mlp", "fp8_gemm"]:
+        for kernel_type in ["rmsnorm_rope", "gated_mlp"]:
             config = get_default_config(kernel_type)
             assert config is not None
             assert len(config) > 0

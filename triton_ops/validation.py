@@ -1,6 +1,6 @@
 """Input validation utilities for Triton operators."""
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import torch
 
@@ -17,13 +17,6 @@ VALID_ACTIVATIONS = (ACTIVATION_SILU, ACTIVATION_GELU)
 
 # Supported dtypes for different operations
 SUPPORTED_DTYPES_FLOAT = [torch.float16, torch.bfloat16, torch.float32]
-SUPPORTED_DTYPES_FP8 = [torch.uint8]  # FP8 represented as uint8 when native FP8 not available
-
-# Add native FP8 types if available (PyTorch 2.1+)
-if hasattr(torch, "float8_e4m3fn"):
-    SUPPORTED_DTYPES_FP8.append(torch.float8_e4m3fn)
-if hasattr(torch, "float8_e5m2"):
-    SUPPORTED_DTYPES_FP8.append(torch.float8_e5m2)
 
 
 def _check_cuda(tensor: torch.Tensor, tensor_name: str) -> None:
@@ -111,7 +104,7 @@ def validate_rmsnorm_rope_inputs(
     weight: torch.Tensor,
     cos: torch.Tensor,
     sin: torch.Tensor,
-    num_heads: Optional[int] = None,
+    num_heads: int | None = None,
 ) -> Tuple[int, int, int, int, int]:
     """Validate inputs for RMSNorm + RoPE kernel.
 
@@ -301,168 +294,43 @@ def validate_gated_mlp_inputs(
     return batch_size, seq_len, hidden_dim, intermediate_dim
 
 
-def validate_fp8_gemm_inputs(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    a_scale: Optional[torch.Tensor],
-    b_scale: Optional[torch.Tensor],
-    output_dtype: torch.dtype = torch.float16,
-) -> Tuple[int, int, int]:
-    """Validate inputs for FP8 GEMM kernel.
-
-    Args:
-        a: First matrix [M, K] in FP8 or float
-        b: Second matrix [K, N] in FP8 or float
-        a_scale: Scaling factor for A (required if A is FP8)
-        b_scale: Scaling factor for B (required if B is FP8)
-        output_dtype: Output data type
-
-    Returns:
-        Tuple of (M, N, K)
-
-    Raises:
-        ShapeMismatchError: If tensor shapes are incompatible
-        UnsupportedDtypeError: If tensor dtypes are unsupported
-        DeviceError: If tensors are not on CUDA device
-        ValueError: If FP8 inputs are missing required scale factors
-    """
-    # Check CUDA
-    _check_cuda(a, "a")
-    _check_cuda(b, "b")
-
-    # Check FP8 scale requirements before other validations
-    if a.dtype in SUPPORTED_DTYPES_FP8 and a_scale is None:
-        raise ValueError(
-            f"a_scale is required when A is FP8 (dtype={a.dtype}). "
-            "Provide the scale factor used during quantization."
+def validate_flash_attention_inputs(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+) -> Tuple[int, int, int, int]:
+    """Validate Q, K and V before launching the FlashAttention kernel."""
+    if q.dim() != 4 or k.dim() != 4 or v.dim() != 4:
+        raise ShapeMismatchError(
+            f"q, k and v must be 4D; got {q.dim()}D, {k.dim()}D and {v.dim()}D"
         )
-    if b.dtype in SUPPORTED_DTYPES_FP8 and b_scale is None:
-        raise ValueError(
-            f"b_scale is required when B is FP8 (dtype={b.dtype}). "
-            "Provide the scale factor used during quantization."
+    if q.shape != k.shape or q.shape != v.shape:
+        raise ShapeMismatchError(
+            f"q, k and v shapes must match; got {q.shape}, {k.shape} and {v.shape}"
         )
 
-    # Check scale tensors if provided
-    if a_scale is not None:
-        _check_cuda(a_scale, "a_scale")
-    if b_scale is not None:
-        _check_cuda(b_scale, "b_scale")
-
-    # Check all tensors on same device
-    tensors_to_check = [(a, "a"), (b, "b")]
-    if a_scale is not None:
-        tensors_to_check.append((a_scale, "a_scale"))
-    if b_scale is not None:
-        tensors_to_check.append((b_scale, "b_scale"))
-    _check_same_device(*tensors_to_check)
-
-    # Check contiguous
-    _check_contiguous(a, "a")
-    _check_contiguous(b, "b")
-
-    # Check output dtype
-    if output_dtype not in [torch.float16, torch.bfloat16, torch.float32]:
+    _check_same_device((q, "q"), (k, "k"), (v, "v"))
+    _check_dtype(q, "q", SUPPORTED_DTYPES_FLOAT)
+    if k.dtype != q.dtype or v.dtype != q.dtype:
         raise UnsupportedDtypeError(
-            f"output_dtype must be float16, bfloat16, or float32, got {output_dtype}",
-            dtype=output_dtype,
-            supported_dtypes=[torch.float16, torch.bfloat16, torch.float32],
+            f"q, k and v dtypes must match; got {q.dtype}, {k.dtype} and {v.dtype}"
         )
 
-    # Check matrix shapes
-    if a.dim() != 2:
-        raise ShapeMismatchError(
-            f"a must be 2D [M, K], got {a.dim()}D",
-            tensor_name="a",
-        )
+    _check_cuda(q, "q")
+    _check_cuda(k, "k")
+    _check_cuda(v, "v")
 
-    if b.dim() != 2:
-        raise ShapeMismatchError(
-            f"b must be 2D [K, N], got {b.dim()}D",
-            tensor_name="b",
-        )
+    batch, heads, seq_len, head_dim = q.shape
+    validate_positive_dimensions(
+        batch=batch,
+        heads=heads,
+        seq_len=seq_len,
+        head_dim=head_dim,
+    )
+    if head_dim not in (16, 32, 64, 128):
+        raise ValueError(f"head_dim must be one of 16, 32, 64 or 128; got {head_dim}")
 
-    M, K_a = a.shape
-    K_b, N = b.shape
-
-    if K_a != K_b:
-        raise ShapeMismatchError(
-            f"Matrix dimensions don't match: a is [{M}, {K_a}], b is [{K_b}, {N}]",
-            tensor_name="a, b",
-        )
-
-    return M, N, K_a
-
-
-def validate_fp8_quantize_inputs(
-    tensor: torch.Tensor,
-    scale: Optional[torch.Tensor] = None,
-) -> None:
-    """Validate inputs for FP8 quantization.
-
-    Args:
-        tensor: Input tensor to quantize
-        scale: Optional pre-computed scale factor
-
-    Raises:
-        UnsupportedDtypeError: If tensor dtype is not supported
-        DeviceError: If tensor is not on CUDA device
-    """
-    _check_cuda(tensor, "tensor")
-    _check_dtype(tensor, "tensor", SUPPORTED_DTYPES_FLOAT)
-    _check_contiguous(tensor, "tensor")
-
-    if scale is not None:
-        _check_cuda(scale, "scale")
-        _check_same_device((tensor, "tensor"), (scale, "scale"))
-        _check_dtype(scale, "scale", [torch.float32])
-        if scale.numel() != 1:
-            raise ShapeMismatchError(
-                f"scale must be a scalar tensor, got shape {scale.shape}",
-                expected=(),
-                actual=scale.shape,
-                tensor_name="scale",
-            )
-        if scale.item() <= 0:
-            raise ValueError(f"scale must be positive, got {scale.item()}")
-
-
-def validate_fp8_dequantize_inputs(
-    tensor: torch.Tensor,
-    scale: torch.Tensor,
-    output_dtype: torch.dtype = torch.float16,
-) -> None:
-    """Validate inputs for FP8 dequantization."""
-    _check_cuda(tensor, "tensor")
-    _check_cuda(scale, "scale")
-    _check_same_device((tensor, "tensor"), (scale, "scale"))
-    _check_contiguous(tensor, "tensor")
-    _check_dtype(scale, "scale", [torch.float32])
-
-    if tensor.dtype not in SUPPORTED_DTYPES_FP8:
-        raise UnsupportedDtypeError(
-            f"tensor has unsupported dtype {tensor.dtype}, supported: {SUPPORTED_DTYPES_FP8}",
-            dtype=tensor.dtype,
-            supported_dtypes=SUPPORTED_DTYPES_FP8,
-            tensor_name="tensor",
-        )
-
-    if scale.numel() != 1:
-        raise ShapeMismatchError(
-            f"scale must be a scalar tensor, got shape {scale.shape}",
-            expected=(),
-            actual=scale.shape,
-            tensor_name="scale",
-        )
-
-    if scale.item() <= 0:
-        raise ValueError(f"scale must be positive, got {scale.item()}")
-
-    if output_dtype not in [torch.float16, torch.bfloat16]:
-        raise UnsupportedDtypeError(
-            f"output_dtype must be float16 or bfloat16, got {output_dtype}",
-            dtype=output_dtype,
-            supported_dtypes=[torch.float16, torch.bfloat16],
-        )
+    return batch, heads, seq_len, head_dim
 
 
 def validate_positive_dimensions(**dims: int) -> None:

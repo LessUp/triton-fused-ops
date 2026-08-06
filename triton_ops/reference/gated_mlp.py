@@ -3,7 +3,7 @@
 This module provides unified reference implementations for Gated MLP
 used in models like LLaMA and Mistral.
 
-Formula: output = gate_proj(x) * activation(up_proj(x))
+Formula: output = activation(gate_proj(x)) * up_proj(x)
 
 Where activation is either SiLU (SwiGLU) or GELU (GeGLU).
 
@@ -49,7 +49,7 @@ def gated_mlp(
 ) -> np.ndarray | torch.Tensor:
     """Reference implementation of Gated MLP.
 
-    Formula: output = gate_proj(x) * activation(up_proj(x))
+    Formula: output = activation(gate_proj(x)) * up_proj(x)
 
     This implements the Gated MLP used in models like LLaMA and Mistral,
     combining gate projection, up projection, and activation.
@@ -118,14 +118,13 @@ def _gated_mlp_cpu(
     # Compute up projection: [batch * seq_len, intermediate_dim]
     up_proj = x_flat @ up_weight.T
 
-    # Apply activation to up projection (standard SwiGLU formula)
+    # Standard SwiGLU/GeGLU applies the non-linearity to the gate projection.
     if activation == "silu":
-        activated = _silu_cpu(up_proj)
+        activated_gate = _silu_cpu(gate_proj)
     else:
-        activated = _gelu_cpu(up_proj)
+        activated_gate = _gelu_cpu(gate_proj)
 
-    # Element-wise multiply: gate * activation(up)
-    output = gate_proj * activated
+    output = activated_gate * up_proj
 
     # Reshape back: [batch, seq_len, intermediate_dim]
     intermediate_dim = gate_weight.shape[0]
