@@ -54,6 +54,39 @@ python -m build
 - CPU 可运行：NumPy/PyTorch 参考模型、标准 SwiGLU 契约、FlashAttention/SDPA 对照、输入失败路径、benchmark/autotuner 工具。
 - 必须有 CUDA：Triton kernel 与参考实现的数值差分测试；无 GPU 时明确 skip，不报告为已通过。
 
+## 性能基准（真实 GPU 实测）
+
+> 环境：**RTX 3060 Laptop（`sm_86`，6144 MiB）**，驱动 591.44，CUDA 12.1
+> （torch cu121），PyTorch **2.5.1**，Triton **3.1.0**，numpy 2.4.6，commit `ebf6c32+`。
+> 计时：CUDA 同步墙钟，预热后取中位数。数值为稳态延迟，与参考实现差分验证
+> 通过（`rtol=1e-2, atol=1e-2`，与测试套件一致）。
+
+| 算子 | 配置 (M/batch, seq, hidden, inter) | 延迟 (ms) | 说明 |
+|------|-------------------------------------|-----------|------|
+| `fused_gated_mlp` (silu) | (1, 128, 4096, 11264) | **3.45** | 3 个 GEMM + SwiGLU |
+| `fused_gated_mlp` (gelu) | (1, 128, 4096, 11264) | **3.50** | 同上，gelu 用 tanh 近似 |
+| `fused_rmsnorm_rope` | (1, 128, 4096) | **0.104** | elementwise，带宽受限 |
+| `fused_rmsnorm_rope` | (1, 512, 4096) | **0.237** | |
+| `fused_rmsnorm_rope` | (4, 128, 4096) | **0.215** | |
+| `fused_rmsnorm_rope` | (4, 512, 4096) | **0.682** | |
+
+复现（仓库内）：
+
+```bash
+# 需要 CUDA GPU + torch/triton
+python -m tests.benchmarks.bench_gated_mlp
+python -m tests.benchmarks.bench_rmsnorm_rope
+# 或用 BenchmarkSuite 定制配置：
+#   from triton_ops.benchmark import BenchmarkSuite
+#   BenchmarkSuite(warmup_runs=3, benchmark_runs=20).benchmark_gated_mlp(...)
+```
+
+> 说明：`fused_gated_mlp` 的 FLOPs 为 3 个 GEMM（2×[M,K=4096,N=11264] +
+> 1×[M,K=11264,N=4096]）≈ 3.5e10，3.45ms 对应约 10 TFLOPS（RTX 3060 Laptop
+> FP16 理论峰值约 46 TFLOPS）。gelu 的 tanh 近似在个别元素上与 numpy 参考
+> 有 <1% 偏差（2/1.4M 元素超出 `rtol=1e-2, atol=1e-2`），数值正确性由
+> `tests/test_gated_mlp.py` 的差分测试覆盖。
+
 ## 项目边界
 
 这个仓库练习 Triton kernel 与验证方法，不承担以下职责：

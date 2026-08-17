@@ -82,10 +82,19 @@ class CorrectnessVerifier:
         Returns:
             True if outputs are close within tolerance
         """
+        # 参考实现可能返回 NumPy ndarray（numpy 纯计算路径），先统一转 torch
+        # 张量再比较，避免 ndarray 无 .float() 的兼容问题。
+        def _as_tensor(t: torch.Tensor):
+            if torch.is_tensor(t):
+                t = t.float()
+            else:
+                t = torch.as_tensor(t, dtype=torch.float32)
+            return t.to(actual.device)
+
         return bool(
             torch.allclose(
-                actual.float(),
-                expected.float(),
+                _as_tensor(actual),
+                _as_tensor(expected),
                 rtol=self.rtol,
                 atol=self.atol,
             )
