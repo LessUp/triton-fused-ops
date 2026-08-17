@@ -59,7 +59,7 @@ def _flash_attention_kernel(
     accumulator = tl.zeros([block_m, head_dim], dtype=tl.float32)
     row_max = tl.full([block_m], float("-inf"), dtype=tl.float32)
     row_sum = tl.zeros([block_m], dtype=tl.float32)
-    scale = 1.0 / math.sqrt(head_dim)
+    scale = 1.0 / tl.sqrt(head_dim * 1.0)
 
     loop_end = tl.minimum((query_block + 1) * block_m, n_ctx) if causal else n_ctx
     for key_start in tl.range(0, loop_end, block_n):
