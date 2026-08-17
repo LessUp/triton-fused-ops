@@ -6,6 +6,10 @@
 - `fused_gated_mlp`：标准 SwiGLU/GeGLU，公式为 `activation(gate_proj(x)) * up_proj(x)`
 - `flash_attention`：带在线 softmax 的 FlashAttention 前向，支持 causal mask
 
+> ℹ️ **定位**：Triton FlashAttention 是 [cuflash-attn](https://github.com/AICL-Lab/cuflash-attn)
+> 的独立参考实现，用于验证 CUDA C++ 版本的正确性。完整 FlashAttention 前后向 +
+> 优化叙事见 cuflash-attn（本仓库只保留前向参考实现）。
+
 仓库同时保留 NumPy/PyTorch 参考实现、输入契约、差分测试、benchmark 与 autotuner 基础设施。旧版所谓“FP8 E4M3”实际是存储在 `uint8` 中的均匀线性量化，并不编码 E4M3 指数和尾数，因此已整条删除，避免把 INT8 路径误当作 FP8 教材。
 
 ## 安装
