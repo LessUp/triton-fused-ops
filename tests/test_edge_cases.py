@@ -32,7 +32,7 @@ class TestValidationErrors:
         from triton_ops.exceptions import UnsupportedDtypeError
         from triton_ops.validation import validate_rmsnorm_rope_inputs
 
-        x = torch.randn(2, 16, 256, device="cuda", dtype=torch.int32)  # Wrong dtype
+        x = torch.randn(2, 16, 256, device="cuda").to(torch.int32)  # Wrong dtype
         weight = torch.randn(256, device="cuda", dtype=torch.float16)
         cos = torch.randn(16, 64, device="cuda", dtype=torch.float16)
         sin = torch.randn(16, 64, device="cuda", dtype=torch.float16)

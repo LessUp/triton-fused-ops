@@ -208,6 +208,14 @@ def validate_rmsnorm_rope_inputs(
                 tensor_name="x",
             )
         num_heads = hidden_dim // head_dim
+    else:
+        # TRIT-001/105: When num_heads is explicitly provided, validate consistency.
+        if num_heads * head_dim != hidden_dim:
+            raise ShapeMismatchError(
+                f"num_heads ({num_heads}) * head_dim ({head_dim}) = {num_heads * head_dim} "
+                f"!= hidden_dim ({hidden_dim})",
+                tensor_name="x",
+            )
 
     return batch_size, seq_len, hidden_dim, head_dim, num_heads
 

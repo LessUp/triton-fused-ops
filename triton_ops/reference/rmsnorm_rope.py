@@ -317,9 +317,11 @@ def compute_rope_frequencies(
         cos = np.cos(angles)
         sin = np.sin(angles)
 
-        # Repeat to match head_dim
-        cos = np.repeat(cos, 2, axis=-1)
-        sin = np.repeat(sin, 2, axis=-1)
+        # TRIT-001: Use concat (not repeat/interleave) to match half-split convention.
+        # concat([freqs, freqs]) produces [c0, c1, ..., c_{D/2-1}, c0, c1, ..., c_{D/2-1}]
+        # The rope function then uses cos[:, :D//2] which gives the correct first half.
+        cos = np.concatenate([cos, cos], axis=-1)
+        sin = np.concatenate([sin, sin], axis=-1)
 
         return cos, sin
     else:
@@ -335,7 +337,8 @@ def compute_rope_frequencies(
         cos = torch.cos(angles)
         sin = torch.sin(angles)
 
-        cos = cos.repeat_interleave(2, dim=-1)
-        sin = sin.repeat_interleave(2, dim=-1)
+        # TRIT-001: Use concat (not repeat_interleave) to match half-split convention.
+        cos = torch.cat([cos, cos], dim=-1)
+        sin = torch.cat([sin, sin], dim=-1)
 
         return cos, sin

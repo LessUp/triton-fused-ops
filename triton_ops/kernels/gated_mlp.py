@@ -20,6 +20,14 @@ from triton_ops.validation import (
     validate_gated_mlp_inputs,
 )
 
+# torch dtype -> Triton dtype 映射（Triton 3.x 不再接受 torch.dtype 作 constexpr）
+_DTYPE_MAP = {
+    torch.float16: tl.float16,
+    torch.bfloat16: tl.bfloat16,
+    torch.float32: tl.float32,
+}
+
+
 
 @triton.jit
 def silu(x):
@@ -30,7 +38,7 @@ def silu(x):
 @triton.jit
 def gelu(x):
     """GELU activation: x * 0.5 * (1 + erf(x / sqrt(2)))"""
-    return x * 0.5 * (1.0 + tl.libdevice.erf(x * 0.7071067811865476))
+    return x * 0.5 * (1.0 + tl.math.erf(x * 0.7071067811865476))
 
 
 @triton.jit
@@ -59,6 +67,7 @@ def fused_gated_mlp_kernel(
     intermediate_dim,
     # Activation type: 0=SiLU, 1=GELU
     activation_type: tl.constexpr,
+    out_dtype: tl.constexpr,
     # Block sizes
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -147,7 +156,7 @@ def fused_gated_mlp_kernel(
     out_mask = (rows[:, None] < (batch_size * seq_len)) & (cols[None, :] < intermediate_dim)
 
     # Convert to output dtype
-    tl.store(out_ptrs, output.to(x_block.dtype), mask=out_mask)
+    tl.store(out_ptrs, output.to(out_dtype), mask=out_mask)
 
 
 def fused_gated_mlp(
@@ -238,6 +247,7 @@ def fused_gated_mlp(
         hidden_dim,
         intermediate_dim,
         activation_type=activation_type,
+        out_dtype=_DTYPE_MAP[x.dtype],
         BLOCK_M=BLOCK_M,
         BLOCK_N=BLOCK_N,
         BLOCK_K=BLOCK_K,

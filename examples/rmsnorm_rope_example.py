@@ -30,28 +30,34 @@ def reference_rmsnorm(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6):
 
 
 def reference_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor):
-    """Reference RoPE implementation using PyTorch."""
-    # Assume x has shape (batch, seq_len, hidden_dim)
-    # and we apply RoPE to pairs of elements
-    head_dim = cos.shape[-1]
-    x_rope = x[..., :head_dim]
+    """Reference RoPE implementation using PyTorch (half-split convention).
 
-    # Split into pairs and rotate
-    x1 = x_rope[..., ::2]
-    x2 = x_rope[..., 1::2]
+    TRIT-001: Uses half-split convention matching the kernel and reference module.
+    cos/sin are [seq_len, head_dim] (full cache via concat).
+    """
+    head_dim = cos.shape[-1]
+    hidden_dim = x.shape[-1]
+    num_heads = hidden_dim // head_dim
+    half_d = head_dim // 2
+
+    # Reshape for head-wise processing: [batch, seq_len, num_heads, head_dim]
+    batch, seq_len, _ = x.shape
+    x_reshaped = x.view(batch, seq_len, num_heads, head_dim)
+
+    # Split into two halves
+    x1 = x_reshaped[..., :half_d]
+    x2 = x_reshaped[..., half_d:]
+
+    # Use first half of cos/sin (concat cache: [c0..c_{D/2-1}, c0..c_{D/2-1}])
+    cos_half = cos[:seq_len, :half_d].unsqueeze(0).unsqueeze(2)
+    sin_half = sin[:seq_len, :half_d].unsqueeze(0).unsqueeze(2)
 
     # Apply rotation
-    cos = cos[:, : x1.shape[-1]]
-    sin = sin[:, : x1.shape[-1]]
+    out1 = x1.float() * cos_half.float() - x2.float() * sin_half.float()
+    out2 = x1.float() * sin_half.float() + x2.float() * cos_half.float()
 
-    x_rotated = torch.empty_like(x_rope)
-    x_rotated[..., ::2] = x1 * cos - x2 * sin
-    x_rotated[..., 1::2] = x1 * sin + x2 * cos
-
-    # Concatenate with remaining dimensions
-    if x.shape[-1] > head_dim:
-        return torch.cat([x_rotated, x[..., head_dim:]], dim=-1)
-    return x_rotated
+    out = torch.cat([out1, out2], dim=-1).to(x.dtype)
+    return out.view(batch, seq_len, hidden_dim)
 
 
 def demo_functional_api():
@@ -71,16 +77,18 @@ def demo_functional_api():
     x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
     weight = torch.ones(hidden_dim, device="cuda", dtype=torch.float16)
 
-    # Create position embeddings (typically precomputed)
+    # Create position embeddings: [seq_len, head_dim] via concat (TRIT-001)
     positions = torch.arange(seq_len, device="cuda")
     freqs = 1.0 / (10000 ** (torch.arange(0, head_dim, 2, device="cuda") / head_dim))
-    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)
-    cos = torch.cos(angles).to(torch.float16)
-    sin = torch.sin(angles).to(torch.float16)
+    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)  # [seq_len, head_dim/2]
+    cos_half = torch.cos(angles)
+    sin_half = torch.sin(angles)
+    cos = torch.cat([cos_half, cos_half], dim=-1).to(torch.float16)  # [seq_len, head_dim]
+    sin = torch.cat([sin_half, sin_half], dim=-1).to(torch.float16)
 
     print(f"Input shape: {x.shape}")
     print(f"Weight shape: {weight.shape}")
-    print(f"Position embedding shape: {cos.shape}")
+    print(f"Position embedding shape: {cos.shape} (full [seq_len, head_dim] via concat)")
 
     # Run fused kernel
     output = fused_rmsnorm_rope(x, weight, cos, sin, eps=eps)

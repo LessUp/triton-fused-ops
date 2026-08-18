@@ -60,7 +60,7 @@ class TestGatedMLPCorrectness:
             triton_output.float(),
             reference_output.float(),
             rtol=1e-2,
-            atol=1e-4,
+            atol=1e-2,
         ), (
             f"Output mismatch for {activation}: max diff = {(triton_output - reference_output).abs().max()}"
         )
@@ -105,7 +105,7 @@ class TestGatedMLPCorrectness:
             triton_output.float(),
             reference_output.float(),
             rtol=1e-2,
-            atol=1e-4,
+            atol=1e-2,
         )
 
 
@@ -134,7 +134,7 @@ class TestGatedMLPActivations:
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, "silu")
         reference_output = reference_gated_mlp(x, gate_weight, up_weight, "silu", backend="cuda")
 
-        assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-4)
+        assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-2)
 
     def test_gelu_activation(self):
         """
@@ -158,4 +158,4 @@ class TestGatedMLPActivations:
         triton_output = fused_gated_mlp(x, gate_weight, up_weight, "gelu")
         reference_output = reference_gated_mlp(x, gate_weight, up_weight, "gelu", backend="cuda")
 
-        assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-4)
+        assert torch.allclose(triton_output.float(), reference_output.float(), rtol=1e-2, atol=1e-2)

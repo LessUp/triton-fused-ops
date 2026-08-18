@@ -33,7 +33,8 @@ class TestBenchmarkCorrectnessVerification:
         """
         from triton_ops.benchmark.correctness import CorrectnessVerifier
 
-        verifier = CorrectnessVerifier(rtol=1e-3, atol=1e-5)
+        # FP16 数据下 rtol=1e-3/atol=1e-5 过紧（FP16 ULP 即可超过），用 FP16 合理容差
+        verifier = CorrectnessVerifier(rtol=1e-2, atol=1e-3)
 
         # Create matching tensors with small noise
         expected = torch.randn(size, device="cuda", dtype=torch.float16)
