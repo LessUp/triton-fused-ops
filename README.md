@@ -43,6 +43,48 @@ attention_output = flash_attention(q, k, v, causal=True)
 
 RMSNorm + RoPE 的完整调用示例见 [`examples/rmsnorm_rope_example.py`](examples/rmsnorm_rope_example.py)，Gated MLP 示例见 [`examples/gated_mlp_example.py`](examples/gated_mlp_example.py)。
 
+## torch.library 自定义算子
+
+`import triton_ops` 会把三个公开 kernel 注册进 `torch.ops.triton_ops.*` 命名空间
+（与 vLLM/SGLang 等推理框架用 `torch.library` 注册自定义 op 的方式一致，便于接入
+`torch.compile` / `torch.export` 图）：
+
+```python
+import torch
+import triton_ops  # 触发注册
+
+# triton_ops::sgemm(Tensor a, Tensor b) -> Tensor
+c = torch.ops.triton_ops.sgemm(a, b)
+
+# triton_ops::fused_rmsnorm_rope(Tensor x, Tensor weight, Tensor cos, Tensor sin, float eps) -> Tensor
+out = torch.ops.triton_ops.fused_rmsnorm_rope(x, weight, cos, sin)
+
+# triton_ops::fused_gated_mlp(Tensor x, Tensor gate_weight, Tensor up_weight, str activation) -> Tensor
+out = torch.ops.triton_ops.fused_gated_mlp(x, gate_weight, up_weight, activation="silu")
+```
+
+注册策略（`triton_ops/ops.py`）：
+
+- 优先 `torch.library.triton_op`（torch 2.13+）：实现由 Triton kernel 构成，
+  对 `torch.compile`/`torch.export` 可见，可被进一步优化；
+- 不可用时 fallback 到 `torch.library.custom_op + register_fake`：把 op 当 opaque，
+  提供 eager 执行与 shape 推断，兼容旧版 PyTorch。
+
+所有 op 只接受 CUDA 张量，CPU 输入直接抛 `NotImplementedError`；op 内部只调用
+`triton_ops.kernels.*` 的公开函数，不复制 kernel 逻辑。
+
+### 与 vLLM / SGLang custom op 的对应关系
+
+推理框架用同一套 `torch.library` 机制暴露自定义 kernel：
+
+- vLLM 的 `_custom_ops.py` 用 `torch.library.custom_op` 注册 `vllm::*` 命名空间
+  （如 `vllm::attention.forward`），并用 `torch.library.register_fake` 提供 meta 实现；
+- SGLang 通过 `torch.library` 暴露 `sglang::*` 算子，同样以 `register_fake` 支持
+  torch.compile / 图捕获；
+- 本仓库用同一模式：`triton_ops::sgemm` / `triton_ops::fused_rmsnorm_rope` /
+  `triton_ops::fused_gated_mlp`。差别仅在实现层：vLLM/SGLang 的生产 kernel 走
+  FlashInfer/CUDA Graph 等，这里用 Triton kernel 做最小可验证实现。
+
 ## 验证
 
 ```bash

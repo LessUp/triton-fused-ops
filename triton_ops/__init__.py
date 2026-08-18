@@ -66,15 +66,19 @@ try:
         flash_attention,
         fused_gated_mlp,
         fused_rmsnorm_rope,
+        sgemm,
     )
 except ModuleNotFoundError as error:
     if error.name != "triton":
         raise
 else:
+    from triton_ops import ops as _ops  # noqa: F401  # 注册 torch.ops.triton_ops.*
+
     __all__ += [
         "fused_rmsnorm_rope",
         "FusedRMSNormRoPE",
         "fused_gated_mlp",
         "FusedGatedMLP",
         "flash_attention",
+        "sgemm",
     ]
