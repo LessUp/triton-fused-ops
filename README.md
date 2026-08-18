@@ -95,7 +95,7 @@ python -m tests.benchmarks.bench_rmsnorm_rope
 
 这个仓库练习 Triton kernel 与验证方法，不承担以下职责：
 
-- CUDA C++ 的系统学习路径：[`cuda-kernel-academy`](https://github.com/AICL-Lab/cuda-kernel-academy)
+- CUDA C++ 的系统学习路径：[`cuda-foundations`](https://github.com/AICL-Lab/cuda-foundations)
 - FlashAttention 前后向的 CUDA C++ 深挖：[`cuflash-attn`](https://github.com/AICL-Lab/cuflash-attn)
 - 完整模型加载与 token 生成：[`tiny-llm`](https://github.com/AICL-Lab/tiny-llm)
 - Paged KV 与 continuous batching 控制面：[`paged-infer`](https://github.com/AICL-Lab/paged-infer)
