@@ -1,5 +1,7 @@
 # Triton Fused Ops
 
+> 📚 Portfolio map: https://github.com/aicl-lab/aicl-lab
+
 面向 AI Infra 学习的精简 Triton 算子仓库。只保留三条可以用独立参考实现验证的 Transformer 推理路径：
 
 - `fused_rmsnorm_rope`：融合 RMSNorm 与 RoPE
