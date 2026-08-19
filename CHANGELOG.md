@@ -1,5 +1,9 @@
 # 变更日志
 
+## Unreleased
+
+- 面向用户的 GitHub 链接与 `pyproject.toml` 仓库地址统一为 `github.com/aicl-lab/...`
+
 ## 2.0.0 - 2026-08-06
 
 - 合入经过 PyTorch SDPA 对照验证的 Triton FlashAttention 前向实现。
