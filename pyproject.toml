@@ -47,10 +47,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aicl-lab/triton-fused-ops"
-Repository = "https://github.com/aicl-lab/triton-fused-ops.git"
-Issues = "https://github.com/aicl-lab/triton-fused-ops/issues"
-Changelog = "https://github.com/aicl-lab/triton-fused-ops/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/open-infra-ai/triton-fused-ops"
+Repository = "https://github.com/open-infra-ai/triton-fused-ops.git"
+Issues = "https://github.com/open-infra-ai/triton-fused-ops/issues"
+Changelog = "https://github.com/open-infra-ai/triton-fused-ops/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
