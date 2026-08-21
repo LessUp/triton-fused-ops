@@ -1,6 +1,6 @@
 # Triton Fused Ops 路线图
 
-> 定位：Triton kernel 与验证方法的**精简练习仓**，`phase-2-e` 面试就绪冻结。
+> 定位：Triton kernel 与验证方法的**精简练习仓**，状态 **stable**（作品完成，只修正确性 bug 与文档；`phase-2-e` tag 记录 2026-08 面试就绪快照）。
 > 三条算子路径（fused_rmsnorm_rope / fused_gated_mlp / flash_attention）已具备
 > 独立参考实现与差分测试；另有 Triton SGEMM + `torch.library` 注册。
 > FlashAttention 前向是 [cuflash-attn](https://github.com/open-infra-ai/cuflash-attn)
@@ -15,7 +15,7 @@
 - [ ] 准备「Triton 版 FlashAttention vs CUDA C++ 版（cuflash-attn）」的对比讲述：
       两者的 block 设计、在线 softmax 实现与验证方法异同（Phase 3 讲述稿）
 
-## 可选扩展（只在有余力时；冻结期内不做）
+## 可选扩展（只在有余力时；stable 状态下不做）
 
 - [ ] 新增融合算子候选：fused softmax + mask、INT8/FP8 反量化融合（必须带独立参考实现与差分测试才进主分支）
 - [ ] 与 tiny-llm 的 kernel 选型呼应：说明何时选 Triton、何时选 CUDA C++
