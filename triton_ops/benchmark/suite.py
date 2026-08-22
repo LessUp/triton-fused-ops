@@ -300,7 +300,7 @@ class BenchmarkSuite:
                     numel = batch * seq_len * hidden_dim
                     result = self.benchmark_kernel(
                         fused_rmsnorm_rope,
-                        fused_rmsnorm_rope_reference,
+                        lambda *a, **kw: fused_rmsnorm_rope_reference(*a, **kw, backend="cuda"),
                         "fused_rmsnorm_rope",
                         problem_size,
                         x,
@@ -352,12 +352,18 @@ class BenchmarkSuite:
                             x = torch.randn(
                                 batch, seq_len, hidden_dim, device="cuda", dtype=torch.float16
                             )
-                            gate_w = torch.randn(
-                                inter_dim, hidden_dim, device="cuda", dtype=torch.float16
-                            ) * 0.1
-                            up_w = torch.randn(
-                                inter_dim, hidden_dim, device="cuda", dtype=torch.float16
-                            ) * 0.1
+                            gate_w = (
+                                torch.randn(
+                                    inter_dim, hidden_dim, device="cuda", dtype=torch.float16
+                                )
+                                * 0.1
+                            )
+                            up_w = (
+                                torch.randn(
+                                    inter_dim, hidden_dim, device="cuda", dtype=torch.float16
+                                )
+                                * 0.1
+                            )
 
                             problem_size = (batch, seq_len, hidden_dim, inter_dim)
 
@@ -366,7 +372,11 @@ class BenchmarkSuite:
                                 return fused_gated_mlp(x, gate_w, up_w, activation=activation)
 
                             def ref_fn(x, gate_w, up_w):
-                                return gated_mlp_reference(x, gate_w, up_w, activation=activation)
+                                # 必须用 cuda 后端：cpu 后端会在 NumPy 里跑 fp32 大矩阵乘
+                                # （几千 × 上万 × 上万），单次 >30s，整个 benchmark 不可用。
+                                return gated_mlp_reference(
+                                    x, gate_w, up_w, activation=activation, backend="cuda"
+                                )
 
                             result = self.benchmark_kernel(
                                 triton_fn,
