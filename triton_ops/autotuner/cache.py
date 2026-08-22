@@ -77,11 +77,11 @@ class ConfigCache:
             # Use try-except directly to avoid TOCTOU race between exists() and open()
             try:
                 with open(cache_file) as f:
-                    config = json.load(f)
+                    config: Dict[str, Any] = json.load(f)
                 # Store in memory cache for faster access
                 with self._lock:
                     self._memory_cache[key] = config
-                return dict(config.copy())
+                return config.copy()
             except FileNotFoundError:
                 # Cache miss - file doesn't exist
                 pass

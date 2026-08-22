@@ -131,6 +131,30 @@ class TestAutoTunerConfigSpace:
 class TestAutoTunerIntegration:
     """Integration tests for auto-tuner."""
 
+    def test_tune_public_rmsnorm_rope_function(self):
+        """对公开 fused_rmsnorm_rope + 仓库配置空间 tune 不应崩溃，应返回 TuningResult。"""
+        from triton_ops.autotuner.configs import RMSNORM_ROPE_CONFIGS
+        from triton_ops.autotuner.tuner import TritonAutoTuner
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+
+        torch.manual_seed(0)
+        x = torch.randn(1, 8, 128, device="cuda", dtype=torch.float16)
+        w = torch.ones(128, device="cuda", dtype=torch.float16)
+        cos = torch.randn(8, 64, device="cuda", dtype=torch.float16)
+        sin = torch.randn(8, 64, device="cuda", dtype=torch.float16)
+
+        tuner = TritonAutoTuner(
+            kernel_fn=fused_rmsnorm_rope,
+            config_space=RMSNORM_ROPE_CONFIGS,
+            warmup_runs=1,
+            benchmark_runs=2,
+        )
+        result = tuner.tune(
+            x, w, cos, sin, problem_size=(1, 8, 128), device="cuda:0", kernel_type="rmsnorm_rope"
+        )
+        assert result.best_config is not None
+        assert result.metrics is not None
+
     def test_tuner_basic(self):
         """Test basic tuner functionality."""
         from triton_ops.autotuner.tuner import TritonAutoTuner

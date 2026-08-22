@@ -66,8 +66,11 @@ class TritonAutoTuner:
                 profile=performance,
             )
 
-        except (RuntimeError, OSError) as e:
-            # Catch CUDA runtime errors and OS-level errors during kernel execution
+        except (RuntimeError, OSError, TypeError, ValueError) as e:
+            # Catch CUDA runtime errors, OS-level errors, and invalid-config
+            # errors (e.g. a config key not accepted by the kernel function, or
+            # a non-power-of-two block size) during kernel execution. Invalid
+            # configs are skipped with a warning instead of aborting tuning.
             import warnings
 
             warnings.warn(f"Configuration {config} failed: {e}")
@@ -76,8 +79,8 @@ class TritonAutoTuner:
     def tune(
         self,
         *args,
-        problem_size: Tuple[int, ...] = None,
-        device: str = None,
+        problem_size: Tuple[int, ...] | None = None,
+        device: str | None = None,
         kernel_type: str = "unknown",
         performance: PerformanceProfile | None = None,
         **kwargs,
