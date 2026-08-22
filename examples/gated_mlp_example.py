@@ -64,8 +64,12 @@ def demo_silu_activation():
 
     # Create inputs
     x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
-    gate_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16)
-    up_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16)
+    # 权重缩放到 0.1：无界 randn 会让 gate*up 中间值达到 ±1e4，fp16 输出量化
+    # 误差可达数十，导致数值断言误判失败（与 tests/test_gated_mlp.py 一致）。
+    gate_weight = (
+        torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16) * 0.1
+    )
+    up_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16) * 0.1
 
     print(f"Input shape: {x.shape}")
     print(f"Gate weight shape: {gate_weight.shape}")
@@ -77,16 +81,23 @@ def demo_silu_activation():
 
     print(f"Output shape: {output.shape}")
 
-    # Verify correctness
+    # Verify correctness (rtol/atol 与测试套件一致；fp16 绝对值阈值会因输出
+    # 量级达到数百而被 ULP 量化误差击穿，不宜用纯绝对阈值)
     reference = reference_gated_mlp(x, gate_weight, up_weight, activation="silu")
-    max_error = torch.abs(output - reference).max().item()
-    mean_error = torch.abs(output - reference).mean().item()
+    max_error = torch.abs(output.float() - reference.float()).max().item()
+    rel_error = (
+        (torch.abs(output.float() - reference.float()) / reference.float().abs().clamp_min(1e-6))
+        .max()
+        .item()
+    )
 
     print("\nNumerical Accuracy:")
     print(f"  Max absolute error: {max_error:.6f}")
-    print(f"  Mean absolute error: {mean_error:.6f}")
+    print(f"  Max relative error: {rel_error:.6f}")
 
-    assert max_error < 0.1, f"Max error {max_error} exceeds tolerance"
+    assert torch.allclose(output.float(), reference.float(), rtol=1e-2, atol=1e-2), (
+        f"Max absolute error {max_error} exceeds tolerance"
+    )
     print("✓ SwiGLU correctness verified!")
 
 
@@ -104,8 +115,10 @@ def demo_gelu_activation():
 
     # Create inputs
     x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
-    gate_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16)
-    up_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16)
+    gate_weight = (
+        torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16) * 0.1
+    )
+    up_weight = torch.randn(intermediate_dim, hidden_dim, device="cuda", dtype=torch.float16) * 0.1
 
     print(f"Input shape: {x.shape}")
     print("Activation: GELU (GeGLU)")
@@ -117,12 +130,14 @@ def demo_gelu_activation():
 
     # Verify correctness
     reference = reference_gated_mlp(x, gate_weight, up_weight, activation="gelu")
-    max_error = torch.abs(output - reference).max().item()
+    max_error = torch.abs(output.float() - reference.float()).max().item()
 
     print("\nNumerical Accuracy:")
     print(f"  Max absolute error: {max_error:.6f}")
 
-    assert max_error < 0.1, f"Max error {max_error} exceeds tolerance"
+    assert torch.allclose(output.float(), reference.float(), rtol=1e-2, atol=1e-2), (
+        f"Max absolute error {max_error} exceeds tolerance"
+    )
     print("✓ GeGLU correctness verified!")
 
 
@@ -177,7 +192,7 @@ def demo_transformer_mlp_block():
             self.down_proj = torch.nn.Linear(intermediate_dim, hidden_dim, bias=False)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            # Fused: gate_proj(x) * silu(up_proj(x))
+            # Fused: silu(gate_proj(x)) * up_proj(x)
             hidden = self.gate_up(x)
             # Down projection
             output = self.down_proj(hidden)

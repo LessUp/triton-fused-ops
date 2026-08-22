@@ -133,12 +133,15 @@ def demo_module_api():
 
     x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
 
-    # Create position embeddings
+    # Create position embeddings ([seq_len, head_dim] via concat, matching the
+    # half-split RoPE convention)
     positions = torch.arange(seq_len, device="cuda")
     freqs = 1.0 / (10000 ** (torch.arange(0, head_dim, 2, device="cuda") / head_dim))
-    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)
-    cos = torch.cos(angles).to(torch.float16)
-    sin = torch.sin(angles).to(torch.float16)
+    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)  # [seq_len, head_dim/2]
+    cos_half = torch.cos(angles)
+    sin_half = torch.sin(angles)
+    cos = torch.cat([cos_half, cos_half], dim=-1).to(torch.float16)
+    sin = torch.cat([sin_half, sin_half], dim=-1).to(torch.float16)
 
     # Forward pass
     with torch.no_grad():
@@ -169,9 +172,11 @@ def benchmark_performance():
 
     positions = torch.arange(seq_len, device="cuda")
     freqs = 1.0 / (10000 ** (torch.arange(0, head_dim, 2, device="cuda") / head_dim))
-    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)
-    cos = torch.cos(angles).to(torch.float16)
-    sin = torch.sin(angles).to(torch.float16)
+    angles = positions.unsqueeze(1) * freqs.unsqueeze(0)  # [seq_len, head_dim/2]
+    cos_half = torch.cos(angles)
+    sin_half = torch.sin(angles)
+    cos = torch.cat([cos_half, cos_half], dim=-1).to(torch.float16)
+    sin = torch.cat([sin_half, sin_half], dim=-1).to(torch.float16)
 
     print(f"Input shape: {x.shape}")
     print(f"Warmup runs: {warmup_runs}")
