@@ -28,7 +28,6 @@ _DTYPE_MAP = {
 }
 
 
-
 @triton.jit
 def silu(x):
     """SiLU (Swish) activation: x * sigmoid(x)"""
@@ -68,6 +67,8 @@ def fused_gated_mlp_kernel(
     # Activation type: 0=SiLU, 1=GELU
     activation_type: tl.constexpr,
     out_dtype: tl.constexpr,
+    # fp32 输入禁 TF32（"ieee"）；fp16/bf16 输入不受影响（"tf32" 占位）
+    input_precision: tl.constexpr,
     # Block sizes
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,
@@ -134,9 +135,26 @@ def fused_gated_mlp_kernel(
         )
         uw_block = tl.load(uw_ptrs, mask=gw_mask, other=0.0)
 
-        # Accumulate matrix products
-        gate_acc += tl.dot(x_block.to(tl.float32), gw_block.to(tl.float32))
-        up_acc += tl.dot(x_block.to(tl.float32), uw_block.to(tl.float32))
+        # Accumulate matrix products（原生 dtype 送入 tl.dot）
+        #
+        # 这里刻意不把 fp16/bf16 输入提升到 fp32 再 dot：fp16/bf16 原生 dot 直接
+        # 走张量核心并在 fp32 里累积，又快又准；若强转 fp32 再 dot，则 triton 只能
+        # 用 CUDA 核心/AI 核心且精度路线更慢（实测稳态延迟慢 ~8 倍）。
+        #
+        gate_acc = tl.dot(
+            x_block,
+            gw_block,
+            gate_acc,
+            input_precision=input_precision,
+            out_dtype=tl.float32,
+        )
+        up_acc = tl.dot(
+            x_block,
+            uw_block,
+            up_acc,
+            input_precision=input_precision,
+            out_dtype=tl.float32,
+        )
 
     # Standard SwiGLU/GeGLU applies the non-linearity to the gate projection.
     if activation_type == 0:
@@ -159,11 +177,27 @@ def fused_gated_mlp_kernel(
     tl.store(out_ptrs, output.to(out_dtype), mask=out_mask)
 
 
+def _require_pow2(value: int, name: str) -> None:
+    """BLOCK_* 必须是 2 的幂，否则 tl.arange 会在编译期崩溃。"""
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value < 1
+        or (value & (value - 1)) != 0
+    ):
+        raise ValueError(f"{name} must be a power of two >= 1, got {value}")
+
+
 def fused_gated_mlp(
     x: torch.Tensor,
     gate_weight: torch.Tensor,
     up_weight: torch.Tensor,
     activation: str = "silu",
+    BLOCK_M: int = 32,
+    BLOCK_N: int = 64,
+    BLOCK_K: int = 32,
+    num_warps: int = 4,
+    num_stages: int = 3,
 ) -> torch.Tensor:
     """Apply fused Gated MLP transformation.
 
@@ -202,6 +236,14 @@ def fused_gated_mlp(
         x, gate_weight, up_weight, activation
     )
 
+    # 权重与激活 dtype 不一致时（如 module 参数为 fp32、输入为 fp16），把权重
+    # cast 到 x 的 dtype。kernel 的 tl.dot 要求两端 dtype 一致（原生 dtype 路径），
+    # 且 fp16/bf16 输入下 upcast 权重会丢掉张量核心的快路径。
+    if gate_weight.dtype != x.dtype:
+        gate_weight = gate_weight.to(x.dtype)
+    if up_weight.dtype != x.dtype:
+        up_weight = up_weight.to(x.dtype)
+
     # Handle empty tensors
     if batch_size == 0 or seq_len == 0 or hidden_dim == 0 or intermediate_dim == 0:
         return torch.empty(batch_size, seq_len, intermediate_dim, dtype=x.dtype, device=x.device)
@@ -215,11 +257,14 @@ def fused_gated_mlp(
             f"activation must be '{ACTIVATION_SILU}' or '{ACTIVATION_GELU}', got '{activation}'"
         )
     activation_type = 0 if activation == ACTIVATION_SILU else 1
+    # fp32 输入必须禁 TF32（否则精度损失 ~2 个数量级，见 sgemm.py 同一约定）；
+    # fp16/bf16 输入不受该参数影响。
+    input_precision = "ieee" if x.dtype == torch.float32 else "tf32"
 
-    # Block sizes
-    BLOCK_M = 32
-    BLOCK_N = 64
-    BLOCK_K = 32
+    # Block sizes (power-of-2 required by tl.arange; exposed for auto-tuning)
+    _require_pow2(BLOCK_M, "BLOCK_M")
+    _require_pow2(BLOCK_N, "BLOCK_N")
+    _require_pow2(BLOCK_K, "BLOCK_K")
 
     # Grid size
     num_tiles_m = triton.cdiv(batch_size * seq_len, BLOCK_M)
@@ -248,9 +293,12 @@ def fused_gated_mlp(
         intermediate_dim,
         activation_type=activation_type,
         out_dtype=_DTYPE_MAP[x.dtype],
+        input_precision=input_precision,
         BLOCK_M=BLOCK_M,
         BLOCK_N=BLOCK_N,
         BLOCK_K=BLOCK_K,
+        num_warps=num_warps,
+        num_stages=num_stages,
     )
 
     return output

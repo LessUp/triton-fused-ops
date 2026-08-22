@@ -108,6 +108,28 @@ class TestGatedMLPCorrectness:
             atol=1e-2,
         )
 
+    def test_fp32_precision_matches_fp64_reference(self):
+        """fp32 输入必须走精确 fp32 GEMM（禁止 TF32 截断）。
+
+        kernel 输出与 fp64 真值比较：TF32 路径误差 ~1e-2，精确 fp32 路径 ~1e-4。
+        """
+        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+
+        torch.manual_seed(0)
+        batch, seq, hidden, inter = 2, 32, 256, 512
+        x = torch.randn(batch, seq, hidden, device="cuda", dtype=torch.float32)
+        gw = torch.randn(inter, hidden, device="cuda", dtype=torch.float32) * 0.1
+        uw = torch.randn(inter, hidden, device="cuda", dtype=torch.float32) * 0.1
+
+        out = fused_gated_mlp(x, gw, uw, activation="silu").double()
+        x64, gw64, uw64 = x.double(), gw.double(), uw.double()
+        g = x64 @ gw64.T
+        ref = (g * torch.sigmoid(g)) * (x64 @ uw64.T)
+
+        assert torch.allclose(out, ref, rtol=1e-3, atol=1e-4), (
+            f"fp32 路径疑似使用 TF32：max|diff| = {(out - ref).abs().max().item()}"
+        )
+
 
 class TestGatedMLPActivations:
     """Unit tests for specific activation functions."""
