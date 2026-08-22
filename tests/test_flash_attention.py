@@ -43,3 +43,25 @@ def test_kernel_matches_reference_for_tail_blocks(causal: bool, seq_len: int):
     expected = reference_flash_attention(q, k, v, causal=causal)
 
     torch.testing.assert_close(actual, expected, rtol=2e-2, atol=2e-2)
+
+
+def _compiled_kernel_count(kernel):
+    total = 0
+    for caches in kernel.device_caches.values():
+        total += len(caches[0])
+    return total
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+def test_kernel_not_recompiled_per_seq_len():
+    """不同 seq_len 首次调用不应触发 kernel 重新编译（维度/stride 不能全部 constexpr）。"""
+    from triton_ops.kernels.flash_attention import _flash_attention_kernel, flash_attention
+
+    torch.manual_seed(3)
+    base = _compiled_kernel_count(_flash_attention_kernel)
+    for seq_len in (256, 128, 64):
+        q = torch.randn(1, 2, seq_len, 64, device="cuda", dtype=torch.float16)
+        k, v = torch.randn_like(q), torch.randn_like(q)
+        flash_attention(q, k, v, causal=False)
+    new_kernels = _compiled_kernel_count(_flash_attention_kernel) - base
+    assert new_kernels <= 1, f"每个 seq_len 触发重新编译：新增 {new_kernels} 个 kernel"
