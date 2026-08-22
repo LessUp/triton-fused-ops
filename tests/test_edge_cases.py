@@ -77,6 +77,14 @@ class TestDataModels:
         wrong_dtype = torch.randn(2, 16, 256, device="cuda", dtype=torch.float32)
         assert not spec.validate(wrong_dtype)
 
+    def test_tensor_spec_cpu_device_rejects_cuda(self):
+        """TensorSpec(device='cpu') 必须拒绝 CUDA 张量。"""
+        from triton_ops.models import TensorSpec
+
+        spec = TensorSpec(shape=(2, 2), dtype=torch.float32, device="cpu")
+        cuda_tensor = torch.randn(2, 2, device="cuda")
+        assert not spec.validate(cuda_tensor)
+
     def test_kernel_metrics_str(self):
         """Test KernelMetrics string representation."""
         from triton_ops.models import KernelMetrics

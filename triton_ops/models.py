@@ -59,7 +59,7 @@ class TensorSpec:
             return False
         if tensor.dtype != self.dtype:
             return False
-        if self.device == "cuda" and not tensor.is_cuda:
+        if tensor.device.type != self.device:
             return False
         if self.contiguous and not tensor.is_contiguous():
             return False
@@ -112,8 +112,8 @@ class TensorSpec:
             return False, f"shape mismatch: expected {self.shape}, got {tensor.shape}"
         if tensor.dtype != self.dtype:
             return False, f"dtype mismatch: expected {self.dtype}, got {tensor.dtype}"
-        if self.device == "cuda" and not tensor.is_cuda:
-            return False, f"device mismatch: expected cuda, got {tensor.device}"
+        if tensor.device.type != self.device:
+            return False, f"device mismatch: expected {self.device}, got {tensor.device}"
         if self.contiguous and not tensor.is_contiguous():
             return False, "tensor must be contiguous"
         return True, None

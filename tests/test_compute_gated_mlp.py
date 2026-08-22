@@ -57,6 +57,17 @@ class TestActivationFunctions:
         assert np.abs(silu_diff).max() < 2.0
         assert np.abs(gelu_diff).max() < 2.0
 
+    def test_gelu_matches_exact_erf(self):
+        """GELU CPU 参考必须与精确 erf 定义一致（对齐 Triton kernel / F.gelu）。"""
+        import math
+
+        x = np.linspace(-4, 4, 2001, dtype=np.float64)
+        erf = np.array([math.erf(v) for v in x / np.sqrt(2.0)])
+        exact = 0.5 * x * (1.0 + erf)
+
+        actual = _gelu_cpu(x.astype(np.float32))
+        np.testing.assert_allclose(actual, exact, rtol=1e-5, atol=1e-5)
+
 
 class TestReferenceGatedMLP:
     """Test Gated MLP reference implementation."""

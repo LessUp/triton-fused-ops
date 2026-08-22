@@ -24,6 +24,7 @@ Example:
 
 from __future__ import annotations
 
+import math
 from typing import Literal
 
 import numpy as np
@@ -92,9 +93,16 @@ def _silu_cpu(x: np.ndarray) -> np.ndarray:
     return x * (1.0 / (1.0 + np.exp(-x)))
 
 
+_erf = np.frompyfunc(math.erf, 1, 1)
+
+
 def _gelu_cpu(x: np.ndarray) -> np.ndarray:
-    """GELU activation using tanh approximation."""
-    return 0.5 * x * (1.0 + np.tanh(np.sqrt(2.0 / np.pi) * (x + 0.044715 * x**3)))
+    """Exact GELU via erf: x * 0.5 * (1 + erf(x / sqrt(2))).
+
+    Aligned with the Triton kernel (triton_ops/kernels/gated_mlp.py:gelu) and
+    torch.nn.functional.gelu (exact, not tanh approx).
+    """
+    return (0.5 * x * (1.0 + _erf(x / math.sqrt(2.0)))).astype(x.dtype, copy=False)
 
 
 def _gated_mlp_cpu(
