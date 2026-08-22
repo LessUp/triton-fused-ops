@@ -151,6 +151,22 @@ class TestRMSNormRoPEEdgeCases:
             "Inf should propagate through the kernel"
         )
 
+    def test_non_power_of_two_half_head_dim(self):
+        """head_dim//2 非 2 的幂（head_dim=96 → 48）时 kernel 应正常而非编译崩溃。"""
+        from triton_ops import reference_fused_rmsnorm_rope
+        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+
+        batch, seq_len, head_dim = 1, 8, 96
+        hidden = head_dim * 2
+        x = torch.randn(batch, seq_len, hidden, device="cuda", dtype=torch.float16)
+        weight = torch.randn(hidden, device="cuda", dtype=torch.float16)
+        cos = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+        sin = torch.randn(seq_len, head_dim, device="cuda", dtype=torch.float16)
+
+        out = fused_rmsnorm_rope(x, weight, cos, sin)
+        ref = reference_fused_rmsnorm_rope(x, weight, cos, sin, backend="cuda")
+        assert torch.allclose(out.float(), ref.float(), rtol=2e-2, atol=1e-2)
+
     def test_single_element(self):
         """Test with minimal dimensions."""
         from triton_ops import reference_fused_rmsnorm_rope
