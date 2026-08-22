@@ -41,7 +41,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "torch>=2.0.0",
+    "torch>=2.4.0",  # ops.py 使用 torch.library.custom_op（2.4 引入）
     "triton>=2.1.0",
     "numpy>=1.21.0",
 ]
@@ -110,7 +110,7 @@ ignore = [
 "triton_ops/autotuner/*" = ["F841"]  # Allow unused variables in autotuner
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"  # numpy 2.x stub 使用 3.12 的 type 语法
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
