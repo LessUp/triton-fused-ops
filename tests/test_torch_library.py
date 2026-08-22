@@ -85,8 +85,10 @@ def test_ops_reject_cpu_tensors():
 
 
 def test_torch_compile_smoke():
-    """torch.compile 对 sgemm op 做一次 smoke；compile 失败则记录 skip，不伪造通过。"""
+    """torch.compile 对三个公开 op 做 smoke：必须编译成功且结果正确。"""
     import triton_ops  # noqa: F401
+    from triton_ops.reference import fused_rmsnorm_rope as ref_rmsnorm_rope
+    from triton_ops.reference import gated_mlp as ref_gated_mlp
 
     torch.manual_seed(3)
 
@@ -94,13 +96,32 @@ def test_torch_compile_smoke():
     def compiled_sgemm(a, b):
         return torch.ops.triton_ops.sgemm(a, b)
 
+    @torch.compile
+    def compiled_rmsnorm_rope(x, weight, cos, sin):
+        return torch.ops.triton_ops.fused_rmsnorm_rope(x, weight, cos, sin)
+
+    @torch.compile
+    def compiled_gated_mlp(x, gate_w, up_w):
+        return torch.ops.triton_ops.fused_gated_mlp(x, gate_w, up_w, activation="silu")
+
     a = torch.randn(64, 64, device="cuda", dtype=torch.float16)
     b = torch.randn(64, 64, device="cuda", dtype=torch.float16)
+    out = compiled_sgemm(a, b)
+    assert torch.allclose(out.float(), (a @ b).float(), rtol=1e-2, atol=1e-2)
 
-    try:
-        out = compiled_sgemm(a, b)
-    except Exception as exc:  # noqa: BLE001 - smoke 测试：失败只记录 skip
-        pytest.skip(f"torch.compile smoke failed on triton_ops::sgemm: {exc}")
+    batch, seq, hidden, head_dim = 1, 8, 128, 64
+    x = torch.randn(batch, seq, hidden, device="cuda", dtype=torch.float16)
+    weight = torch.randn(hidden, device="cuda", dtype=torch.float16)
+    cos = torch.randn(seq, head_dim, device="cuda", dtype=torch.float16)
+    sin = torch.randn(seq, head_dim, device="cuda", dtype=torch.float16)
+    out_rn = compiled_rmsnorm_rope(x, weight, cos, sin)
+    ref_rn = ref_rmsnorm_rope(x, weight, cos, sin, backend="cuda")
+    assert torch.allclose(out_rn.float(), ref_rn.float(), rtol=2e-2, atol=1e-2)
 
-    ref = a @ b
-    assert torch.allclose(out.float(), ref.float(), rtol=1e-2, atol=1e-2)
+    inter = 256
+    gw = torch.randn(inter, hidden, device="cuda", dtype=torch.float16) * 0.1
+    uw = torch.randn(inter, hidden, device="cuda", dtype=torch.float16) * 0.1
+    out_gm = compiled_gated_mlp(x, gw, uw)
+    ref_gm = ref_gated_mlp(x, gw, uw, activation="silu", backend="cuda")
+    assert out_gm.shape == (batch, seq, inter)
+    assert torch.allclose(out_gm.float(), ref_gm.float(), rtol=1e-2, atol=1e-2)
