@@ -109,8 +109,7 @@ def _validate_sgemm_inputs(a: torch.Tensor, b: torch.Tensor):
             raise ValueError(f"{name} must be contiguous")
         if tensor.dtype not in SUPPORTED_SGEMM_DTYPES:
             raise UnsupportedDtypeError(
-                f"{name} has unsupported dtype {tensor.dtype}, "
-                f"supported: {SUPPORTED_SGEMM_DTYPES}",
+                f"{name} has unsupported dtype {tensor.dtype}, supported: {SUPPORTED_SGEMM_DTYPES}",
                 dtype=tensor.dtype,
                 supported_dtypes=SUPPORTED_SGEMM_DTYPES,
                 tensor_name=name,

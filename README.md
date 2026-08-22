@@ -65,12 +65,16 @@ out = torch.ops.triton_ops.fused_rmsnorm_rope(x, weight, cos, sin)
 out = torch.ops.triton_ops.fused_gated_mlp(x, gate_weight, up_weight, activation="silu")
 ```
 
-注册策略（`triton_ops/ops.py`）：
+注册策略（`triton_ops/ops.py`，需 torch>=2.4）：
 
-- 优先 `torch.library.triton_op`（torch 2.13+）：实现由 Triton kernel 构成，
-  对 `torch.compile`/`torch.export` 可见，可被进一步优化；
-- 不可用时 fallback 到 `torch.library.custom_op + register_fake`：把 op 当 opaque，
-  提供 eager 执行与 shape 推断，兼容旧版 PyTorch。
+统一使用 `torch.library.custom_op + register_fake`：`custom_op` 提供 eager 执行，
+`register_fake` 提供 shape 推断，使 op 对 `torch.compile` / `torch.export` 作为
+opaque 自定义算子可编译、可导出。
+
+> 说明：`torch.library.triton_op`（2.13+）会把实现体暴露给 Inductor，要求用
+> `torch._library.triton.wrap_triton` 注册 kernel；本仓库直接启动 Triton kernel，
+> 实测在 torch 2.13 下 triton_op 路径 torch.compile 报 “Cannot access data
+> pointer of Tensor”，故不采用。
 
 所有 op 只接受 CUDA 张量，CPU 输入直接抛 `NotImplementedError`；op 内部只调用
 `triton_ops.kernels.*` 的公开函数，不复制 kernel 逻辑。
@@ -106,13 +110,14 @@ python -m build
 
 > 环境：**RTX 3060 Laptop（`sm_86`，6144 MiB）**，驱动 591.44，CUDA 12.1
 > （torch cu121），PyTorch **2.5.1**，Triton **3.1.0**，numpy 2.4.6，commit `ebf6c32+`。
+> 当前开发环境实测为 PyTorch **2.13.0** + Triton **3.7.1**。
 > 计时：CUDA 同步墙钟，预热后取中位数。数值为稳态延迟，与参考实现差分验证
 > 通过（`rtol=1e-2, atol=1e-2`，与测试套件一致）。
 
 | 算子 | 配置 (M/batch, seq, hidden, inter) | 延迟 (ms) | 说明 |
 |------|-------------------------------------|-----------|------|
 | `fused_gated_mlp` (silu) | (1, 128, 4096, 11264) | **3.45** | 3 个 GEMM + SwiGLU |
-| `fused_gated_mlp` (gelu) | (1, 128, 4096, 11264) | **3.50** | 同上，gelu 用 tanh 近似 |
+| `fused_gated_mlp` (gelu) | (1, 128, 4096, 11264) | **3.50** | 同上，gelu 用精确 erf（与参考一致） |
 | `fused_rmsnorm_rope` | (1, 128, 4096) | **0.104** | elementwise，带宽受限 |
 | `fused_rmsnorm_rope` | (1, 512, 4096) | **0.237** | |
 | `fused_rmsnorm_rope` | (4, 128, 4096) | **0.215** | |
@@ -131,8 +136,8 @@ python -m tests.benchmarks.bench_rmsnorm_rope
 
 > 说明：`fused_gated_mlp` 的 FLOPs 为 3 个 GEMM（2×[M,K=4096,N=11264] +
 > 1×[M,K=11264,N=4096]）≈ 3.5e10，3.45ms 对应约 10 TFLOPS（RTX 3060 Laptop
-> FP16 理论峰值约 46 TFLOPS）。gelu 的 tanh 近似在个别元素上与 numpy 参考
-> 有 <1% 偏差（2/1.4M 元素超出 `rtol=1e-2, atol=1e-2`），数值正确性由
+> FP16 理论峰值约 46 TFLOPS）。gelu 使用精确 erf 定义，kernel / CUDA 参考 /
+> CPU 参考三方一致；fp32 输入路径禁用 TF32 截断。数值正确性由
 > `tests/test_gated_mlp.py` 的差分测试覆盖。
 
 ## 项目边界
