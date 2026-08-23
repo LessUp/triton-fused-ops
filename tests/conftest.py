@@ -11,43 +11,6 @@ settings.register_profile("debug", max_examples=10, verbosity=Verbosity.verbose,
 settings.load_profile("dev")
 
 
-def pytest_addoption(parser):
-    """Add custom command line options."""
-    parser.addoption(
-        "--gpu",
-        action="store_true",
-        default=False,
-        help="Run GPU tests (requires CUDA)",
-    )
-    parser.addoption(
-        "--slow",
-        action="store_true",
-        default=False,
-        help="Run slow tests",
-    )
-
-
-def pytest_configure(config):
-    """Configure custom markers."""
-    config.addinivalue_line("markers", "gpu: mark test as requiring GPU")
-    config.addinivalue_line("markers", "slow: mark test as slow")
-
-
-def pytest_collection_modifyitems(config, items):
-    """Skip tests based on markers and options."""
-    if not config.getoption("--gpu"):
-        skip_gpu = pytest.mark.skip(reason="need --gpu option to run")
-        for item in items:
-            if "gpu" in item.keywords:
-                item.add_marker(skip_gpu)
-
-    if not config.getoption("--slow"):
-        skip_slow = pytest.mark.skip(reason="need --slow option to run")
-        for item in items:
-            if "slow" in item.keywords:
-                item.add_marker(skip_slow)
-
-
 @pytest.fixture
 def device():
     """Return the device to use for tests."""

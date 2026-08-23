@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-- 面向用户的 GitHub 链接与 `pyproject.toml` 仓库地址统一为 `github.com/aicl-lab/...`
+- 面向用户的 GitHub 链接与 `pyproject.toml` 仓库地址统一为 `github.com/open-infra-ai/...`。
+- 新增 CPU GitHub Actions 门禁与手动自托管 GPU 验证工作流，覆盖 Ruff、mypy、
+  CPU 测试、Hypothesis CI profile 和包构建。
+- 将占位团队与 `example.com` 邮箱替换为公开维护者身份 `LessUp`，补充 Python
+  3.12 分类和 `build` 开发依赖。
+- 删除没有任何测试使用的 `--gpu` / `--slow` pytest 开关；GPU 用例继续通过
+  `torch.cuda.is_available()` 明确跳过。
+- README 区分源码包版本 `2.0.0` 与 GitHub 最新发布标签 `v1.0.0`，并记录
+  2026-08-23 的 CPU-only 57 passed / 66 skipped 与 GPU 123/123 结果。
 
 ## 2.0.0 - 2026-08-06
 

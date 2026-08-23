@@ -2,6 +2,11 @@
 
 > 📚 Portfolio map: https://github.com/open-infra-ai/open-infra-ai
 
+[![CI](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml)
+
+> 状态：**stable**。当前源码包版本为 `2.0.0`；GitHub 最新已发布 Release/Tag
+> 仍为 `v1.0.0`。在创建并验证 `v2.0.0` 标签前，不把源码版本描述成已发布版本。
+
 面向 AI Infra 学习的精简 Triton 算子仓库。只保留三条可以用独立参考实现验证的 Transformer 推理路径：
 
 - `fused_rmsnorm_rope`：融合 RMSNorm 与 RoPE
@@ -105,6 +110,11 @@ python -m build
 
 - CPU 可运行：NumPy/PyTorch 参考模型、标准 SwiGLU 契约、FlashAttention/SDPA 对照、输入失败路径、benchmark/autotuner 工具。
 - 必须有 CUDA：Triton kernel 与参考实现的数值差分测试；无 GPU 时明确 skip，不报告为已通过。
+
+2026-08-23 验证结果：CPU-only 模式（`CUDA_VISIBLE_DEVICES=''`）为 **57 passed /
+66 skipped**；RTX 3060 Laptop（PyTorch 2.13.0、Triton 3.7.1）为
+**123/123 passed**。CI 使用 Hypothesis `ci` profile；本地默认使用较快的 `dev`
+profile。
 
 ## 性能基准（真实 GPU 实测）
 
