@@ -6,8 +6,8 @@
 
 [![CI](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml)
 
-> 状态：**stable**。当前源码包版本为 `2.0.0`；GitHub 最新已发布 Release/Tag
-> 仍为 `v1.0.0`。在创建并验证 `v2.0.0` 标签前，不把源码版本描述成已发布版本。
+> 状态：**stable**。当前源码包与 GitHub 最新 Release/Tag 均为 `2.0.1`；
+> 新功能暂停，继续维护正确性、兼容性与可复现验证。
 
 面向 AI Infra 学习的精简 Triton 算子仓库。只保留三条可以用独立参考实现验证的 Transformer 推理路径：
 
