@@ -2,6 +2,8 @@
 
 > 📚 Portfolio map: https://github.com/open-infra-ai/open-infra-ai
 
+> **面向 Transformer 推理的可验证 Triton 融合算子与 `torch.library` 集成。**
+
 [![CI](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml)
 
 > 状态：**stable**。当前源码包版本为 `2.0.0`；GitHub 最新已发布 Release/Tag

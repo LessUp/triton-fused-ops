@@ -11,6 +11,8 @@
   `torch.cuda.is_available()` 明确跳过。
 - README 区分源码包版本 `2.0.0` 与 GitHub 最新发布标签 `v1.0.0`，并记录
   2026-08-23 的 CPU-only 57 passed / 66 skipped 与 GPU 123/123 结果。
+- README 首屏补充“Transformer 推理融合算子 + `torch.library` 集成”定位，
+  保留已建立引用的仓库名，只优化展示文案。
 
 ## 2.0.0 - 2026-08-06
 
