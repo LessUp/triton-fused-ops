@@ -15,9 +15,9 @@
 - `fused_gated_mlp`：标准 SwiGLU/GeGLU，公式为 `activation(gate_proj(x)) * up_proj(x)`
 - `flash_attention`：带在线 softmax 的 FlashAttention 前向，支持 causal mask
 
-> ℹ️ **定位**：Triton FlashAttention 是 [cuflash-attn](https://github.com/open-infra-ai/cuflash-attn)
+> ℹ️ **定位**：Triton FlashAttention 是 [cuflash](https://github.com/open-infra-ai/cuflash)
 > 的独立参考实现，用于验证 CUDA C++ 版本的正确性。完整 FlashAttention 前后向 +
-> 优化叙事见 cuflash-attn（本仓库只保留前向参考实现）。
+> 优化叙事见 cuflash（本仓库只保留前向参考实现）。
 
 仓库同时保留 NumPy/PyTorch 参考实现、输入契约、差分测试、benchmark 与 autotuner 基础设施。旧版所谓“FP8 E4M3”实际是存储在 `uint8` 中的均匀线性量化，并不编码 E4M3 指数和尾数，因此已整条删除，避免把 INT8 路径误当作 FP8 教材。
 
@@ -157,9 +157,9 @@ python -m tests.benchmarks.bench_rmsnorm_rope
 这个仓库练习 Triton kernel 与验证方法，不承担以下职责：
 
 - CUDA C++ 的系统学习路径：[`cuda-foundations`](https://github.com/open-infra-ai/cuda-foundations)
-- FlashAttention 前后向的 CUDA C++ 深挖：[`cuflash-attn`](https://github.com/open-infra-ai/cuflash-attn)
+- FlashAttention 前后向的 CUDA C++ 深挖：[`cuflash`](https://github.com/open-infra-ai/cuflash)
 - 完整模型加载与 token 生成：[`tiny-llm`](https://github.com/open-infra-ai/tiny-llm)
-- Paged KV 与 continuous batching 控制面：[`paged-infer`](https://github.com/open-infra-ai/paged-infer)
+- Paged KV 与 continuous batching 控制面：[`paged-serving`](https://github.com/open-infra-ai/paged-serving)
 
 新 kernel 只有在具备独立参考实现、边界测试和真实 GPU 验证计划时才进入主分支。未在当前硬件上测量的性能数字不会写入 README。
 

@@ -1,8 +1,8 @@
 """Triton FlashAttention 前向 kernel。
 
-> ℹ️ **定位**：本实现是 [cuflash-attn](https://github.com/open-infra-ai/cuflash-attn)
+> ℹ️ **定位**：本实现是 [cuflash](https://github.com/open-infra-ai/cuflash)
 > 的独立参考实现，用于验证 CUDA C++ 版本的正确性。完整 FlashAttention 前后向 +
-> 优化叙事见 cuflash-attn（本仓库不承担完整 FA 交付物）。
+> 优化叙事见 cuflash（本仓库不承担完整 FA 交付物）。
 """
 
 from __future__ import annotations
