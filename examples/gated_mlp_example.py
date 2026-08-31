@@ -24,7 +24,7 @@ import time
 import torch
 import torch.nn.functional as F
 
-from triton_ops import FusedGatedMLP, fused_gated_mlp
+from trifuse import FusedGatedMLP, fused_gated_mlp
 
 
 def reference_gated_mlp(

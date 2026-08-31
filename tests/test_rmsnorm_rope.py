@@ -34,8 +34,8 @@ class TestRMSNormRoPECorrectness:
         the fused RMSNorm + RoPE kernel output should be numerically equivalent to the
         sequential application of RMSNorm then RoPE.
         """
-        from triton_ops import reference_fused_rmsnorm_rope
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse import reference_fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         # Ensure hidden_dim is divisible by head_dim
         if hidden_dim % head_dim != 0:
@@ -72,8 +72,8 @@ class TestRMSNormRoPECorrectness:
         For any valid combination of sequence length (1-8192) and supported hidden
         dimensions (2048, 4096, 8192), the kernel should produce correct outputs.
         """
-        from triton_ops import reference_fused_rmsnorm_rope
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse import reference_fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size = 1
         head_dim = 64
@@ -109,7 +109,7 @@ class TestRMSNormRoPEEdgeCases:
 
         IF the input contains NaN values, THEN the kernel SHALL propagate them.
         """
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size, seq_len, hidden_dim, head_dim = 2, 16, 256, 64
 
@@ -132,7 +132,7 @@ class TestRMSNormRoPEEdgeCases:
 
         IF the input contains Inf values, THEN the kernel SHALL propagate them.
         """
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size, seq_len, hidden_dim, head_dim = 2, 16, 256, 64
 
@@ -153,8 +153,8 @@ class TestRMSNormRoPEEdgeCases:
 
     def test_non_power_of_two_half_head_dim(self):
         """head_dim//2 非 2 的幂（head_dim=96 → 48）时 kernel 应正常而非编译崩溃。"""
-        from triton_ops import reference_fused_rmsnorm_rope
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse import reference_fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch, seq_len, head_dim = 1, 8, 96
         hidden = head_dim * 2
@@ -169,8 +169,8 @@ class TestRMSNormRoPEEdgeCases:
 
     def test_single_element(self):
         """Test with minimal dimensions."""
-        from triton_ops import reference_fused_rmsnorm_rope
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse import reference_fused_rmsnorm_rope
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         batch_size, seq_len, hidden_dim, head_dim = 1, 1, 64, 64
 

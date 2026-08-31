@@ -1,35 +1,35 @@
 """面向 Transformer 推理学习的精简 Triton 算子库。"""
 
-from triton_ops.autotuner import (
+from trifuse.autotuner import (
     GATED_MLP_CONFIGS,
     RMSNORM_ROPE_CONFIGS,
     ConfigCache,
     TritonAutoTuner,
 )
-from triton_ops.benchmark import (
+from trifuse.benchmark import (
     BenchmarkSuite,
     CorrectnessVerifier,
     KernelBenchmark,
     PerformanceReport,
 )
-from triton_ops.exceptions import (
+from trifuse.exceptions import (
     DeviceError,
     ShapeMismatchError,
     TritonKernelError,
     TuningFailedError,
     UnsupportedDtypeError,
 )
-from triton_ops.models import KernelMetrics, TensorSpec, TuningResult
-from triton_ops.performance import PerformanceProfile, compute_metrics
-from triton_ops.reference import (
+from trifuse.models import KernelMetrics, TensorSpec, TuningResult
+from trifuse.performance import PerformanceProfile, compute_metrics
+from trifuse.reference import (
     flash_attention as reference_flash_attention,
 )
-from triton_ops.reference import (
+from trifuse.reference import (
     fused_rmsnorm_rope as reference_fused_rmsnorm_rope,
 )
-from triton_ops.reference import gated_mlp as reference_gated_mlp
-from triton_ops.reference import rmsnorm as reference_rmsnorm
-from triton_ops.reference import rope as reference_rope
+from trifuse.reference import gated_mlp as reference_gated_mlp
+from trifuse.reference import rmsnorm as reference_rmsnorm
+from trifuse.reference import rope as reference_rope
 
 __version__ = "2.0.0"
 
@@ -60,7 +60,7 @@ __all__ = [
 ]
 
 try:
-    from triton_ops.kernels import (
+    from trifuse.kernels import (
         FusedGatedMLP,
         FusedRMSNormRoPE,
         flash_attention,
@@ -72,7 +72,7 @@ except ModuleNotFoundError as error:
     if error.name != "triton":
         raise
 else:
-    from triton_ops import ops as _ops  # noqa: F401  # 注册 torch.ops.triton_ops.*
+    from trifuse import ops as _ops  # noqa: F401  # 注册 torch.ops.trifuse.*
 
     __all__ += [
         "fused_rmsnorm_rope",

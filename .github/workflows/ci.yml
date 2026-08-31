@@ -42,7 +42,7 @@ jobs:
         run: ruff check .
 
       - name: Type check
-        run: mypy triton_ops --ignore-missing-imports
+        run: mypy trifuse --ignore-missing-imports
 
       - name: Run CPU test layer
         env:

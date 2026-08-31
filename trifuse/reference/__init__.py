@@ -1,6 +1,6 @@
 """用于 CPU 测试和 GPU 差分测试的参考实现。"""
 
-from triton_ops.reference.base import (
+from trifuse.reference.base import (
     Backend,
     BackendDispatcher,
     ensure_numpy,
@@ -9,9 +9,9 @@ from triton_ops.reference.base import (
     to_output_dtype,
     validate_backend,
 )
-from triton_ops.reference.flash_attention import flash_attention
-from triton_ops.reference.gated_mlp import gated_mlp
-from triton_ops.reference.rmsnorm_rope import fused_rmsnorm_rope, rmsnorm, rope
+from trifuse.reference.flash_attention import flash_attention
+from trifuse.reference.gated_mlp import gated_mlp
+from trifuse.reference.rmsnorm_rope import fused_rmsnorm_rope, rmsnorm, rope
 
 __all__ = [
     "rmsnorm",

@@ -12,7 +12,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.validation import (
+from trifuse.validation import (
     validate_eps,
     validate_head_dim,
     validate_positive_dimensions,

@@ -19,7 +19,7 @@ import time
 
 import torch
 
-from triton_ops import FusedRMSNormRoPE, fused_rmsnorm_rope
+from trifuse import FusedRMSNormRoPE, fused_rmsnorm_rope
 
 
 def reference_rmsnorm(x: torch.Tensor, weight: torch.Tensor, eps: float = 1e-6):

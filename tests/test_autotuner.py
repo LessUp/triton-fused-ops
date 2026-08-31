@@ -35,7 +35,7 @@ class TestAutoTunerCacheConsistency:
         previously found an optimal configuration, retrieving the cached
         configuration should return the same configuration that was stored.
         """
-        from triton_ops.autotuner.cache import ConfigCache
+        from trifuse.autotuner.cache import ConfigCache
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = ConfigCache(cache_dir=tmpdir)
@@ -68,7 +68,7 @@ class TestAutoTunerCacheConsistency:
     @settings(max_examples=50, deadline=None)
     def test_multiple_configs(self, num_configs):
         """Test caching multiple configurations."""
-        from triton_ops.autotuner.cache import ConfigCache
+        from trifuse.autotuner.cache import ConfigCache
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = ConfigCache(cache_dir=tmpdir)
@@ -97,7 +97,7 @@ class TestAutoTunerConfigSpace:
         THE Auto_Tuning framework SHALL search over BLOCK_SIZE, num_warps,
         and num_stages parameters.
         """
-        from triton_ops.autotuner.configs import (
+        from trifuse.autotuner.configs import (
             RMSNORM_ROPE_CONFIGS,
             generate_configs,
         )
@@ -119,7 +119,7 @@ class TestAutoTunerConfigSpace:
 
     def test_default_configs(self):
         """Test default configuration retrieval."""
-        from triton_ops.autotuner.configs import get_default_config
+        from trifuse.autotuner.configs import get_default_config
 
         # Test each kernel type
         for kernel_type in ["rmsnorm_rope", "gated_mlp"]:
@@ -133,9 +133,9 @@ class TestAutoTunerIntegration:
 
     def test_tune_public_rmsnorm_rope_function(self):
         """对公开 fused_rmsnorm_rope + 仓库配置空间 tune 不应崩溃，应返回 TuningResult。"""
-        from triton_ops.autotuner.configs import RMSNORM_ROPE_CONFIGS
-        from triton_ops.autotuner.tuner import TritonAutoTuner
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse.autotuner.configs import RMSNORM_ROPE_CONFIGS
+        from trifuse.autotuner.tuner import TritonAutoTuner
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
 
         torch.manual_seed(0)
         x = torch.randn(1, 8, 128, device="cuda", dtype=torch.float16)
@@ -157,7 +157,7 @@ class TestAutoTunerIntegration:
 
     def test_tuner_basic(self):
         """Test basic tuner functionality."""
-        from triton_ops.autotuner.tuner import TritonAutoTuner
+        from trifuse.autotuner.tuner import TritonAutoTuner
 
         # Simple kernel function for testing
         def dummy_kernel(*args, BLOCK_SIZE=64, num_warps=4, **kwargs):

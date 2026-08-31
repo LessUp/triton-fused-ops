@@ -1,9 +1,9 @@
 import pytest
 import torch
 
-import triton_ops
-from triton_ops import performance, validation
-from triton_ops.exceptions import ShapeMismatchError
+import trifuse
+from trifuse import performance, validation
+from trifuse.exceptions import ShapeMismatchError
 
 
 def test_root_module_does_not_export_shallow_runtime_helpers():
@@ -22,7 +22,7 @@ def test_root_module_does_not_export_shallow_runtime_helpers():
     }
 
     for name in removed_names:
-        assert not hasattr(triton_ops, name)
+        assert not hasattr(trifuse, name)
 
 
 def test_measure_latency_synchronizes_around_benchmark_loop(monkeypatch):

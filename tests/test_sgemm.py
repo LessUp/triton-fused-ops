@@ -7,8 +7,8 @@ Validates: SGEMM correctness vs torch.mm, boundary shapes, and failure paths.
 import pytest
 import torch
 
-from triton_ops.exceptions import DeviceError, ShapeMismatchError, UnsupportedDtypeError
-from triton_ops.kernels.sgemm import sgemm
+from trifuse.exceptions import DeviceError, ShapeMismatchError, UnsupportedDtypeError
+from trifuse.kernels.sgemm import sgemm
 
 # Skip all tests if CUDA is not available
 pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")

@@ -1,10 +1,10 @@
-# Triton Fused Ops
+# TriFuse — Triton Fused Ops
 
 > 📚 Portfolio map: https://github.com/open-infra-ai/open-infra-ai
 
 > **面向 Transformer 推理的可验证 Triton 融合算子与 `torch.library` 集成。**
 
-[![CI](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/open-infra-ai/triton-fused-ops/actions/workflows/ci.yml)
+[![CI](https://github.com/open-infra-ai/trifuse/actions/workflows/ci.yml/badge.svg)](https://github.com/open-infra-ai/trifuse/actions/workflows/ci.yml)
 
 > 状态：**stable**。当前源码包与 GitHub 最新 Release/Tag 均为 `2.0.1`；
 > 新功能暂停，继续维护正确性、兼容性与可复现验证。
@@ -35,7 +35,7 @@ pip install -e '.[dev]'
 
 ```python
 import torch
-from triton_ops import flash_attention, fused_gated_mlp, fused_rmsnorm_rope
+from trifuse import flash_attention, fused_gated_mlp, fused_rmsnorm_rope
 
 x = torch.randn(2, 128, 4096, device="cuda", dtype=torch.float16)
 gate_weight = torch.randn(11008, 4096, device="cuda", dtype=torch.float16)
@@ -54,25 +54,25 @@ RMSNorm + RoPE 的完整调用示例见 [`examples/rmsnorm_rope_example.py`](exa
 
 ## torch.library 自定义算子
 
-`import triton_ops` 会把三个公开 kernel 注册进 `torch.ops.triton_ops.*` 命名空间
+`import trifuse` 会把三个公开 kernel 注册进 `torch.ops.trifuse.*` 命名空间
 （与 vLLM/SGLang 等推理框架用 `torch.library` 注册自定义 op 的方式一致，便于接入
 `torch.compile` / `torch.export` 图）：
 
 ```python
 import torch
-import triton_ops  # 触发注册
+import trifuse  # 触发注册
 
-# triton_ops::sgemm(Tensor a, Tensor b) -> Tensor
-c = torch.ops.triton_ops.sgemm(a, b)
+# trifuse::sgemm(Tensor a, Tensor b) -> Tensor
+c = torch.ops.trifuse.sgemm(a, b)
 
-# triton_ops::fused_rmsnorm_rope(Tensor x, Tensor weight, Tensor cos, Tensor sin, float eps) -> Tensor
-out = torch.ops.triton_ops.fused_rmsnorm_rope(x, weight, cos, sin)
+# trifuse::fused_rmsnorm_rope(Tensor x, Tensor weight, Tensor cos, Tensor sin, float eps) -> Tensor
+out = torch.ops.trifuse.fused_rmsnorm_rope(x, weight, cos, sin)
 
-# triton_ops::fused_gated_mlp(Tensor x, Tensor gate_weight, Tensor up_weight, str activation) -> Tensor
-out = torch.ops.triton_ops.fused_gated_mlp(x, gate_weight, up_weight, activation="silu")
+# trifuse::fused_gated_mlp(Tensor x, Tensor gate_weight, Tensor up_weight, str activation) -> Tensor
+out = torch.ops.trifuse.fused_gated_mlp(x, gate_weight, up_weight, activation="silu")
 ```
 
-注册策略（`triton_ops/ops.py`，需 torch>=2.4）：
+注册策略（`trifuse/ops.py`，需 torch>=2.4）：
 
 统一使用 `torch.library.custom_op + register_fake`：`custom_op` 提供 eager 执行，
 `register_fake` 提供 shape 推断，使 op 对 `torch.compile` / `torch.export` 作为
@@ -84,7 +84,7 @@ opaque 自定义算子可编译、可导出。
 > pointer of Tensor”，故不采用。
 
 所有 op 只接受 CUDA 张量，CPU 输入直接抛 `NotImplementedError`；op 内部只调用
-`triton_ops.kernels.*` 的公开函数，不复制 kernel 逻辑。
+`trifuse.kernels.*` 的公开函数，不复制 kernel 逻辑。
 
 ### 与 vLLM / SGLang custom op 的对应关系
 
@@ -94,8 +94,8 @@ opaque 自定义算子可编译、可导出。
   （如 `vllm::attention.forward`），并用 `torch.library.register_fake` 提供 meta 实现；
 - SGLang 通过 `torch.library` 暴露 `sglang::*` 算子，同样以 `register_fake` 支持
   torch.compile / 图捕获；
-- 本仓库用同一模式：`triton_ops::sgemm` / `triton_ops::fused_rmsnorm_rope` /
-  `triton_ops::fused_gated_mlp`。差别仅在实现层：vLLM/SGLang 的生产 kernel 走
+- 本仓库用同一模式：`trifuse::sgemm` / `trifuse::fused_rmsnorm_rope` /
+  `trifuse::fused_gated_mlp`。差别仅在实现层：vLLM/SGLang 的生产 kernel 走
   FlashInfer/CUDA Graph 等，这里用 Triton kernel 做最小可验证实现。
 
 ## 验证
@@ -103,7 +103,7 @@ opaque 自定义算子可编译、可导出。
 ```bash
 ruff format --check .
 ruff check .
-mypy triton_ops --ignore-missing-imports
+mypy trifuse --ignore-missing-imports
 pytest -q
 python -m build
 ```
@@ -142,7 +142,7 @@ profile。
 python -m tests.benchmarks.bench_gated_mlp
 python -m tests.benchmarks.bench_rmsnorm_rope
 # 或用 BenchmarkSuite 定制配置：
-#   from triton_ops.benchmark import BenchmarkSuite
+#   from trifuse.benchmark import BenchmarkSuite
 #   BenchmarkSuite(warmup_runs=3, benchmark_runs=20).benchmark_gated_mlp(...)
 ```
 

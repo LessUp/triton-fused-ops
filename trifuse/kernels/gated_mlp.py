@@ -13,7 +13,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.validation import (
+from trifuse.validation import (
     ACTIVATION_GELU,
     ACTIVATION_SILU,
     VALID_ACTIVATIONS,

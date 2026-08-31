@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from triton_ops.reference import rmsnorm
+from trifuse.reference import rmsnorm
 
 
 class TestReferenceRMSNorm:

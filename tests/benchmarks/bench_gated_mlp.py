@@ -3,7 +3,7 @@
 Run with: python -m tests.benchmarks.bench_gated_mlp
 """
 
-from triton_ops.benchmark import BenchmarkSuite
+from trifuse.benchmark import BenchmarkSuite
 
 
 def main():

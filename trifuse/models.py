@@ -136,7 +136,7 @@ class TensorSpec:
             >>> t = torch.randn(4, 32, device="cuda", dtype=torch.float16)
             >>> spec.validate_and_raise(t, "x")  # Raises ShapeMismatchError
         """
-        from triton_ops.exceptions import DeviceError, ShapeMismatchError, UnsupportedDtypeError
+        from trifuse.exceptions import DeviceError, ShapeMismatchError, UnsupportedDtypeError
 
         is_valid, error = self.validate_tensor(tensor)
         if not is_valid and error is not None:

@@ -31,7 +31,7 @@ class TestBenchmarkCorrectnessVerification:
         suite's correctness verification should correctly identify matching results
         (within tolerance) as correct.
         """
-        from triton_ops.benchmark.correctness import CorrectnessVerifier
+        from trifuse.benchmark.correctness import CorrectnessVerifier
 
         # FP16 数据下 rtol=1e-3/atol=1e-5 过紧（FP16 ULP 即可超过），用 FP16 合理容差
         verifier = CorrectnessVerifier(rtol=1e-2, atol=1e-3)
@@ -59,7 +59,7 @@ class TestBenchmarkCorrectnessVerification:
         The benchmark suite's correctness verification should correctly identify
         non-matching results (outside tolerance) as incorrect.
         """
-        from triton_ops.benchmark.correctness import CorrectnessVerifier
+        from trifuse.benchmark.correctness import CorrectnessVerifier
 
         verifier = CorrectnessVerifier(rtol=1e-3, atol=1e-5)
 
@@ -78,7 +78,7 @@ class TestNaNInfVerification:
 
     def test_nan_propagation_verification(self):
         """Test NaN propagation verification."""
-        from triton_ops.benchmark.correctness import verify_nan_inf_propagation
+        from trifuse.benchmark.correctness import verify_nan_inf_propagation
 
         # Output with NaN when input had NaN
         output_with_nan = torch.tensor([1.0, float("nan"), 3.0], device="cuda")
@@ -96,7 +96,7 @@ class TestNaNInfVerification:
 
     def test_inf_propagation_verification(self):
         """Test Inf propagation verification."""
-        from triton_ops.benchmark.correctness import verify_nan_inf_propagation
+        from trifuse.benchmark.correctness import verify_nan_inf_propagation
 
         # Output with Inf when input had Inf
         output_with_inf = torch.tensor([1.0, float("inf"), 3.0], device="cuda")
@@ -111,7 +111,7 @@ class TestBenchmarkSuiteIntegration:
 
     def test_benchmark_suite_basic(self):
         """Test basic benchmark suite functionality."""
-        from triton_ops.benchmark.suite import BenchmarkSuite
+        from trifuse.benchmark.suite import BenchmarkSuite
 
         suite = BenchmarkSuite(warmup_runs=2, benchmark_runs=5)
 
@@ -137,7 +137,7 @@ class TestBenchmarkSuiteIntegration:
 
     def test_report_generation(self):
         """Test report generation."""
-        from triton_ops.benchmark.suite import BenchmarkSuite
+        from trifuse.benchmark.suite import BenchmarkSuite
 
         suite = BenchmarkSuite(warmup_runs=2, benchmark_runs=5)
 

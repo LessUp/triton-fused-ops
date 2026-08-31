@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from triton_ops.reference import gated_mlp
-from triton_ops.reference.gated_mlp import _gelu_cpu, _silu_cpu
+from trifuse.reference import gated_mlp
+from trifuse.reference.gated_mlp import _gelu_cpu, _silu_cpu
 
 
 class TestActivationFunctions:

@@ -11,7 +11,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.validation import validate_flash_attention_inputs
+from trifuse.validation import validate_flash_attention_inputs
 
 
 @triton.jit

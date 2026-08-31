@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List
 
-from triton_ops.models import KernelMetrics
+from trifuse.models import KernelMetrics
 
 
 @dataclass

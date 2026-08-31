@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 import torch
 
-from triton_ops.exceptions import (
+from trifuse.exceptions import (
     DeviceError,
     ShapeMismatchError,
     UnsupportedDtypeError,

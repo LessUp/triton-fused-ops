@@ -1,11 +1,11 @@
 """torch.library 自定义算子注册。
 
-把 `triton_ops.kernels.*` 的公开函数注册进 `torch.ops.triton_ops.*` 命名空间，
+把 `trifuse.kernels.*` 的公开函数注册进 `torch.ops.trifuse.*` 命名空间，
 与 vLLM/SGLang 等推理框架用 `torch.library` 注册自定义 op 的方式一致：
 
-- `triton_ops::sgemm(a, b) -> Tensor`
-- `triton_ops::fused_rmsnorm_rope(x, weight, cos, sin, eps=1e-6) -> Tensor`
-- `triton_ops::fused_gated_mlp(x, gate_weight, up_weight, activation="silu") -> Tensor`
+- `trifuse::sgemm(a, b) -> Tensor`
+- `trifuse::fused_rmsnorm_rope(x, weight, cos, sin, eps=1e-6) -> Tensor`
+- `trifuse::fused_gated_mlp(x, gate_weight, up_weight, activation="silu") -> Tensor`
 
 注册策略：统一用 `torch.library.custom_op + register_fake`（torch>=2.4）：
 - `custom_op` 提供 eager 执行；
@@ -18,14 +18,14 @@
 `torch._library.triton.wrap_triton` 注册（本仓库不承担该集成），故退回 opaque 方案。
 
 所有 op 只接受 CUDA 张量；CPU 输入直接抛 `NotImplementedError` 并写明原因。
-op 内部只调用 `triton_ops.kernels.*` 的公开函数，不复制 kernel 逻辑。
+op 内部只调用 `trifuse.kernels.*` 的公开函数，不复制 kernel 逻辑。
 """
 
 import torch
 
-from triton_ops.kernels.gated_mlp import fused_gated_mlp
-from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
-from triton_ops.kernels.sgemm import sgemm
+from trifuse.kernels.gated_mlp import fused_gated_mlp
+from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
+from trifuse.kernels.sgemm import sgemm
 
 
 def _check_cuda(*tensors: torch.Tensor) -> None:
@@ -33,12 +33,12 @@ def _check_cuda(*tensors: torch.Tensor) -> None:
     for tensor in tensors:
         if not tensor.is_cuda:
             raise NotImplementedError(
-                f"triton_ops custom op only supports CUDA tensors, got {tensor.device}"
+                f"trifuse custom op only supports CUDA tensors, got {tensor.device}"
             )
 
 
 # ---------------------------------------------------------------------------
-# eager 实现：只调用 triton_ops.kernels.* 的公开函数
+# eager 实现：只调用 trifuse.kernels.* 的公开函数
 # ---------------------------------------------------------------------------
 
 
@@ -118,14 +118,14 @@ def _register(
     return op
 
 
-_register("triton_ops::sgemm", _sgemm_impl, _fake_sgemm)
+_register("trifuse::sgemm", _sgemm_impl, _fake_sgemm)
 _register(
-    "triton_ops::fused_rmsnorm_rope",
+    "trifuse::fused_rmsnorm_rope",
     _fused_rmsnorm_rope_impl,
     _fake_fused_rmsnorm_rope,
 )
 _register(
-    "triton_ops::fused_gated_mlp",
+    "trifuse::fused_gated_mlp",
     _fused_gated_mlp_impl,
     _fake_fused_gated_mlp,
 )

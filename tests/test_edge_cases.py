@@ -16,8 +16,8 @@ class TestValidationErrors:
 
     def test_rmsnorm_rope_shape_mismatch(self):
         """Test that shape mismatches raise appropriate errors."""
-        from triton_ops.exceptions import ShapeMismatchError
-        from triton_ops.validation import validate_rmsnorm_rope_inputs
+        from trifuse.exceptions import ShapeMismatchError
+        from trifuse.validation import validate_rmsnorm_rope_inputs
 
         x = torch.randn(2, 16, 256, device="cuda", dtype=torch.float16)
         weight = torch.randn(128, device="cuda", dtype=torch.float16)  # Wrong size
@@ -29,8 +29,8 @@ class TestValidationErrors:
 
     def test_rmsnorm_rope_wrong_dtype(self):
         """Test that unsupported dtypes raise appropriate errors."""
-        from triton_ops.exceptions import UnsupportedDtypeError
-        from triton_ops.validation import validate_rmsnorm_rope_inputs
+        from trifuse.exceptions import UnsupportedDtypeError
+        from trifuse.validation import validate_rmsnorm_rope_inputs
 
         x = torch.randn(2, 16, 256, device="cuda").to(torch.int32)  # Wrong dtype
         weight = torch.randn(256, device="cuda", dtype=torch.float16)
@@ -42,7 +42,7 @@ class TestValidationErrors:
 
     def test_gated_mlp_invalid_activation(self):
         """Test that invalid activation raises error."""
-        from triton_ops.validation import validate_gated_mlp_inputs
+        from trifuse.validation import validate_gated_mlp_inputs
 
         x = torch.randn(2, 16, 256, device="cuda", dtype=torch.float16)
         gate_w = torch.randn(512, 256, device="cuda", dtype=torch.float16)
@@ -57,7 +57,7 @@ class TestDataModels:
 
     def test_tensor_spec_validation(self):
         """Test TensorSpec validation."""
-        from triton_ops.models import TensorSpec
+        from trifuse.models import TensorSpec
 
         spec = TensorSpec(
             shape=(2, 16, 256),
@@ -79,7 +79,7 @@ class TestDataModels:
 
     def test_tensor_spec_cpu_device_rejects_cuda(self):
         """TensorSpec(device='cpu') 必须拒绝 CUDA 张量。"""
-        from triton_ops.models import TensorSpec
+        from trifuse.models import TensorSpec
 
         spec = TensorSpec(shape=(2, 2), dtype=torch.float32, device="cpu")
         cuda_tensor = torch.randn(2, 2, device="cuda")
@@ -87,7 +87,7 @@ class TestDataModels:
 
     def test_kernel_metrics_str(self):
         """Test KernelMetrics string representation."""
-        from triton_ops.models import KernelMetrics
+        from trifuse.models import KernelMetrics
 
         metrics = KernelMetrics(
             latency_ms=1.5,
@@ -108,7 +108,7 @@ class TestExceptionAttributes:
 
     def test_shape_mismatch_error_attributes(self):
         """Test ShapeMismatchError attributes."""
-        from triton_ops.exceptions import ShapeMismatchError
+        from trifuse.exceptions import ShapeMismatchError
 
         error = ShapeMismatchError(
             "Shape mismatch",
@@ -127,7 +127,7 @@ class TestModuleWrappers:
 
     def test_fused_rmsnorm_rope_module(self):
         """Test FusedRMSNormRoPE module."""
-        from triton_ops.kernels.rmsnorm_rope import FusedRMSNormRoPE
+        from trifuse.kernels.rmsnorm_rope import FusedRMSNormRoPE
 
         hidden_dim = 256
         head_dim = 64
@@ -150,7 +150,7 @@ class TestModuleWrappers:
 
     def test_fused_gated_mlp_module(self):
         """Test FusedGatedMLP module."""
-        from triton_ops.kernels.gated_mlp import FusedGatedMLP
+        from trifuse.kernels.gated_mlp import FusedGatedMLP
 
         hidden_dim = 256
         intermediate_dim = 512

@@ -16,7 +16,7 @@ import torch
 import triton
 import triton.language as tl
 
-from triton_ops.exceptions import (
+from trifuse.exceptions import (
     DeviceError,
     ShapeMismatchError,
     UnsupportedDtypeError,

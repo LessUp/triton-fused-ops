@@ -5,10 +5,10 @@ from typing import Any, Callable, Dict, List, Literal, Tuple
 
 import torch
 
-from triton_ops import performance as perf_module
-from triton_ops.benchmark.correctness import CorrectnessVerifier
-from triton_ops.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
-from triton_ops.performance import PerformanceProfile, measure_metrics
+from trifuse import performance as perf_module
+from trifuse.benchmark.correctness import CorrectnessVerifier
+from trifuse.benchmark.report import BenchmarkResult, ComparisonResult, PerformanceReport
+from trifuse.performance import PerformanceProfile, measure_metrics
 
 
 class KernelBenchmark(ABC):
@@ -282,8 +282,8 @@ class BenchmarkSuite:
         Returns:
             List of benchmark results
         """
-        from triton_ops.kernels.rmsnorm_rope import fused_rmsnorm_rope
-        from triton_ops.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference
+        from trifuse.kernels.rmsnorm_rope import fused_rmsnorm_rope
+        from trifuse.reference import fused_rmsnorm_rope as fused_rmsnorm_rope_reference
 
         results = []
 
@@ -335,8 +335,8 @@ class BenchmarkSuite:
         """
         if activations is None:
             activations = ["silu"]
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
-        from triton_ops.reference import gated_mlp as gated_mlp_reference
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
+        from trifuse.reference import gated_mlp as gated_mlp_reference
 
         results = []
 

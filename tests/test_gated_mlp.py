@@ -37,8 +37,8 @@ class TestGatedMLPCorrectness:
         the fused Gated MLP kernel output should be numerically equivalent to:
         output = gate_proj(x) * activation(up_proj(x))
         """
-        from triton_ops import reference_gated_mlp
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from trifuse import reference_gated_mlp
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
 
         # Create inputs
         x = torch.randn(batch_size, seq_len, hidden_dim, device="cuda", dtype=torch.float16)
@@ -78,8 +78,8 @@ class TestGatedMLPCorrectness:
         For any valid batch size (1-64) and supported intermediate dimensions,
         the kernel should produce correct outputs.
         """
-        from triton_ops import reference_gated_mlp
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from trifuse import reference_gated_mlp
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
 
         seq_len = 16
         hidden_dim = 4096
@@ -113,7 +113,7 @@ class TestGatedMLPCorrectness:
 
         kernel 输出与 fp64 真值比较：TF32 路径误差 ~1e-2，精确 fp32 路径 ~1e-4。
         """
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
 
         torch.manual_seed(0)
         batch, seq, hidden, inter = 2, 32, 256, 512
@@ -140,8 +140,8 @@ class TestGatedMLPActivations:
 
         THE Fused_Operator SHALL support SiLU (Swish) activation function.
         """
-        from triton_ops import reference_gated_mlp
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from trifuse import reference_gated_mlp
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
 
         batch_size, seq_len, hidden_dim, intermediate_dim = 2, 32, 512, 1024
 
@@ -164,8 +164,8 @@ class TestGatedMLPActivations:
 
         THE Fused_Operator SHALL support GELU activation function.
         """
-        from triton_ops import reference_gated_mlp
-        from triton_ops.kernels.gated_mlp import fused_gated_mlp
+        from trifuse import reference_gated_mlp
+        from trifuse.kernels.gated_mlp import fused_gated_mlp
 
         batch_size, seq_len, hidden_dim, intermediate_dim = 2, 32, 512, 1024
 

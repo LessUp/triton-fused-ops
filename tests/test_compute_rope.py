@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from triton_ops.reference import rope
-from triton_ops.reference.rmsnorm_rope import compute_rope_frequencies
+from trifuse.reference import rope
+from trifuse.reference.rmsnorm_rope import compute_rope_frequencies
 
 
 class TestReferenceRoPE:

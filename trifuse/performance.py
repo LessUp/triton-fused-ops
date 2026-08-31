@@ -18,7 +18,7 @@ from typing import Callable
 
 import torch
 
-from triton_ops.models import KernelMetrics
+from trifuse.models import KernelMetrics
 
 MIN_LATENCY_MS: float = 1e-9
 
@@ -228,7 +228,7 @@ def compute_metrics(
         KernelMetrics with computed values
 
     Example:
-        >>> from triton_ops.performance import compute_metrics, gemm
+        >>> from trifuse.performance import compute_metrics, gemm
         >>> metrics = compute_metrics(0.45)  # latency-only
         >>> metrics = compute_metrics(0.45, profile=gemm(M=1024, N=4096, K=4096))
     """

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Breaking**：项目全面更名为 **TriFuse**（`triton-fused-ops` → `trifuse`）：
+  - Python 包名与 import 名：`triton_ops` → `trifuse`（`import trifuse`）；
+  - `torch.library` op 命名空间：`torch.ops.triton_ops.*` → `torch.ops.trifuse.*`
+    （`trifuse::sgemm` / `trifuse::fused_rmsnorm_rope` / `trifuse::fused_gated_mlp`）；
+  - 源码目录 `triton_ops/` → `trifuse/`，构建产物名 `triton_fused_ops-*` → `trifuse-*`；
+  - GitHub 仓库与链接统一为 `github.com/open-infra-ai/trifuse`（旧链接由 GitHub 自动 301 重定向）。
+  - 历史版本（v2.0.1 及更早）的行为与产物名保持不变。
+
 ## 2.0.1 - 2026-08-23
 
 - 面向用户的 GitHub 链接与 `pyproject.toml` 仓库地址统一为 `github.com/open-infra-ai/...`。

@@ -10,7 +10,7 @@ Where activation is either SiLU (SwiGLU) or GELU (GeGLU).
 Both CPU (NumPy) and GPU (PyTorch) backends are supported.
 
 Example:
-    >>> from triton_ops.reference import gated_mlp
+    >>> from trifuse.reference import gated_mlp
     >>> import numpy as np
     >>>
     >>> # CPU testing
@@ -30,7 +30,7 @@ from typing import Literal
 import numpy as np
 import torch
 
-from triton_ops.reference.base import (
+from trifuse.reference.base import (
     Backend,
     ensure_numpy,
     ensure_torch,
@@ -99,7 +99,7 @@ _erf = np.frompyfunc(math.erf, 1, 1)
 def _gelu_cpu(x: np.ndarray) -> np.ndarray:
     """Exact GELU via erf: x * 0.5 * (1 + erf(x / sqrt(2))).
 
-    Aligned with the Triton kernel (triton_ops/kernels/gated_mlp.py:gelu) and
+    Aligned with the Triton kernel (trifuse/kernels/gated_mlp.py:gelu) and
     torch.nn.functional.gelu (exact, not tanh approx).
     """
     return (0.5 * x * (1.0 + _erf(x / math.sqrt(2.0)))).astype(x.dtype, copy=False)

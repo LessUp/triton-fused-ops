@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "triton-fused-ops"
+name = "trifuse"
 version = "2.0.1"
 description = "Small, verifiable Triton kernels for Transformer inference"
 readme = "README.md"
@@ -48,10 +48,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/open-infra-ai/triton-fused-ops"
-Repository = "https://github.com/open-infra-ai/triton-fused-ops.git"
-Issues = "https://github.com/open-infra-ai/triton-fused-ops/issues"
-Changelog = "https://github.com/open-infra-ai/triton-fused-ops/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/open-infra-ai/trifuse"
+Repository = "https://github.com/open-infra-ai/trifuse.git"
+Issues = "https://github.com/open-infra-ai/trifuse/issues"
+Changelog = "https://github.com/open-infra-ai/trifuse/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -66,7 +66,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["triton_ops*"]
+include = ["trifuse*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -78,10 +78,10 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["triton_ops"]
+source = ["trifuse"]
 branch = true
 omit = [
-    "triton_ops/__init__.py",
+    "trifuse/__init__.py",
     "tests/*",
 ]
 
@@ -108,8 +108,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "examples/*" = ["F841"]  # Allow unused variables in examples
-"triton_ops/kernels/*" = ["F841"]  # Allow unused variables in kernels (may be used for debugging)
-"triton_ops/autotuner/*" = ["F841"]  # Allow unused variables in autotuner
+"trifuse/kernels/*" = ["F841"]  # Allow unused variables in kernels (may be used for debugging)
+"trifuse/autotuner/*" = ["F841"]  # Allow unused variables in autotuner
 
 [tool.mypy]
 python_version = "3.12"  # numpy 2.x stub 使用 3.12 的 type 语法
@@ -122,6 +122,6 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 # numpy pure-compute reference implementations return untyped ndarray operations
-module = "triton_ops.reference.*"
+module = "trifuse.reference.*"
 warn_return_any = false
 warn_unused_ignores = false

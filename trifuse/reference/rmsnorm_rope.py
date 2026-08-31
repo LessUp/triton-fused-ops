@@ -8,7 +8,7 @@ This module provides unified reference implementations for:
 Both CPU (NumPy) and GPU (PyTorch) backends are supported.
 
 Example:
-    >>> from triton_ops.reference import rmsnorm, rope, fused_rmsnorm_rope
+    >>> from trifuse.reference import rmsnorm, rope, fused_rmsnorm_rope
     >>> import numpy as np
     >>>
     >>> # CPU testing
@@ -27,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from triton_ops.reference.base import (
+from trifuse.reference.base import (
     Backend,
     ensure_numpy,
     ensure_torch,

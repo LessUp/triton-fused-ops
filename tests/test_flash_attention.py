@@ -1,9 +1,9 @@
 import pytest
 import torch
 
-from triton_ops import reference_flash_attention
-from triton_ops.exceptions import ShapeMismatchError
-from triton_ops.validation import validate_flash_attention_inputs
+from trifuse import reference_flash_attention
+from trifuse.exceptions import ShapeMismatchError
+from trifuse.validation import validate_flash_attention_inputs
 
 
 @pytest.mark.parametrize("causal", [False, True])
@@ -32,7 +32,7 @@ def test_validation_rejects_shape_mismatch_before_device_check():
 @pytest.mark.parametrize("causal", [False, True])
 @pytest.mark.parametrize("seq_len", [11, 65])
 def test_kernel_matches_reference_for_tail_blocks(causal: bool, seq_len: int):
-    from triton_ops.kernels.flash_attention import flash_attention
+    from trifuse.kernels.flash_attention import flash_attention
 
     torch.manual_seed(11)
     q = torch.randn(2, 3, seq_len, 16, device="cuda", dtype=torch.float16)
@@ -55,7 +55,7 @@ def _compiled_kernel_count(kernel):
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_kernel_not_recompiled_per_seq_len():
     """不同 seq_len 首次调用不应触发 kernel 重新编译（维度/stride 不能全部 constexpr）。"""
-    from triton_ops.kernels.flash_attention import _flash_attention_kernel, flash_attention
+    from trifuse.kernels.flash_attention import _flash_attention_kernel, flash_attention
 
     torch.manual_seed(3)
     base = _compiled_kernel_count(_flash_attention_kernel)

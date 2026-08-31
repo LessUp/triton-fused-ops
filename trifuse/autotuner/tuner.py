@@ -2,11 +2,11 @@
 
 from typing import Any, Callable, Dict, List, Tuple
 
-from triton_ops.autotuner.cache import ConfigCache
-from triton_ops.autotuner.configs import generate_configs
-from triton_ops.exceptions import TuningFailedError
-from triton_ops.models import KernelMetrics, TuningResult
-from triton_ops.performance import PerformanceProfile, measure_metrics
+from trifuse.autotuner.cache import ConfigCache
+from trifuse.autotuner.configs import generate_configs
+from trifuse.exceptions import TuningFailedError
+from trifuse.models import KernelMetrics, TuningResult
+from trifuse.performance import PerformanceProfile, measure_metrics
 
 
 class TritonAutoTuner:
